@@ -37,6 +37,7 @@ class Abono_alumno extends MY_Controller {
 			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
 		}
 		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $mes);
+		$cupos_sum_escuela_mes = $this->abono_alumno_model->get_suma_cupos_mes($escuela_id, $mes);
 		$cantidad_alumnos_espera = $this->abono_alumno_model->get_cantidad_alumnos_espera($escuela_id, $mes);
 		$tableData = array(
 			'columns' => array(
@@ -54,13 +55,17 @@ class Abono_alumno extends MY_Controller {
 			'source_url' => 'abono/abono_alumno/listar_data/' . $escuela_id . '/' . 0 . '/' . $mes
 		);
 		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$cupos_total_escuela = $monto_escuela_mes->cupo_alumnos - $cupos_sum_escuela_mes->cupos_escuela_ames;
 
 		if ($monto_total_escuela == 0 && $cantidad_alumnos_espera->cantidad >= 5) {
 			$this->session->set_flashdata('warning', "No pueden cargarse mas de 5 alumnos en espera");
 		}
-		$data['monto_total_escuela'] = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		
+		$data['cupos_total_escuela'] = $cupos_total_escuela;
+		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;
 		$data['division_id'] = 0;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['escuela_mes'] = $escuela_mes;
 		$data['mes_id'] = $mes;
 		$data['mes'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
@@ -488,7 +493,7 @@ class Abono_alumno extends MY_Controller {
 			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
 		}
 		$this->load->model('escuela_model');
-		$escuela = $this->escuela_model->get(array('id' => $escuela_id));
+		$escuela = $this->escuela_model->get_one($escuela_id);
 		if (empty($escuela)) {
 			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
 		}

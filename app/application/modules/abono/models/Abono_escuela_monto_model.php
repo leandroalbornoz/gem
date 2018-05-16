@@ -26,8 +26,9 @@ class Abono_escuela_monto_model extends MY_Model {
 	}
 
 public function get_escuela_mes($escuela_id, $ames) {
-		return $this->db->select('monto,ames,escuela_id')
+		return $this->db->select('monto,ames,escuela_id,abono_escuela_estado_id,cupo_alumnos,aee.descripcion as esabono_escuela_estado')
 				->from('abono_escuela_monto aem')
+				->join('abono_escuela_estado aee','aee.id = aem.abono_escuela_estado_id')
 				->where('aem.escuela_id', $escuela_id)
 				->where('aem.ames', $ames)
 				->get()->row();

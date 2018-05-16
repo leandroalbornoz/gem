@@ -12,7 +12,7 @@
     height: 55px;
     width: 70px;
     text-align: center;
-    font-size: 45px;
+    font-size: 35px;
     line-height: 52px;
 		color: white;
     background: rgb(60, 141, 188);
@@ -21,11 +21,13 @@
     display: block;
 		min-height: 0px; 
     background: #fff;
-    width: 20%;
+    width: 21%;
     height: 55px;
     box-shadow: 0 1px 1px rgba(0,0,0,0.1);
     border-radius: 6px;
     margin-bottom: 15px;
+		padding: 3px 3px 3px 3px; 
+
 	}
 </style>
 <div class="content-wrapper">
@@ -77,17 +79,31 @@
 						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="abono/abono_alumno/listar/<?php echo $escuela->id . "/" . $mes_id; ?>">
 							<i class="fa fa-bus"></i> Abonos
 						</a>
-						<a class="btn bg-green btn-app btn-app-zetta pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_buscar/<?php echo $escuela->id; ?>/<?php echo $mes_id; ?>/<?php echo $division_id; ?>" id="btn_agregar_a">
-							<i class="fa fa-money" id="btn-agregar"></i> Agregar
-						</a>
-						<div class="info-box" style="float: right;">
-							<span class="info-box-icon"><i class="fa fa-dollar"></i></span>
+						<?php if ($monto_escuela_mes->abono_escuela_estado_id == 2): ?>
+							<a class="btn bg-green btn-app btn-app-zetta pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_buscar/<?php echo $escuela->id; ?>/<?php echo $mes_id; ?>/<?php echo $division_id; ?>" id="btn_agregar_a">
+								<i class="fa fa-child" id="btn-agregar"></i> Agregar
+							</a>
+							<div class="info-box" style="float: right;">
+								<span class="info-box-icon"><i class="fa fa-users"></i></span>
 
-							<div class="info-box-content" style="margin-left: 75px;">
-								<span class="info-box-text">Monto Restante</span>
-								<span class="info-box-number text-success"><?php echo $monto_total_escuela; ?></span>
+								<div class="info-box-content" style="margin-left: 75px;">
+									<span class="info-box-text">Cupos Restantes</span>
+									<span class="info-box-number text-success"><?php echo $cupos_total_escuela; ?></span>
+								</div>
 							</div>
-						</div>
+						<?php else: ?>
+							<a class="btn bg-green btn-app btn-app-zetta pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_buscar/<?php echo $escuela->id; ?>/<?php echo $mes_id; ?>/<?php echo $division_id; ?>" id="btn_agregar_a">
+								<i class="fa fa-money" id="btn-agregar"></i> Agregar
+							</a>
+							<div class="info-box" style="float: right;">
+								<span class="info-box-icon"><i class="fa fa-dollar"></i></span>
+
+								<div class="info-box-content" style="margin-left: 75px;">
+									<span class="info-box-text">Monto Restante</span>
+									<span class="info-box-number text-success"><?php echo $monto_total_escuela; ?></span>
+								</div>
+							</div>
+						<?php endif; ?>
 						<?php if ($escuela_mes) : ?>
 							<a class="btn bg-blue btn-app btn-app-zetta" href="abono/abono_alumno/listar_anteriores/<?php echo $escuela->id; ?>/<?php echo $mes_id; ?>">
 								<i class="fa fa-plus" id="btn-agregar"></i> Mes anterior

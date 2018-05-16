@@ -89,7 +89,7 @@ class Abono_escuela_monto extends MY_Controller {
 					'abono_escuela_estado_id' => $this->input->post('abono_escuela_estado'),
 					'monto' => $monto,
 					'cupo_alumnos' => $cupo_alumnos
-					));
+				));
 				if ($trans_ok) {
 					$this->session->set_flashdata('message', $this->abono_escuela_monto_model->get_msg());
 				} else {
@@ -141,15 +141,18 @@ class Abono_escuela_monto extends MY_Controller {
 				$trans_ok = TRUE;
 				if ($this->input->post('abono_escuela_estado') == 2) {
 					$monto = '0';
+					$cupo_alumnos = $this->input->post('cupo_alumnos');
 				} else {
 					$monto = $this->input->post('monto');
+					$cupo_alumnos = '0';
 				}
 				$trans_ok&= $this->abono_escuela_monto_model->update(array(
 					'id' => $this->input->post('id'),
 					'escuela_id' => $this->input->post('escuela'),
 					'ames' => $this->input->post('ames'),
 					'abono_escuela_estado_id' => $this->input->post('abono_escuela_estado'),
-					'monto' => $monto));
+					'monto' => $monto,
+					'cupo_alumnos' => $cupo_alumnos));
 				if ($trans_ok) {
 					$this->session->set_flashdata('message', $this->abono_escuela_monto_model->get_msg());
 					redirect('abono/abono_escuela_monto/listar', 'refresh');
