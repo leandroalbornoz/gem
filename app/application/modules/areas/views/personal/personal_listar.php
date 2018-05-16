@@ -1,0 +1,182 @@
+<style>
+	td.details-control {
+    background: url('img/details_open.png') no-repeat center center;
+    cursor: pointer;
+	}
+	tr.shown td.details-control {
+    background: url('img/details_close.png') no-repeat center center;
+	}
+	.datepicker,.datepicker>datepicker-days>.table-condensed{
+		margin:0 auto;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Personal de <?php echo "$area->codigo - $area->descripcion" ?> - <label class="label label-default"><?php echo $mes; ?></label>
+			<a class="btn btn-sm btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i> Cambiar</a>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="areas/area/ver/<?php echo $area->id; ?>"><?php echo "$area->codigo - $area->descripcion"; ?></a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="areas/personal/listar/<?php echo "$area->id/$mes_id"; ?>">
+							<i class="fa fa-users"></i> Personal
+						</a>
+						<a class="btn btn-app btn-app-zetta" href="areas/personal/agregar/<?php echo "$area->id/$mes_id"; ?>">
+							<i class="fa fa-plus"></i> Agregar personal
+						</a>
+						<a class="btn btn-app btn-app-zetta pull-right" href="areas/asisnov/index/<?php echo "$area->id/$mes_id"; ?>">
+							<i class="fa fa-print"></i> Asis. nov
+						</a>
+						<a class="btn btn-app btn-app-zetta pull-right" href="areas/personal_novedad/listar/<?php echo "$area->id/$mes_id/1"; ?>">
+							<i class="fa fa-calendar"></i> Novedades a confirmar
+						</a>
+						<a class="btn btn-app btn-app-zetta pull-right" href="areas/personal_novedad/listar/<?php echo "$area->id/$mes_id"; ?>">
+							<i class="fa fa-calendar"></i> Novedades
+						</a>
+						<hr style="margin: 10px 0;">
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+						<hr style="margin: 10px 0;">
+						<h4 class="text-center">Otros servicios que cumplen función en el área</h4>
+						<?php echo $js_table_f; ?>
+						<?php echo $html_table_f; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<?php echo form_open("areas/personal/cambiar_mes/$area->id/$mes_id"); ?>
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+			</div>
+			<div class="modal-body">
+				<div class="row">
+					<div class="form-group col-md-12" style="text-align:center;">
+						<div id="datepicker" data-date="<?php echo $fecha; ?>"></div>
+						<input type="hidden" name="mes" id="mes" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
+<script>
+	var servicio_table;
+	var servicio_f_table;
+	function complete_servicio_table() {
+		agregar_filtros('servicio_table', servicio_table, 8);
+
+		$('#servicio_table tbody').on('click', 'td.details-control', function() {
+			var tr = $(this).closest('tr');
+			var row = servicio_table.row(tr);
+			var servicio_id = row.data().id;
+			if (row.child.isShown()) {
+				tr.removeClass('shown');
+				row.child.hide();
+			} else {
+				$.ajax({
+					type: 'GET',
+					url: 'ajax/get_novedades?',
+					data: {
+						servicio_id: servicio_id,
+						mes: <?php echo $mes_id; ?>
+					},
+					dataType: 'json',
+					success: function(result) {
+						row.child(format(servicio_id, result)).show();
+						tr.addClass('shown');
+					}
+				});
+			}
+		});
+	}
+	function complete_servicio_f_table() {
+		agregar_filtros('servicio_f_table', servicio_f_table, 9);
+		$('#servicio_f_table tbody').on('click', 'td.details-control', function() {
+			var tr = $(this).closest('tr');
+			var row = servicio_f_table.row(tr);
+			var servicio_id = row.data().id;
+			if (row.child.isShown()) {
+				tr.removeClass('shown');
+				row.child.hide();
+			} else {
+				$.ajax({
+					type: 'GET',
+					url: 'ajax/get_novedades?',
+					data: {
+						tipo: 'funcion',
+						servicio_id: servicio_id,
+						mes: <?php echo $mes_id; ?>
+					},
+					dataType: 'json',
+					success: function(result) {
+						row.child(format(servicio_id, result)).show();
+						tr.addClass('shown');
+					}
+				});
+			}
+		});
+	}
+	function format(servicio_id, novedades) {
+		if (novedades.length === 0) {
+			return "No hay novedades asignadas al servicio";
+		}
+		var len = novedades.length;
+		var html = '<table class="table table-condensed table-bordered table-hover" style="margin-bottom: 0;"><thead><tr><th>Articulo</th><th>Inciso</th><th>Descripción</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Obligaciones</th><th>Estado</th></tr></thead><tbody>';
+		for (var i = 0; i < len; i++) {
+			novedades[i].dias = (novedades[i].novedad_tipo_id !== 1) ? ((novedades[i].dias !== null) ? novedades[i].dias : "") : "";
+			novedades[i].obligaciones = (novedades[i].novedad_tipo_id !== 1) ? ((novedades[i].obligaciones !== null) ? novedades[i].obligaciones : "") : "";
+			html += '<tr><td>' + novedades[i].articulo + '</td><td>' + novedades[i].inciso + '</td><td>' + novedades[i].descripcion_corta +
+							'<td>' + moment(novedades[i].fecha_desde).format("DD/MM/YY") + '</td><td>' + (novedades[i].articulo === 'AA' ? '' : moment(novedades[i].fecha_hasta).format('DD/MM/YY')) + '</td></td><td>' + novedades[i].dias +
+							'</td><td>' + novedades[i].obligaciones + '</td><td>' + novedades[i].estado + '</td></tr>';
+		}
+		return html + '</tbody></table>';
+	}
+</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

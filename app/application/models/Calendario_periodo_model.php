@@ -1,0 +1,45 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Calendario_periodo_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'calendario_periodo';
+		$this->msg_name = 'Periodo de calendario';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'calendario_id', 'ciclo_lectivo', 'periodo', 'inicio', 'fin');
+		$this->fields = array(
+			'calendario' => array('label' => 'Calendario', 'input_type' => 'combo', 'id_name' => 'calendario_id', 'required' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Ciclo de Lectivo', 'type' => 'integer', 'maxlength' => '10', 'required' => TRUE),
+			'periodo' => array('label' => 'Período', 'type' => 'integer', 'maxlength' => '10', 'required' => TRUE),
+			'inicio' => array('label' => 'Fecha Inicio', 'type' => 'date', 'required' => TRUE),
+			'fin' => array('label' => 'Fecha Fin', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->requeridos = array('calendario_id', 'ciclo_lectivo', 'periodo', 'inicio', 'fin');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('calendario', 'calendario.id = calendario_periodo.calendario_id', 'left', array('calendario.descripcion as calendario')), );
+	}
+
+	public function get_periodos($calendario_id) {
+		return $this->db->select('cp.id, cp.ciclo_lectivo, cp.periodo, cp.inicio, cp.fin, calendario.descripcion,calendario.nombre_periodo, cp.calendario_id')
+				->from('calendario_periodo cp')
+				->join('calendario', 'calendario.id = cp.calendario_id', 'left')
+				->where('cp.calendario_id', $calendario_id)
+				->order_by('cp.periodo')
+				->get()->result();
+	}
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Calendario_periodo_model.php */
+/* Location: ./application/models/Calendario_periodo_model.php */

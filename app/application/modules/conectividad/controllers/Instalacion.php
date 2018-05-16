@@ -1,0 +1,243 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Instalacion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('conectividad/conectividad_nacion_model');
+		$this->load->model('conectividad/conectividad_nacion_escuela_model');
+		$this->load->model('conectividad/conectividad_nacion_encargado_model');
+		$this->load->model('persona_model');
+		$this->load->model('servicio_model');
+		$this->load->model('cargo_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL, ROL_ASISTENCIA_DIVISION, ROL_DOCENTE_CURSADA));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'conectividad/instalacion';
+	}
+
+	public function ver($conectividad_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $conectividad_id == NULL || !ctype_digit($conectividad_id) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$conectividad_escuela = $this->conectividad_nacion_escuela_model->get_conectividad_escuela($conectividad_id, $escuela_id);
+		if (empty($conectividad_escuela)) {
+			$this->session->set_flashdata('error', 'La escuela no participa del Plan de Conectividad Nacional');
+			redirect("escritorio", 'refresh');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$conectividad_escuela->escuela = $escuela->nombre_largo;
+		$data['fecha'] = date('Y-m-d');
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['fields'] = $this->build_fields($this->conectividad_nacion_escuela_model->fields, $conectividad_escuela, TRUE);
+		$data['conectividad_escuela'] = $conectividad_escuela;
+		$data['escuela'] = $escuela;
+		$data['encargados'] = $this->conectividad_nacion_encargado_model->get_encargados_escuela($conectividad_id, $escuela_id);
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Plan Nacional de Conectividad';
+
+		$this->load_template("conectividad/instalacion/instalacion_abm", $data);
+	}
+
+	public function modal_editar_escuela($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$conectividad_escuela = $this->conectividad_nacion_escuela_model->get_one($id);
+		if (empty($conectividad_escuela)) {
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($conectividad_escuela->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+		$conectividad_escuela->escuela = $escuela->nombre_largo;
+
+		$this->set_model_validation_rules($this->conectividad_nacion_escuela_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->conectividad_nacion_escuela_model->update(array(
+					'id' => $id,
+					'celular_contacto' => $this->input->post('celular_contacto'),
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->conectividad_nacion_escuela_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->conectividad_nacion_escuela_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+		}
+
+		$data['fields'] = $this->build_fields($this->conectividad_nacion_escuela_model->fields, $conectividad_escuela);
+
+		$data['conectividad_escuela'] = $conectividad_escuela;
+
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar Celular de Contacto para Instalación';
+		$this->load->view('conectividad/instalacion/instalacion_escuela_modal_abm', $data);
+	}
+
+	public function modal_buscar_encargado($conectividad_escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $conectividad_escuela_id == NULL || !ctype_digit($conectividad_escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$conectividad_escuela = $this->conectividad_nacion_escuela_model->get_one($conectividad_escuela_id);
+		if (empty($conectividad_escuela)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($conectividad_escuela->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'd_cuil' => array('label' => 'Cuil', 'maxlength' => '14', 'onkeypress' => 'validar(event);'),
+			'persona_seleccionada' => array('label' => '', 'type' => 'integer', 'required' => TRUE),
+		);
+		$this->set_model_validation_rules($model_busqueda);
+
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['escuela'] = $escuela;
+		$data['conectividad_escuela'] = $conectividad_escuela;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Buscar encargado a agregar';
+		$this->load->view('conectividad/instalacion/instalacion_modal_buscar_encargado', $data);
+	}
+
+	public function agregar_encargado($conectividad_escuela_id = NULL, $servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $conectividad_escuela_id == NULL || !ctype_digit($conectividad_escuela_id) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$conectividad_escuela = $this->conectividad_nacion_escuela_model->get_one($conectividad_escuela_id);
+		if (empty($conectividad_escuela)) {
+			show_error('No se encontró el registro de la conectividad', 500, 'Registro no encontrado');
+		}
+		if ($conectividad_escuela->encargados_asignados >= '2') {
+			$this->session->set_flashdata('error', 'Ya ha asignado la cantidad permitida de encargados en la escuela.');
+			redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+		}
+		if (!empty($conectividad_escuela->fecha_cierre)) {
+			$this->session->set_flashdata('error', 'La planilla de carga ya ha sido cerrada.');
+			redirect("conectividad/desinfeccion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+		}
+		$escuela = $this->escuela_model->get_one($conectividad_escuela->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro de la persona', 500, 'Registro no encontrado');
+		}
+		$this->db->trans_begin();
+		$trans_ok = TRUE;
+		$trans_ok &= $this->conectividad_nacion_encargado_model->create(array(
+			'conectividad_nacion_escuela_id' => $conectividad_escuela->id,
+			'servicio_id' => $servicio->id,
+			'persona_id' => $servicio->persona_id,
+			), FALSE);
+		if ($this->db->trans_status() && $trans_ok) {
+			$this->db->trans_commit();
+			$this->session->set_flashdata('message', $this->conectividad_nacion_encargado_model->get_msg());
+			redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+		} else {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', $this->conectividad_nacion_encargado_model->get_error());
+			redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+		}
+	}
+
+	public function modal_eliminar_encargado($conectividad_escuela_id = NULL, $conectividad_encargado_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $conectividad_escuela_id == NULL || !ctype_digit($conectividad_escuela_id) || $conectividad_encargado_id == NULL || !ctype_digit($conectividad_encargado_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$conectividad_escuela = $this->conectividad_nacion_escuela_model->get_one($conectividad_escuela_id);
+		if (empty($conectividad_escuela)) {
+			return $this->modal_error('No se encontró el registro de la conectividad', 'Registro no encontrado');
+		}
+		if ($conectividad_escuela->fecha_hasta <= date('Y-m-d H:i:s')) {
+			return $this->modal_error('Ya se cerró el periodo de carga', 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($conectividad_escuela->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+		$conectividad_encargado = $this->conectividad_nacion_encargado_model->get_one($conectividad_encargado_id);
+		if (empty($conectividad_encargado) || $conectividad_encargado->conectividad_nacion_escuela_id !== $conectividad_escuela->id) {
+			return $this->modal_error('No se encontró el registro de la persona', 'Registro no encontrado');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($conectividad_escuela->id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$trans_ok &= $this->conectividad_nacion_encargado_model->delete(array('id' => $conectividad_encargado->id), FALSE);
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', 'Celador eliminado de carga correctamente');
+				redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$this->session->set_flashdata('error', $this->conectividad_nacion_encargado_model->get_error());
+				redirect("conectividad/instalacion/ver/$conectividad_escuela->conectividad_nacion_id/$conectividad_escuela->escuela_id", 'refresh');
+			}
+		}
+		$conectividad_escuela->escuela = $escuela->nombre_largo;
+		$data['fields'] = $this->build_fields($this->conectividad_nacion_encargado_model->fields, $conectividad_encargado, TRUE);
+		$data['conectividad'] = $conectividad_escuela;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar encargado';
+		$this->load->view('conectividad/instalacion/instalacion_modal_eliminar_encargado', $data);
+	}
+
+	public function ajax_listar_encargados() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('persona_model');
+		$this->load->model('elecciones/eleccion_desinfeccion_model');
+		$escuela_id = $this->input->get('escuela_id');
+		$cuil = $this->input->get('cuil');
+		if (!empty($cuil) && !empty($escuela_id)) {
+			$personas_listar = $this->conectividad_nacion_escuela_model->get_encargados($cuil, $escuela_id);
+		}
+		if (!empty($personas_listar)) {
+			echo json_encode(array('status' => 'success', 'personas_listar' => $personas_listar));
+		} else {
+			echo json_encode(array('status' => 'error'));
+		}
+	}
+}

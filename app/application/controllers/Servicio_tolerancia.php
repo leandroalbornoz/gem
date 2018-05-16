@@ -1,0 +1,191 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_tolerancia extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('servicio_tolerancia_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
+		$this->nav_route = 'menu/servicio_tolerancia';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(//@todo arreglar anchos de columnas
+				array('label' => 'Id', 'data' => 'id', 'class' => 'dt-body-right', 'width' => 10),
+				array('label' => 'Servicio', 'data' => 'servicio', 'width' => 10),
+				array('label' => 'Día', 'data' => 'dia', 'width' => 10),
+				array('label' => 'Tolerancia', 'data' => 'tolerancia', 'width' => 10),
+				array('label' => 'Validez de Desde', 'data' => 'validez_desde', 'render' => 'date', 'width' => 10),
+				array('label' => 'Validez de Hasta', 'data' => 'validez_hasta', 'render' => 'date', 'width' => 10),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'servicio_tolerancia_table',
+			'source_url' => 'servicio_tolerancia/listar_data'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Tolerancias de servicios';
+		$this->load_template('servicio_tolerancia/servicio_tolerancia_listar', $data);
+	}
+
+	public function listar_data() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('servicio_tolerancia.id, servicio_tolerancia.servicio_id, servicio_tolerancia.dia_id, servicio_tolerancia.tolerancia, servicio_tolerancia.validez_desde, servicio_tolerancia.validez_hasta, dia.nombre as dia, servicio.persona_id as servicio')
+			->unset_column('id')
+			->from('servicio_tolerancia')
+			->join('dia', 'dia.id = servicio_tolerancia.dia_id', 'left')
+			->join('servicio', 'servicio.id = servicio_tolerancia.servicio_id', 'left')
+			->add_column('edit', '<a href="servicio_tolerancia/ver/$1" class="btn btn-xs btn-default" title="Ver"><i class="fa fa-search"></i></a> <a href="servicio_tolerancia/editar/$1" class="btn btn-xs btn-warning" title="Editar"><i class="fa fa-pencil"></i></a> <a href="servicio_tolerancia/eliminar/$1" class="btn btn-xs btn-danger" title="Eliminar"><i class="fa fa-remove"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('dia_model');
+		$this->load->model('servicio_model');
+		$this->array_dia_control = $array_dia = $this->get_array('dia', 'nombre', 'id', null, array('' => '-- Seleccionar día --'));
+		$this->array_servicio_control = $array_servicio = $this->get_array('servicio', 'persona_id', 'id', null, array('' => '-- Seleccionar servicio --'));
+		$this->set_model_validation_rules($this->servicio_tolerancia_model);
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->servicio_tolerancia_model->create(array(
+				'servicio_id' => $this->input->post('servicio'),
+				'dia_id' => $this->input->post('dia'),
+				'tolerancia' => $this->input->post('tolerancia'),
+				'validez_desde' => $this->input->post('validez_desde'),
+				'validez_hasta' => $this->input->post('validez_hasta')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->servicio_tolerancia_model->get_msg());
+				redirect('servicio_tolerancia/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->servicio_tolerancia_model->get_error() ? $this->servicio_tolerancia_model->get_error() : $this->session->flashdata('error')));
+
+		$this->servicio_tolerancia_model->fields['dia']['array'] = $array_dia;
+		$this->servicio_tolerancia_model->fields['servicio']['array'] = $array_servicio;
+		$data['fields'] = $this->build_fields($this->servicio_tolerancia_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar tolerancia de servicio';
+		$this->load_template('servicio_tolerancia/servicio_tolerancia_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$servicio_tolerancia = $this->servicio_tolerancia_model->get(array('id' => $id));
+		if (empty($servicio_tolerancia)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('dia_model');
+		$this->load->model('servicio_model');
+		$this->array_dia_control = $array_dia = $this->get_array('dia', 'nombre');
+		$this->array_servicio_control = $array_servicio = $this->get_array('servicio', 'persona_id');
+		$this->set_model_validation_rules($this->servicio_tolerancia_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->servicio_tolerancia_model->update(array(
+					'id' => $this->input->post('id'),
+					'servicio_id' => $this->input->post('servicio'),
+					'dia_id' => $this->input->post('dia'),
+					'tolerancia' => $this->input->post('tolerancia'),
+					'validez_desde' => $this->input->post('validez_desde'),
+					'validez_hasta' => $this->input->post('validez_hasta')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->servicio_tolerancia_model->get_msg());
+					redirect('servicio_tolerancia/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->servicio_tolerancia_model->get_error() ? $this->servicio_tolerancia_model->get_error() : $this->session->flashdata('error')));
+
+		$this->servicio_tolerancia_model->fields['dia']['array'] = $array_dia;
+		$this->servicio_tolerancia_model->fields['servicio']['array'] = $array_servicio;
+		$data['fields'] = $this->build_fields($this->servicio_tolerancia_model->fields, $servicio_tolerancia);
+
+		$data['servicio_tolerancia'] = $servicio_tolerancia;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar tolerancia de servicio';
+		$this->load_template('servicio_tolerancia/servicio_tolerancia_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$servicio_tolerancia = $this->servicio_tolerancia_model->get_one($id);
+		if (empty($servicio_tolerancia)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->servicio_tolerancia_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->servicio_tolerancia_model->get_msg());
+				redirect('servicio_tolerancia/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->servicio_tolerancia_model->get_error() ? $this->servicio_tolerancia_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->servicio_tolerancia_model->fields, $servicio_tolerancia, TRUE);
+
+		$data['servicio_tolerancia'] = $servicio_tolerancia;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Eliminar tolerancia de servicio';
+		$this->load_template('servicio_tolerancia/servicio_tolerancia_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$servicio_tolerancia = $this->servicio_tolerancia_model->get_one($id);
+		if (empty($servicio_tolerancia)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->servicio_tolerancia_model->fields, $servicio_tolerancia, TRUE);
+
+		$data['servicio_tolerancia'] = $servicio_tolerancia;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver tolerancia de servicio';
+		$this->load_template('servicio_tolerancia/servicio_tolerancia_abm', $data);
+	}
+}
+/* End of file Servicio_tolerancia.php */
+/* Location: ./application/controllers/Servicio_tolerancia.php */

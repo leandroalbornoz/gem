@@ -1,0 +1,20 @@
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'Confirmar Ausente')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<div class="form-group col-md-12">
+			<p>¿Marcar alumno como ausente?</p>
+		</div>
+	</div>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+	<?php
+		echo form_submit(array('class' => 'btn btn-warning pull-right', 'title' => 'Confirmar'), 'Confirmar');
+	?>
+	<?php echo form_hidden('id', $alumno_division->id); ?>
+</div>
+<?php echo form_close(); ?>

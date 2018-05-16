@@ -1,0 +1,570 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Reportes_estaticos extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_LINEA, ROL_ADMIN, ROL_SUPERVISION, ROL_USI, ROL_CONSULTA_LINEA);
+		$this->modulos_permitidos = array();
+		$this->load->model('reportes_estaticos_model');
+	}
+
+	public function escritorio() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = 'Reportes estáticos';
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_escritorio', $data);
+	}
+
+	public function reportes_asistencia_calendario() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			$data['supervision'] = $this->input->post('supervision');
+			$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+			$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+			$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+			$data['escuela'] = $this->input->post('escuela');
+
+			$numero_escuelas = $this->reportes_estaticos_model->get_numero_escuelas($data);
+			$numero_supervisiones = $this->reportes_estaticos_model->get_numero_supervisiones($data);
+			$data['numero_escuelas'] = $numero_escuelas;
+			$data['numero_supervisiones'] = $numero_supervisiones;
+
+			$reporte_mes = array();
+			if ($data['tipo_reporte'] === '1') {
+				//Por escuela
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_escuela($data);
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->calendario][$data_reporte->periodo][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_escuela', $data);
+			} else if ($data['tipo_reporte'] === '2') {
+				//Por supevision
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_supervision($data);
+				$reporte_mes = array();
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->calendario][$data_reporte->periodo][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_supervision', $data);
+			} else {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'tipo_reporte' => array('label' => 'Tipo de reporte', 'input_type' => 'combo', 'id_name' => 'tipo_reporte', 'required' => TRUE, 'array' => array('1' => 'Reporte por escuela', '2' => 'Reporte por supervisión')),
+			'supervision' => array('label' => 'Supervisión', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'desde' => array('label' => 'Desde', 'type' => 'text', 'required' => true),
+			'hasta' => array('label' => 'Hasta', 'type' => 'text', 'required' => true)
+		);
+
+		$this->load->model('supervision_model');
+		$this->load->model('escuela_model');
+		if (in_array($this->rol->codigo, array(ROL_ADMIN, ROL_USI))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'join' => array(array('linea', "supervision.linea_id=linea.id"))
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('nivel', 'escuela.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id")
+				),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+		} else if (in_array($this->rol->codigo, array(ROL_LINEA, ROL_CONSULTA_LINEA))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'join' => array(array('linea', "supervision.linea_id=linea.id AND linea.id={$this->rol->entidad_id}"))
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('nivel', 'escuela.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id AND linea.id = {$this->rol->entidad_id} ")
+				),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+		} else if (in_array($this->rol->codigo, array(ROL_SUPERVISION))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'where' => array(" supervision.id = {$this->rol->entidad_id}")
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('supervision', "escuela.supervision_id = supervision.id")
+				),
+				'where' => array("supervision.id = {$this->rol->entidad_id} "),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+		}
+		$model->fields['supervision']['array'] = $array_supervision;
+		$model->fields['escuela']['array'] = $array_escuela;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['txt_btn'] = "Generar reporte";
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_calendario', $data);
+	}
+
+	public function reportes_asistencia_carrera($agrupamiento = 'carrera') {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			$agrupamiento_model = new stdClass();
+			$agrupamiento_model->fields = array(
+				'agrupamiento' => array('label' => 'Criterio de agrupamiento', 'input_type' => 'combo', 'id_name' => 'agrupamiento', 'array' => array('' => 'Seleccione el tipo', 'carrera' => 'Por carrera', 'supervision' => 'Por supervision'))
+			);
+
+			$data['fields'] = $this->build_fields($agrupamiento_model->fields);
+			$data['supervision'] = $this->input->post('supervision');
+			$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+			$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+			$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+			$data['escuela'] = $this->input->post('escuela');
+			$data['carrera'] = $this->input->post('carrera');
+			$data['reporte_carrera'] = $this->input->post('reporte_carrera');
+			$data['divisiones_riesgo'] = $this->input->post('divisiones_riesgo');
+			if (!empty($this->input->post('agrupamiento'))) {
+				$agrupamiento = $this->input->post('agrupamiento');
+			}
+			switch ($agrupamiento) {
+				case 'supervision':
+					$detalle = 'carrera';
+					break;
+				case 'carrera':
+					$detalle = 'supervision';
+					break;
+				default:
+					break;
+			}
+			$data['detalle'] = $detalle;
+			$data['criterio_agrupamiento'] = $agrupamiento;
+			$numero_escuelas = $this->reportes_estaticos_model->get_numero_escuelas($data);
+			$numero_supervisiones = $this->reportes_estaticos_model->get_numero_supervisiones($data);
+			$data['numero_escuelas'] = $numero_escuelas;
+			$data['numero_supervisiones'] = $numero_supervisiones;
+			$reporte_mes = array();
+			if ($data['tipo_reporte'] === '1') {//Por escuela
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_escuela($data);
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->{$agrupamiento}][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_escuela_carrera', $data);
+			} else if ($data['tipo_reporte'] === '2') {//Por supervision
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_supervision($data);
+				$reporte_mes = array();
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->{$agrupamiento}][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_supervision_carrera', $data);
+			} else {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'tipo_reporte' => array('label' => 'Tipo de reporte', 'input_type' => 'combo', 'id_name' => 'tipo_reporte', 'required' => TRUE, 'array' => array('1' => 'Reporte por escuela', '2' => 'Reporte por supervisión')),
+			'supervision' => array('label' => 'Supervisión', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'carrera' => array('label' => 'Carrera', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'desde' => array('label' => 'Desde', 'type' => 'text', 'required' => true),
+			'hasta' => array('label' => 'Hasta', 'type' => 'text', 'required' => true),
+			'divisiones_riesgo' => array('label' => 'Cantidad mímima de alumnos por division', 'type' => 'number', 'min' => 0, 'required' => true),
+		);
+		$this->load->model('supervision_model');
+		$this->load->model('escuela_model');
+		$this->load->model('carrera_model');
+		if (in_array($this->rol->codigo, array(ROL_ADMIN, ROL_USI))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'join' => array(array('linea', "supervision.linea_id=linea.id"))
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('nivel', 'escuela.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id")
+				),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+			$array_carrera = $this->get_array('carrera', 'descripcion', 'id', array(
+				'join' => array(
+					array('nivel', 'carrera.nivel_id=nivel.id'),
+					array('linea', 'nivel.linea_id = linea.id')
+				),
+				'sort_by' => 'carrera.id',
+				), array('' => 'Todas'));
+		} else if (in_array($this->rol->codigo, array(ROL_LINEA, ROL_CONSULTA_LINEA))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'join' => array(array('linea', "supervision.linea_id=linea.id AND linea.id={$this->rol->entidad_id}"))
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('nivel', 'escuela.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id AND linea.id={$this->rol->entidad_id} ")
+				),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+			$array_carrera = $this->get_array('carrera', 'descripcion', 'id', array(
+				'join' => array(
+					array('nivel', 'carrera.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id AND linea.id={$this->rol->entidad_id} ")
+				),
+				'sort_by' => 'carrera.id',
+				), array('' => 'Todas'));
+		} else if (in_array($this->rol->codigo, array(ROL_SUPERVISION))) {
+			$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+				'sort_by' => 'id',
+				'where' => array(" supervision.id = {$this->rol->entidad_id}")
+				), array('' => 'Todas'));
+			$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+				'join' => array(
+					array('supervision', "escuela.supervision_id = supervision.id")
+				),
+				'where' => array("supervision.id = {$this->rol->entidad_id} "),
+				'sort_by' => 'escuela.numero, escuela.anexo',
+				), array('' => 'Todas'));
+			$array_carrera = $this->get_array('carrera', 'descripcion', 'id', array(
+				'join' => array(
+					array('nivel', 'carrera.nivel_id=nivel.id'),
+					array('linea', "nivel.linea_id = linea.id"),
+					array('supervision', "supervision.linea_id = linea.id")
+				),
+				'where' => array("supervision.id = {$this->rol->entidad_id}"),
+				'sort_by' => 'carrera.id',
+				), array('' => 'Todas'));
+		}
+		$model->fields['supervision']['array'] = $array_supervision;
+		$model->fields['escuela']['array'] = $array_escuela;
+		$model->fields['carrera']['array'] = $array_carrera;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['txt_btn'] = 'Generar reporte';
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_carrera', $data);
+	}
+
+	public function reportes_oferta_educativa() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			$data['departamento'] = $this->input->post('departamento');
+			$data_reporte = $this->reportes_estaticos_model->reporte_oferta_educativa($data);
+			$data['reporte_depto'] = $data_reporte['reporte_depto'];
+			$data['carreras'] = (isset($data_reporte['carreras'])) ? $data_reporte['carreras'] : $data_reporte['carreras'] = array();
+			$data['escuelas'] = (isset($data_reporte['escuelas'])) ? $data_reporte['escuelas'] : $data_reporte['escuelas'] = array();
+			$this->load_template('consultas/reportes_estaticos/reportes_estaticos_oferta_educativa_zona', $data);
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'departamento' => array('label' => 'Departamento', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple')
+		);
+		$this->load->model('departamento_model');
+		$array_departamento = $this->get_array('departamento', 'descripcion', 'id', array(
+			'sort_by' => 'id'
+			), array('' => 'Todos los departamentos'));
+		$model->fields['departamento']['array'] = $array_departamento;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = "Generar reporte";
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_oferta_educativa', $data);
+	}
+
+	public function excel_oferta_educativa() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$departamentos = $this->input->post('departamento');
+		$campos = array(
+			'A' => array('Carrera', 50),
+			'B' => array('Escuela', 45),
+			'C' => array('Nivel', 20),
+			'D' => array('Departamento', 15),
+			'E' => array('Localidad', 20),
+			'F' => array('Dirección', 25),
+			'G' => array('Código postal', 15),
+		);
+
+		$query = $this->db
+			->select("c.descripcion as carrera,CONCAT(e.numero,' - ',e.nombre,(CASE WHEN (e.anexo = 0) THEN ''ELSE CONCAT('/', e.anexo)END)) AS escuela,n.descripcion as nivel,dep.descripcion as departamento, loc.descripcion as localidad,CONCAT(COALESCE(e.barrio,''),' ',COALESCE(e.calle,''),' ',COALESCE(e.calle_numero,''),' ',COALESCE(e.piso,'')) as direccion,e.codigo_postal")
+			->from('carrera c')
+			->join('nivel n', 'n.id= c.nivel_id', 'left')
+			->join('linea l', 'n.linea_id = l.id', 'left')
+			->join('escuela_carrera ec', 'ec.carrera_id = c.id', 'left')
+			->join('escuela e', 'e.id = ec.escuela_id', 'left')
+			->join('localidad loc', 'loc.id = e.localidad_id', 'left')
+			->join('departamento dep', 'dep.id = loc.departamento_id', 'left')
+			->where('c.fecha_hasta IS NULL');
+		if (!empty($departamentos)) {
+			$query->where_in('dep.id', $departamentos);
+		}
+		if (in_array($this->rol->codigo, array(ROL_LINEA, ROL_CONSULTA_LINEA))) {
+			$query->where('l.id', $this->rol->entidad_id);
+		} else if (in_array($this->rol->codigo, array(ROL_SUPERVISION))) {
+			$query->where('e.supervision_id', $this->rol->entidad_id);
+		}
+		$query->group_by('c.id')
+			->order_by('dep.descripcion,loc.descripcion,e.numero,c.descripcion');
+		$reporte = $query->get()->result_array();
+		if (!empty($reporte)) {
+			$atributos['title'] = "Reporte de oferta educativa";
+			$registros = $reporte;
+			$this->load->library('PHPExcel');
+			$this->phpexcel->getProperties()->setTitle("")->setDescription("");
+			$this->phpexcel->setActiveSheetIndex(0);
+
+			$sheet = $this->phpexcel->getActiveSheet();
+			$sheet->setTitle(substr($atributos['title'], 0, 30));
+			$encabezado = array();
+			$ultima_columna = 'A';
+			foreach ($campos as $columna => $campo) {
+				$encabezado[] = $campo[0];
+				$sheet->getColumnDimension($columna)->setWidth($campo[1]);
+				$ultima_columna = $columna;
+			}
+
+			$sheet->getStyle('A1:' . $ultima_columna . '1')->getFont()->setBold(true);
+
+			$sheet->fromArray(array($encabezado), NULL, 'A1');
+			$sheet->fromArray($registros, NULL, 'A2');
+
+			header("Content-Type: application/vnd.ms-excel");
+			$nombreArchivo = $atributos['title'];
+			header("Content-Disposition: attachment; filename=\"$nombreArchivo.xls\"");
+			header("Cache-Control: max-age=0");
+
+			$writer = PHPExcel_IOFactory::createWriter($this->phpexcel, "Excel5");
+			$writer->save('php://output');
+			exit;
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect("consultas/reportes_estaticos/reportes_oferta_educativa", 'refresh');
+		}
+	}
+
+	public function excel_asistencia() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['supervision'] = $this->input->post('supervision');
+		$data['escuela'] = $this->input->post('escuela');
+		$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+		$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+		$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+		$data['carrera'] = $this->input->post('carrera');
+		$data['reporte_carrera'] = $this->input->post('reporte_carrera');
+		$data['divisiones_riesgo'] = $this->input->post('divisiones_riesgo');
+
+		$this->load->library('PHPExcel');
+		$this->phpexcel->getProperties()->setTitle("Reporte de asistencia")->setDescription("");
+		$this->phpexcel->setActiveSheetIndex(0);
+		$sheet = $this->phpexcel->getActiveSheet();
+		$sheet->setTitle(substr('Reporte de asistencia', 0, 30));
+
+		$reporte_mes = array();
+		if (!empty($data['reporte_carrera']) && $data['reporte_carrera']) {
+			$campos = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'divisiones_riesgo' => 'Divisiones en riesgo', 'asistencia_real' => '', 'asistencia_ideal' => '');
+		} else {
+			$campos = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'asistencia_real' => '', 'asistencia_ideal' => '');
+		}
+
+		if ($data['tipo_reporte'] === '1') {//Por escuela
+			$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_escuela($data);
+			foreach ($reporte as $data_reporte) {
+				foreach ($campos as $campo_id => $campo) {
+					if (!isset($reporte_mes[$data_reporte->supervision][$data_reporte->mes][$data_reporte->numero][$campo_id])) {
+						$reporte_mes[$data_reporte->supervision][$data_reporte->mes][$data_reporte->numero][$campo_id] = 0;
+					}
+					$reporte_mes[$data_reporte->supervision][$data_reporte->mes][$data_reporte->numero][$campo_id] += $data_reporte->{$campo_id};
+				}
+			}
+			$campos['asistencia_media'] = 'Asistencia media';
+			foreach ($reporte_mes as $sup => $reportes_supervision) {
+				foreach ($reportes_supervision as $mes => $reporte_supervision) {
+					foreach ($reporte_supervision as $esc => $reporte_escuela) {
+						$reporte_mes[$sup][$mes][$esc]['asistencia_media'] = $reporte_mes[$sup][$mes][$esc]['asistencia_ideal'] ? $reporte_mes[$sup][$mes][$esc]['asistencia_real'] / $reporte_mes[$sup][$mes][$esc]['asistencia_ideal'] : 0;
+					}
+				}
+			}
+
+			$columna = 'A';
+			$campos = array();
+			foreach ($reporte_mes as $sup => $reportes_supervision) {
+				foreach ($reportes_supervision as $mes => $reporte_supervision) {
+					$nombre_mes = $this->nombres_meses[substr($mes, -2)];
+					$anio = substr($mes, 0, 4);
+					$campos[$sup][$mes] = array();
+					$campos[$sup][$mes][$columna++] = array($nombre_mes . ' ' . $anio, 20);
+					foreach ($reporte_supervision as $escuela => $reporte_escuela) {
+						$campos[$sup][$mes][$columna++] = array($escuela, 10);
+					}
+					$columna = 'A';
+				}
+			}
+			$encabezado = array();
+			$ultima_columna = array();
+			foreach ($campos as $sup => $campos_mes) {
+				foreach ($campos_mes as $mes => $campo_mes) {
+					foreach ($campo_mes as $columna => $campo) {
+						$encabezado[$sup][$mes][] = $campo[0];
+						$sheet->getColumnDimension($columna)->setWidth($campo[1]);
+						$ultima_columna[$sup][$mes] = $columna;
+					}
+				}
+			}
+			if (!empty($data['reporte_carrera']) && $data['reporte_carrera']) {
+				$encabezados = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'divisiones_riesgo' => 'Divisiones en riesgo', 'asistencia_media' => 'Asistencia media');
+			} else {
+				$encabezados = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'asistencia_media' => 'Asistencia media');
+			}
+			$ultima_fila = '1';
+			foreach ($reporte_mes as $sup => $reportes_supervision) {
+				$sheet->setCellValue("A" . $ultima_fila, $sup);
+				$first_key = key($ultima_columna[$sup]);
+				$sheet->mergeCells("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila");
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila")->getFont()->setBold(true);
+				$sheet->getStyle("A$ultima_fila")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila")->getBorders()->getAllBorders()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('75b703');
+				$ultima_fila++;
+
+				foreach ($reportes_supervision as $mes => $reporte_supervision) {
+					$columna = 'A';
+					$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila")->getBorders()->getAllBorders()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+					$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$mes] . "$ultima_fila")->getFont()->setBold(true);
+					$sheet->fromArray(array($encabezado[$sup][$mes]), NULL, "A$ultima_fila");
+					$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$mes] . "$ultima_fila")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+					$sheet->getStyle("A$ultima_fila:" . $columna . "$ultima_fila")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('ddefd5');
+					$ultima_fila++;
+					foreach ($encabezados as $dato => $label) {
+						$sheet->getStyle("A$ultima_fila:" . "A$ultima_fila")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('ddefd5');
+						$sheet->setCellValue("A" . $ultima_fila, $label);
+						$columna = 'B';
+						foreach ($reporte_supervision as $escuela => $reporte_escuela) {
+							$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$sup][$first_key] . "$ultima_fila")->getBorders()->getOutline()->setBorderStyle(PHPExcel_Style_Border::BORDER_THIN);
+							$sheet->setCellValue($columna . $ultima_fila, $reporte_escuela[$dato]);
+							if ($dato === 'asistencia_media') {
+								$sheet->getStyle($columna . $ultima_fila)->getNumberFormat()->applyFromArray(array(
+									'code' => PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00));
+							}
+							$columna++;
+						}
+						$ultima_fila++;
+					}
+					$ultima_fila ++;
+				}
+				$ultima_fila ++;
+			}
+		} else if ($data['tipo_reporte'] === '2') {//Por supervision
+			$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_supervision($data);
+			foreach ($reporte as $data_reporte) {
+				foreach ($campos as $campo_id => $campo) {
+					if (!isset($reporte_mes[$data_reporte->mes][$data_reporte->supervision][$campo_id])) {
+						$reporte_mes[$data_reporte->mes][$data_reporte->supervision][$campo_id] = 0;
+					}
+					$reporte_mes[$data_reporte->mes][$data_reporte->supervision][$campo_id] += $data_reporte->{$campo_id};
+				}
+			}
+			$campos['asistencia_media'] = 'Asistencia media';
+			foreach ($reporte_mes as $mes => $reportes_supervision) {
+				foreach ($reportes_supervision as $sup => $reporte_supervision) {
+					$reporte_mes[$mes][$sup]['asistencia_media'] = $reporte_mes[$mes][$sup]['asistencia_ideal'] ? $reporte_mes[$mes][$sup]['asistencia_real'] / $reporte_mes[$mes][$sup]['asistencia_ideal'] : 0;
+				}
+			}
+
+			$columna = 'A';
+			$campos = array();
+			foreach ($reporte_mes as $mes => $reporte_supervision) {
+				$nombre_mes = $this->nombres_meses[substr($mes, -2)];
+				$anio = substr($mes, 0, 4);
+				$campos[$mes] = array();
+				$campos[$mes][$columna++] = array($nombre_mes . ' ' . $anio, 20);
+				foreach ($reporte_supervision as $supervision => $reporte) {
+					$campos[$mes][$columna++] = array($supervision, 25);
+				}
+				$columna = 'A';
+			}
+			$encabezado = array();
+			$ultima_columna = 'A';
+			foreach ($campos as $mes => $campo_mes) {
+				foreach ($campo_mes as $columna => $campo) {
+					$encabezado[$mes][] = $campo[0];
+					$sheet->getColumnDimension($columna)->setWidth($campo[1]);
+					$ultima_columna[$mes] = $columna;
+				}
+			}
+
+			if (!empty($data['reporte_carrera']) && $data['reporte_carrera']) {
+				$encabezados = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'divisiones_riesgo' => 'Divisiones en riesgo', 'asistencia_media' => 'Asistencia media');
+			} else {
+				$encabezados = array('alumnos_ini' => 'Matricula Inicial', 'alumnos_fin' => 'Matricula Final', 'numero_divisiones' => 'Divisiones', 'asistencia_media' => 'Asistencia media');
+			}
+			$ultima_fila = '1';
+			foreach ($reporte_mes as $mes => $reporte_supervision) {
+				$columna = 'A';
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$mes] . "$ultima_fila")->getFont()->setBold(true);
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$mes] . "$ultima_fila")->getBorders()->getAllBorders()->setBorderStyle(PHPExcel_Style_Border::BORDER_MEDIUM);
+				$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$mes] . "$ultima_fila")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('75b703');
+				$sheet->fromArray(array($encabezado[$mes]), NULL, "A$ultima_fila");
+				$ultima_fila++;
+				foreach ($encabezados as $dato => $label) {
+					$sheet->setCellValue("A" . $ultima_fila, $label);
+					$columna = 'B';
+					foreach ($reporte_supervision as $supervision => $reporte) {
+						$sheet->getStyle("A$ultima_fila:" . $ultima_columna[$mes] . "$ultima_fila")->getBorders()->getOutline()->setBorderStyle(PHPExcel_Style_Border::BORDER_THIN);
+						$sheet->getStyle("A$ultima_fila:" . "A$ultima_fila")->getFill()->setFillType(PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setRGB('ddefd5');
+						$sheet->setCellValue($columna . $ultima_fila, $reporte[$dato]);
+						if ($dato === 'asistencia_media') {
+							$sheet->getStyle($columna . $ultima_fila)->getNumberFormat()->applyFromArray(array(
+								'code' => PHPExcel_Style_NumberFormat::FORMAT_PERCENTAGE_00));
+						}
+						$columna++;
+					}
+					$ultima_fila++;
+				}
+				$ultima_fila ++;
+			}
+		}
+
+		header("Content-Type: application/vnd.ms-excel");
+		$nombreArchivo = 'Reporte de asistencia';
+		header("Content-Disposition: attachment; filename=\"$nombreArchivo.xls\"");
+		header("Cache-Control: max-age=0");
+
+		$writer = PHPExcel_IOFactory::createWriter($this->phpexcel, "Excel5");
+		$writer->save('php://output');
+		exit;
+	}
+}

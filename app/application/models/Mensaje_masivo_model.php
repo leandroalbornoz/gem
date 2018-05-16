@@ -1,0 +1,70 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Mensaje_masivo_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'mensaje_masivo';
+		$this->msg_name = 'Mensaje masivo';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'fecha', 'de_usuario_id', 'de_rol_id', 'de_entidad_id', 'asunto', 'mensaje', 'para_rol_id');
+		$this->fields = array(
+			'de' => array('label' => 'De', 'readonly' => TRUE),
+			'asunto' => array('label' => 'Asunto', 'maxlength' => '100', 'required' => TRUE),
+			'mensaje' => array('label' => 'Mensaje', 'form_type' => 'textarea', 'rows' => '5', 'required' => TRUE),
+		);
+		$this->requeridos = array('fecha', 'de_usuario_id', 'de_rol_id', 'asunto', 'mensaje');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('usuario d_u', 'd_u.id = mensaje_masivo.de_usuario_id', 'left'),
+			array('usuario_persona d_up', 'd_u.id = d_up.usuario_id', 'left'),
+			array('persona d_p', 'd_up.cuil = d_p.cuil', 'left', array("CONCAT(d_p.apellido, ', ', d_p.nombre,' (' , d_r.nombre,')') as de_usuario")),
+			array('rol d_r', 'd_r.id = mensaje_masivo.de_rol_id', 'left', 'd_r.codigo'),
+			array('entidad_tipo d_et', 'd_r.entidad_tipo_id = d_et.id', 'left'),
+			array('entidad d_e', 'd_e.id = mensaje_masivo.de_entidad_id AND d_et.tabla = d_e.tabla', 'left', array("CONCAT(d_r.nombre, COALESCE(CONCAT(' ', d_e.nombre), '')) as de_rol", 'd_et.tabla as de_tabla')),
+			array('rol p_r', 'p_r.id = mensaje_masivo.para_rol_id', 'left', array('p_r.codigo as para_rol_codigo')),
+		);
+	}
+
+	public function get_mensajes_masivos($rol = NULL, $no_leidos = TRUE) {
+		$query = $this->db->select("mm_d.id, mensaje_masivo.fecha, mensaje_masivo.asunto, mensaje_masivo.mensaje, CONCAT(d_p.apellido, ', ', d_p.nombre) as de_usuario, CONCAT(d_r.nombre, COALESCE(CONCAT(' ', d_e.nombre), '')) as de_rol, CONCAT(p_r.nombre, COALESCE(CONCAT(' ', p_e.nombre), '')) as para_rol")
+			->from('mensaje_masivo')
+			->join('mensaje_masivo_destinatario mm_d', 'mm_d.mensaje_masivo_id = mensaje_masivo.id')
+			->join('usuario d_u', 'd_u.id = mensaje_masivo.de_usuario_id', 'left')
+			->join('usuario_persona d_up', 'd_u.id = d_up.usuario_id', 'left')
+			->join('persona d_p', 'd_up.cuil = d_p.cuil', 'left')
+			->join('rol d_r', 'd_r.id = mensaje_masivo.de_rol_id', 'left')
+			->join('entidad_tipo d_et', 'd_r.entidad_tipo_id = d_et.id', 'left')
+			->join('entidad d_e', 'd_e.id = mensaje_masivo.de_entidad_id AND d_et.tabla = d_e.tabla', 'left')
+			->join('rol p_r', 'p_r.id = mensaje_masivo.para_rol_id', 'left')
+			->join('entidad_tipo p_et', 'p_r.entidad_tipo_id = p_et.id', 'left')
+			->join('entidad p_e', 'p_e.id = mm_d.para_entidad_id AND p_et.tabla = p_e.tabla', 'left');
+		if ($no_leidos) {
+			$query->where('mm_d.leido_fecha IS NULL');
+		}
+		if (isset($rol)) {
+			$query->where('p_r.codigo', $rol->codigo);
+			$query->where('mm_d.para_entidad_id', $rol->entidad_id);
+		}
+		$mensajes_db = $query->get()->result();
+		$mensajes = array();
+		foreach ($mensajes_db as $mensaje) {
+			$mensajes[$mensaje->id] = $mensaje;
+		}
+		return $mensajes;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Mensaje_masivo_model.php */
+/* Location: ./application/models/Mensaje_model.php */

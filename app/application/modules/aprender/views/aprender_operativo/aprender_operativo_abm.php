@@ -1,0 +1,175 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Esc. <?php echo $escuela->nombre_largo; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/escritorio/<?= $escuela->id ?>"><?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li>Operativo Aprender</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">Operativo Aprender 2017</h3>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-sm-12">
+								Las Subsecretarias de Planeamiento y Evaluación de La Calidad Educativa Lic. EMMA CUNIETTI y de Gestión Educativa MAGISTER MÓNICA CORONADO comunican que: con motivo de llevarse a cabo el día 7 de noviembre de 2017, la Evaluación del Operativo Aprender, se solicita al nivel correspondiente enviar a los Sres. Directores de los establecimientos educativos de la Provincia, el presente Memorandum a fin de asignar a través de GEM los docentes que serán afectados a dicho operativo, conforme al siguiente detalle:<br/>
+								<b>NIVEL PRIMARIO:</b><br/>
+								Docentes de 6° grado de acuerdo a la cantidad de secciones con que cuenta la escuela.<br/>
+								<b>NIVEL SECUNDARIO:</b><br/>
+								Docentes de 5° año de acuerdo a la cantidad de secciones con que cuenta la escuela.<br/>
+								Los docentes afectados pueden ser de cualquier área.<br/>
+								La fecha límite para la carga es hasta el 8 de septiembre de 2017.<br/><br/>
+								<p><b>Para poder cargar un docente como aplicador deberá antes consignar un teléfono y el e-mail de contacto del mismo desde </b><a class="btn btn-xs btn-default" href="datos_personal/listar/<?php echo $escuela->id; ?>" target="_blank"><i class="fa fa-users"></i> <span>Datos personal</span></a></p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php foreach ($operativos as $operativo): ?>
+			<div class="row">
+				<div class="col-xs-12">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+							<h3 class="box-title">Aplicadores <?php echo $operativo->operativo_tipo; ?></h3>
+						</div>
+						<div class="box-body">
+							<?php if (empty($operativo->fecha_cierre)): ?>
+								<?php if (($operativo->divisiones) > (empty($aplicadores[$operativo->operativo_tipo_id]) ? 0 : count($aplicadores[$operativo->operativo_tipo_id]))): ?>
+									<a class="btn bg-blue btn-app btn-app-zetta" href="aprender/aprender_operativo/modal_buscar_aplicador/<?php echo $operativo->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal">
+										<i class="fa fa-plus"></i> Agregar aplicador
+									</a>
+								<?php else: ?>
+									<a class="btn bg-blue btn-app btn-app-zetta disabled">
+										<i class="fa fa-plus"></i> Agregar aplicador
+									</a>
+								<?php endif; ?>
+								<a class="btn btn-app btn-app-zetta bg-red" data-toggle="modal" data-target="#confirmar_cierre_operativo_<?php echo $operativo->id; ?>">
+									<i class="fa fa-lock"></i> Cerrar carga
+								</a>
+							<?php else: ?>
+								<a class="btn bg-blue btn-app btn-app-zetta disabled">
+									<i class="fa fa-plus"></i> Agregar aplicador
+								</a>
+								<span class="btn btn-app btn-app-zetta text-green">
+									<i class="fa fa-lock"></i> Carga cerrada
+								</span>
+								<a class=" btn bg-default btn-app bg-green" href="aprender/aprender_operativo/imprimir_pdf/<?php echo $operativo->id; ?>" title="Exportar PDF" target="_blank"><i class="fa fa-file-pdf-o"></i>Imprimir</a>
+								<?php if (in_array($this->rol->codigo, $this->roles_admin)): ?>
+								<a class="btn btn-app btn-app-zetta bg-yellow pull-right" data-toggle="modal" data-target="#abrir_operativo_<?php echo $operativo->id; ?>">
+									<i class="fa fa-unlock-alt"></i> Abrir carga
+								</a>
+								<?php endif; ?>
+							<?php endif; ?>
+							<div class="row">
+								<div class="col-sm-12">
+									<label>Divisiones de <?php echo substr($operativo->operativo_tipo, 0, strpos($operativo->operativo_tipo, 'Escuela') - 1); ?>:</label> <?php echo "$operativo->divisiones ($operativo->divisiones_d)"; ?>
+								</div>
+								<div class="col-sm-12">
+									<label>Aplicadores a asignar:</label> <?php echo $operativo->divisiones; ?>
+								</div>
+							</div>
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr style="background-color: #e4e4e4;">
+										<th colspan="5" style="text-align: center;">Aplicadores</th>
+									</tr>
+									<tr>
+										<th>Cuil</th>
+										<th>Apellido y Nombre</th>
+										<th>Teléfono fijo/móvil</th>
+										<th>Email</th>
+										<th style="width: 80px;"></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($aplicadores[$operativo->operativo_tipo_id])): ?>
+										<?php foreach ($aplicadores[$operativo->operativo_tipo_id] as $orden => $aplicador): ?>
+											<tr>
+												<td><?php echo "$aplicador->cuil"; ?></td>
+												<td><?php echo "$aplicador->apellido, $aplicador->nombre"; ?></td>
+												<td><?php echo "$aplicador->telefono_fijo/$aplicador->telefono_movil"; ?></td>
+												<td><?php echo "$aplicador->email"; ?></td>
+												<td>
+													<?php if (empty($operativo->fecha_cierre)): ?>
+														<a class="btn btn-xs btn-danger" href="aprender/aprender_operativo/modal_eliminar_aplicador/<?php echo "$operativo->id/$aplicador->operativo_persona_id"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Eliminar aplicador</a>
+													<?php endif; ?>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									<?php else : ?>
+										<tr>
+											<td colspan="5" style="text-align: center;">-- No hay aplicadores asignados --</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal fade" id="confirmar_cierre_operativo_<?php echo $operativo->id; ?>" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+							<h4 class="modal-title">Confirmar cierre de carga</h4>
+						</div>
+						<div class="modal-body">
+							<h4>Aplicadores <?php echo $operativo->operativo_tipo; ?></h4>
+							<h5><strong>Divisiones de <?php echo substr($operativo->operativo_tipo, 0, strpos($operativo->operativo_tipo, 'Escuela') - 1); ?>:</strong> <?php echo "$operativo->divisiones ($operativo->divisiones_d)"; ?></h5>
+							<h5><strong>Aplicadores asignados:</strong> <?php echo $operativo->divisiones; ?></h5>
+							<h5><strong>Una vez haya cerrado la carga no podrá realizar modificaciones<br/> ¿Está seguro de que desea cerrar?</strong></h5>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+							<a class="btn btn-danger" href="aprender/aprender_operativo/modal_cerrar/<?php echo "$operativo->id"; ?>">Cerrar</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		<?php if (in_array($this->rol->codigo, $this->roles_admin)): ?>
+			<div class="modal fade" id="abrir_operativo_<?php echo $operativo->id; ?>" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+							<h4 class="modal-title">Abrir carga</h4>
+						</div>
+						<div class="modal-body">
+							<h4>Aplicadores <?php echo $operativo->operativo_tipo; ?></h4>
+							<h5><strong>Divisiones de <?php echo substr($operativo->operativo_tipo, 0, strpos($operativo->operativo_tipo, 'Escuela') - 1); ?>:</strong> <?php echo "$operativo->divisiones ($operativo->divisiones_d)"; ?></h5>
+							<h5><strong>Aplicadores asignados:</strong> <?php echo $operativo->divisiones; ?></h5>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+							<a class="btn btn-warning" href="aprender/aprender_operativo/modal_abrir/<?php echo "$operativo->id"; ?>">Abrir</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		<?php endif; ?>
+		<?php endforeach; ?>
+	</section>
+</div>

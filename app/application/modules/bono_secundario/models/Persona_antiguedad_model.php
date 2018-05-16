@@ -1,0 +1,37 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_antiguedad_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'persona_antiguedad';
+		$this->msg_name = 'Antigüedad de Persona';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'persona_id', 'antiguedad_tipo_id', 'fecha_desde', 'fecha_hasta', 'estado');
+		$this->fields = array(
+			'persona' => array('label' => 'Persona', 'readonly' => TRUE),
+			'antiguedad_tipo' => array('label' => 'Tipo de antigüedad', 'input_type' => 'combo', 'required' => TRUE),
+			'fecha_desde' => array('label' => 'Fecha desde', 'type' => 'date', 'required' => TRUE),
+			'fecha_hasta' => array('label' => 'Fecha hasta', 'type' => 'date', 'required' => TRUE),
+		);
+		$this->requeridos = array('persona_id', 'antiguedad_tipo_id', 'fecha_desde', 'fecha_hasta');
+		$this->default_join = array(
+			array('persona', 'persona.id=persona_antiguedad.persona_id', 'left', array('CONCAT(cuil, \' \', persona.apellido, \', \', persona.nombre) as persona')),
+			array('antiguedad_tipo', 'antiguedad_tipo.id=persona_antiguedad.antiguedad_tipo_id', 'left', array('descripcion as antiguedad_tipo'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Persona_antiguedad_model.php */
+/* Location: ./application/modules/bono/models/Persona_antiguedad_model.php */

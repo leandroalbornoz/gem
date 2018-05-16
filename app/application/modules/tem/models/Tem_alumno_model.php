@@ -1,0 +1,61 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Tem_alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'tem_alumno';
+		$this->msg_name = 'Alumno TEM';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'cargo_id', 'escuela', 'carrera', 'materia', 'ciclo_lectivo', 'fecha_inicio', 'fecha_fin', 'estado');
+		$this->fields = array(
+			'documento_tipo' => array('label' => 'Tipo', 'readonly' => TRUE),
+			'documento' => array('label' => 'Documento', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'readonly' => TRUE, 'required' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'readonly' => TRUE, 'required' => TRUE),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id', 'required' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date', 'required' => TRUE),
+			'escuela' => array('label' => 'Escuela', 'maxlength' => '100', 'required' => TRUE),
+			'carrera' => array('label' => 'Carrera', 'maxlength' => '200', 'required' => TRUE),
+			'materia' => array('label' => 'Materia', 'maxlength' => '200', 'required' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Año de cursado', 'type' => 'integer', 'maxlength' => '10', 'required' => TRUE),
+			'fecha_inicio' => array('label' => 'Fecha de Inicio', 'type' => 'date'),
+			'fecha_fin' => array('label' => 'Fecha de Fin', 'type' => 'date'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado', 'required' => TRUE, 'array' => array('Pendiente' => 'Pendiente', 'Aprobado' => 'Aprobado', 'Desaprobado' => 'Desaprobado', 'Abandono' => 'Abandono')),
+		);
+		$this->requeridos = array('alumno_id', 'cargo_id', 'escuela', 'carrera', 'materia', 'ciclo_lectivo', 'estado');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = tem_alumno.alumno_id', 'left', array('alumno.persona_id')),
+			array('persona', 'persona.id = alumno.persona_id', 'left', array('apellido', 'nombre', 'fecha_nacimiento', 'documento', 'sexo_id')),
+			array('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left', array('documento_tipo.descripcion_corta as documento_tipo')),
+			array('sexo', 'sexo.id = persona.sexo_id', 'left', array('sexo.descripcion as sexo')),
+			array('cargo', 'cargo.id = tem_alumno.cargo_id', 'left', array('cargo.condicion_cargo_id as cargo')),);
+	}
+
+	public function get_alumnos_cargo($cargo_id) {
+		return $this->db->select('ta.id, dt.descripcion_corta as documento_tipo, p.documento, p.apellido, p.nombre, p.fecha_nacimiento, s.descripcion sexo, ta.fecha_inicio, ta.fecha_fin, ta.escuela, ta.carrera, ta.materia, ta.ciclo_lectivo, ta.estado')
+				->from('tem_alumno ta')
+				->join('alumno a', 'a.id = ta.alumno_id')
+				->join('persona p', 'p.id = a.persona_id')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->where('ta.cargo_id', $cargo_id)
+				->order_by('p.documento')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Tem_alumno_model.php */
+/* Location: ./application/modules/tem/models/Tem_alumno_model.php */

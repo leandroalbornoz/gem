@@ -1,0 +1,93 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_novedad_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->auditoria = TRUE;
+		$this->aud_table_name = 'aud_servicio_novedad';
+		$this->table_name = 'servicio_novedad';
+		$this->msg_name = 'Novedad de servicio';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'servicio_id', 'servicio_funcion_id', 'ames', 'novedad_tipo_id', 'fecha_desde', 'fecha_hasta', 'estado', 'dias', 'obligaciones', 'reemplazo_id', 'planilla_alta_id', 'planilla_baja_id', 'origen_id', 'motivo_rechazo');
+		$this->fields = array(
+			'novedad_tipo' => array('label' => 'Artículo', 'input_type' => 'combo', 'id_name' => 'novedad_tipo_id', 'required' => TRUE),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date', 'class' => 'noFormat', 'required' => TRUE, 'readonly' => TRUE),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date', 'class' => 'noFormat', 'required' => TRUE, 'readonly' => TRUE),
+			'dias' => array('label' => 'Días', 'placeholder' => 'Cantidad', 'type' => 'numeric'),
+			'obligaciones' => array('label' => 'Obligaciones', 'placeholder' => 'Cantidad', 'type' => 'numeric'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado', 'required' => TRUE, 'readonly' => TRUE, 'array' => array('Cargado' => 'Cargado', 'Auditado' => 'Auditado'))
+		);
+		$this->requeridos = array('servicio_id', 'novedad_tipo_id', 'fecha_desde', 'fecha_hasta', 'estado');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('novedad_tipo', 'novedad_tipo.id = servicio_novedad.novedad_tipo_id', '', array('novedad_tipo.descripcion_corta as novedad_tipo', 'novedad_tipo.articulo', 'novedad_tipo.inciso', 'novedad_tipo.concomitante', 'novedad_tipo.novedad', 'novedad_tipo.reemplazo')),
+			array('servicio', 'servicio.id = servicio_novedad.servicio_id', '', array('servicio.cargo_id'))
+		);
+	}
+
+	public function get_servicio_novedades($servicio_id, $persona_id, $escuela_id) {
+		return $this->db->select("servicio_novedad.id, servicio_novedad.fecha_desde, CASE novedad_tipo.id WHEN 1 THEN '' ELSE servicio_novedad.fecha_hasta END as fecha_hasta, CASE novedad_tipo.id WHEN 1 THEN '' ELSE servicio_novedad.dias END as dias,CASE novedad_tipo.id WHEN 1 THEN '' ELSE servicio_novedad.obligaciones END as obligaciones, CASE novedad_tipo.id WHEN 1 THEN 'Alta' ELSE CONCAT(novedad_tipo.articulo, '-', novedad_tipo.inciso) END as articulo, novedad_tipo.descripcion_corta as novedad_tipo, servicio_novedad.estado as estado, servicio_novedad.novedad_tipo_id, servicio_novedad.ames, escuela.id as escuela_id, servicio_novedad.ames, servicio_novedad.motivo_rechazo")
+				->from('servicio_novedad')
+				->join('novedad_tipo', 'novedad_tipo.id = servicio_novedad.novedad_tipo_id')
+				->join('servicio', 'servicio.id = servicio_novedad.servicio_id')
+				->join('persona', 'persona.id = servicio.persona_id')
+				->join('cargo', 'cargo.id = servicio.cargo_id')
+				->join('escuela', 'cargo.escuela_id = escuela.id')
+				->where('servicio_novedad.servicio_id', $servicio_id)
+				->where('servicio_novedad.planilla_baja_id IS NULL')
+				->where("servicio.persona_id", $persona_id)
+				->where('escuela.id', $escuela_id)
+				->order_by('ames, fecha_desde')
+				->get()->result();
+	}
+
+	public function get_servicio_novedades_area($servicio_id, $persona_id, $area_id) {
+		return $this->db->select('servicio_novedad.id, servicio_novedad.fecha_desde, CASE novedad_tipo.id WHEN 1 THEN \'\' ELSE servicio_novedad.fecha_hasta END as fecha_hasta, CASE novedad_tipo.id WHEN 1 THEN \'\' ELSE servicio_novedad.dias END as dias,CASE novedad_tipo.id WHEN 1 THEN \'\' ELSE servicio_novedad.obligaciones END as obligaciones, CASE novedad_tipo.id WHEN 1 THEN \'Alta\' ELSE CONCAT(novedad_tipo.articulo, \'-\', novedad_tipo.inciso) END as articulo, novedad_tipo.descripcion_corta as novedad_tipo, servicio_novedad.estado as estado, servicio_novedad.novedad_tipo_id, servicio_novedad.ames, area.id as area_id, servicio_novedad.ames')
+				->from('servicio_novedad')
+				->join('novedad_tipo', 'novedad_tipo.id = servicio_novedad.novedad_tipo_id')
+				->join('servicio', 'servicio.id = servicio_novedad.servicio_id')
+				->join('persona', 'persona.id = servicio.persona_id')
+				->join('cargo', 'cargo.id = servicio.cargo_id')
+				->join('area', 'cargo.area_id = area.id')
+				->where('servicio_novedad.servicio_id', $servicio_id)
+				->where('servicio_novedad.planilla_baja_id IS NULL')
+				->where("servicio.persona_id", $persona_id)
+				->where('area.id', $area_id)
+				->order_by('ames, fecha_desde')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('origen_id', $delete_id)->count_all_results('servicio_novedad') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a novedades pendientes.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	public function get_auditoria($id) {
+		$historicos = parent::get_auditoria($id);
+		$novedad_tipo = array();
+		foreach ($historicos as $h_id => $historico) {
+			if (!isset($novedad_tipo[$historico->novedad_tipo_id])) {
+				$novedad_tipo[$historico->novedad_tipo_id] = $this->db->select("CONCAT(articulo, '-', inciso, ' ', descripcion) novedad_tipo")->from('novedad_tipo')->where('id', $historico->novedad_tipo_id)->get()->row()->novedad_tipo;
+			}
+			$historico->novedad_tipo = $novedad_tipo[$historico->novedad_tipo_id];
+			$historico->fecha_desde = (new DateTime($historico->fecha_desde))->format('d/m/y');
+			$historico->fecha_hasta = (new DateTime($historico->fecha_hasta))->format('d/m/y');
+			$historico->audi_fecha = (new DateTime($historico->audi_fecha))->format('d/m/y H:i');
+		}
+		return $historicos;
+	}
+}
+/* End of file Servicio_novedad_model.php */
+/* Location: ./application/models/Servicio_novedad_model.php */

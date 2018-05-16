@@ -1,0 +1,58 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cargo_entidad_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'cargo_entidad';
+		$this->msg_name = 'Cargo de entidad';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'entidad', 'cargo');
+		$this->requeridos = array('id', 'entidad', 'cargo');
+	}
+
+	public function get_cargo($documento) {
+		$this->db->select('ce.cargo')
+			->from('cargo_entidad ce');
+		if ($this->rol->rol == 'Administrador') {
+			$this->db->where('ce.entidad', $this->rol->rol);
+		} else {
+			$this->db->where('ce.entidad', $this->rol->entidad);
+		}
+		$this->db->where("ce.cargo NOT IN (SELECT pc.cargo from persona_cargo pc where pc.documento_bono = $documento)")
+			->group_by('ce.cargo');
+		$cargos = $this->db->get()->result();
+
+		$array_cargos = array();
+		foreach ($cargos as $cargo) {
+			$array_cargos[$cargo->cargo] = $cargo->cargo;
+		}
+		return $array_cargos;
+	}
+
+	public function verificar_cargo($cargo) {
+		$this->db->select('ce.cargo')
+			->from('cargo_entidad ce');
+		if ($this->rol->rol == 'Administrador') {
+			$this->db->where('ce.entidad', $this->rol->rol);
+		} else {
+			$this->db->where('ce.entidad', $this->rol->entidad);
+		}
+		$this->db->where('ce.cargo', $cargo);
+		return $this->db->get()->result();
+	}
+	/*
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Antiguedad_tipo_model.php */
+/* Location: ./application/modules/bono/models/Modalidad_model.php */

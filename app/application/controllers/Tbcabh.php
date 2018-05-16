@@ -1,0 +1,383 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Tbcabh extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('tbcabh_model');
+		$this->load->model('servicio_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_PRIVADA, ROL_SEOS);
+		$this->roles_admin = array(ROL_ADMIN);
+		$this->nav_route = 'par/tbcabh';
+	}
+
+	public function modal_ver($id = NULL, $vigente = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id) || $vigente == NULL || !ctype_digit($vigente)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$liquidacion = $this->tbcabh_model->get($id, $vigente);
+		if (empty($liquidacion)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+		if (!empty($liquidacion->servicio_id)) {
+			return $this->modal_ver_servicio($liquidacion->servicio_id);
+		} else {
+			$data['liquidaciones'] = array($liquidacion);
+		}
+		$this->load->view('tbcabh/tbcabh_modal_abm', $data);
+	}
+
+	public function modal_ver_servicio($servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		$data['fields'] = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$data['servicio'] = $servicio;
+		$data['liquidaciones'] = $this->tbcabh_model->get_by_servicio($servicio->id);
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load->view('tbcabh/tbcabh_modal_abm', $data);
+	}
+
+	public function modal_agregar_servicio($id = NULL, $vigente = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $id == NULL || !ctype_digit($id) || $vigente == NULL || !ctype_digit($vigente) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$liquidacion = $this->tbcabh_model->get($id, $vigente);
+		if (empty($liquidacion)) {
+			$this->modal_error('No se encontró el registro de la liquidación', 'Registro no encontrado');
+			return;
+		}
+		if (!empty($liquidacion->servicio_id)) {
+			$this->modal_error('El registro ya está asignado a un servicio', 'Registro ya asignado');
+			return;
+		}
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get_one($persona_id);
+		if (!empty($liquidacion->servicio_id)) {
+			$this->modal_error('No se encontró el registro de la persona', 'Registro no encontrado');
+			return;
+		}
+
+		$fecha_alta = DateTime::createFromFormat('dmY', '01' . $liquidacion->fechaini);
+		if ($liquidacion->codrevi === 'R') {
+			$fecha_alta = new DateTime($fecha_alta->format('Y-m-d') . ' -1 month');
+		}
+		$alta_model = (object) array('fields' => array(
+					'fecha_alta' => array('label' => 'Fecha alta', 'type' => 'date', 'required' => TRUE),
+					'tipo_destino' => array('label' => 'Tipo destino', 'input_type' => 'combo', 'id_name' => 'tipo_destino', 'array' => array('' => '-- Tipo entidad --', 'escuela' => 'Escuela', 'area' => 'Área'), 'required' => TRUE),
+					'destino' => array('label' => 'Destino', 'input_type' => 'combo', 'id_name' => 'destino', 'array' => array('' => '-- Seleccione tipo de destino --'), 'required' => TRUE),
+		));
+		$persona->tipo_destino = '';
+		$persona->destino = '';
+		$persona->fecha_alta = $fecha_alta->format('Y-m-d');
+		if (!empty($liquidacion->guiescid)) {
+			$persona->tipo_destino = 'escuela';
+			$this->load->model('escuela_model');
+			$escuela = $this->escuela_model->get(array('select' => array('id', 'numero', 'anexo', 'nombre'), 'numero' => $liquidacion->guiescid, 'anexo' => '0', 'limit' => '1'));
+			if (empty($escuela)) {
+				$persona->destino = '';
+			} else {
+				$persona->destino = $escuela[0]->id;
+				$alta_model->fields['destino']['array'][$escuela[0]->id] = $escuela[0]->nombre_largo;
+			}
+		} else {
+			$persona->tipo_destino = 'area';
+			$persona->destino = '';
+		}
+		$this->array_tipo_destino_control = $alta_model->fields['tipo_destino']['array'];
+		$this->set_model_validation_rules($alta_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if (empty($this->input->post('tipo_destino'))) {
+				$this->array_destino_control = array('' => '');
+			} else {
+				if ($this->input->post('tipo_destino') === 'escuela') {
+					$this->load->model('escuela_model');
+					$this->array_destino_control = $this->get_array('escuela', 'nombre_largo', 'id', array('select' => array('id', 'numero', 'anexo', 'nombre')));
+				} elseif ($this->input->post('tipo_destino') === 'area') {
+					$this->load->model('areas/area_model');
+					$this->array_destino_control = $this->get_array('area', 'area', 'id', array('select' => array('id', "CONCAT(codigo, ' - ', descripcion) as area")));
+				} else {
+					$this->array_destino_control = array('' => '');
+				}
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				$servicio_id = $this->tbcabh_model->agregar_servicio($id, $vigente, $persona_id, $this->input->post('tipo_destino'), $this->input->post('destino'), $this->get_date_sql('fecha_alta'));
+				$trans_ok &= $this->tbcabh_model->actualizar_servicio_id($id, $vigente, $servicio_id);
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("persona/liquidacion/$persona_id");
+		}
+		$data['fields_s'] = $this->build_fields($alta_model->fields, $persona);
+		$liquidacion->ug = "$liquidacion->ug Esc.$liquidacion->guiescid";
+		$data['fields'] = $this->build_fields($this->tbcabh_model->fields, $liquidacion, TRUE);
+		$data['liquidacion'] = $liquidacion;
+		$data['persona'] = $persona;
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load->view('tbcabh/tbcabh_modal_agregar_servicio', $data);
+	}
+
+	public function modal_asignar_servicio($id = NULL, $vigente = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $id == NULL || !ctype_digit($id) || $vigente == NULL || !ctype_digit($vigente) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$liquidacion = $this->tbcabh_model->get($id, $vigente);
+		if (empty($liquidacion)) {
+			$this->modal_error('No se encontró el registro de la liquidación', 'Registro no encontrado');
+			return;
+		}
+		if (!empty($liquidacion->servicio_id)) {
+			$this->modal_error('El registro ya está asignado a un servicio', 'Registro ya asignado');
+			return;
+		}
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get_one($persona_id);
+
+		$asigna_model = (object) array(
+				'fields' => array(
+					'vigente' => array('type' => 'integer', 'required' => TRUE),
+					'servicio_id' => array('type' => 'integer', 'required' => TRUE),
+					'tbcab_id' => array('type' => 'integer', 'required' => TRUE),
+				)
+		);
+		$this->set_model_validation_rules($asigna_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->tbcabh_model->asignar_servicio($this->input->post('tbcab_id'), $this->input->post('vigente'), $this->input->post('servicio_id'));
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("persona/liquidacion/$persona_id");
+		}
+		$liquidacion->ug = "$liquidacion->ug Esc.$liquidacion->guiescid";
+		$data['fields'] = $this->build_fields($this->tbcabh_model->fields, $liquidacion, TRUE);
+		$data['liquidacion'] = $liquidacion;
+		$data['persona'] = $persona;
+		$data['servicios'] = $this->servicio_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('cargo', 'cargo.id = servicio.cargo_id', '', array('cargo.escuela_id', 'cargo.area_id', 'cargo.carga_horaria', 'cargo.regimen_id')),
+				array('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1', '', array('regimen.codigo as regimen_codigo', 'CONCAT(regimen.codigo, \' \',regimen.descripcion) as regimen', 'regimen.regimen_tipo_id', 'regimen.puntos')),
+				array('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', 'left', array('situacion_revista.descripcion as situacion_revista', 'situacion_revista.planilla_tipo_id')),
+				array('area', 'area.id = cargo.area_id', 'left', array('area.descripcion as area', 'area.codigo as area_codigo')),
+				array('escuela', 'escuela.id = cargo.escuela_id', 'left', array("CONCAT(escuela.numero, CASE WHEN escuela.anexo=0 THEN ' ' ELSE CONCAT('/',escuela.anexo,' ') END, escuela.nombre) as escuela")),
+				array('tbcabh', 'tbcabh.servicio_id=servicio.id AND tbcabh.vigente=' . $liquidacion->vigente, 'left')
+			),
+			'where' => array('tbcabh.id IS NULL AND COALESCE(escuela.dependencia_id,1)=1')
+		));
+
+		$this->load->view('tbcabh/tbcabh_modal_asignar_servicio', $data);
+	}
+
+	public function modal_asignar_liquidacion($servicio_id = NULL, $AMES_LIQUIDACION = AMES_LIQUIDACION) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		$asigna_model = (object) array(
+				'fields' => array(
+					'vigente' => array('type' => 'integer'),
+					'servicio_id' => array('type' => 'integer'),
+					'tbcab_id' => array('type' => 'integer'),
+				)
+		);
+		$this->set_model_validation_rules($asigna_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->tbcabh_model->actualizar_servicio_id($this->input->post('tbcab_id'), $this->input->post('vigente'), $this->input->post('servicio_id'));
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("persona/liquidacion/$servicio->persona_id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$data['servicio'] = $servicio;
+		$data['liquidaciones'] = $this->tbcabh_model->get_by_persona($servicio->cuil, $AMES_LIQUIDACION);
+		$data['AMES_LIQUIDACION'] = $AMES_LIQUIDACION;
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load->view('tbcabh/tbcabh_modal_asignar_liquidacion', $data);
+	}
+
+	public function modal_baja_liquidacion($servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		$data['fields'] = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$baja_model = (object) array(
+				'fields' => array(
+					'fecha' => array('label' => 'Fecha de baja', 'type' => 'date','value' => (empty($servicio->liquidacion_ames) ? '' : (new DateTime($servicio->liquidacion_ames . '01'))->format('d/m/Y'))),				'motivo_baja' => array('label' => 'Motivo Baja', 'maxlength' => '100', 'minlength' => '3'),
+				)
+		);		
+		$this->set_model_validation_rules($baja_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				if ($trans_ok) {
+					$trans_ok &= $this->servicio_model->update(array(
+						'id' => $servicio_id,
+						'fecha_baja' => $this->get_date_sql('fecha'),
+						'motivo_baja' => $this->input->post('motivo_baja')
+						), FALSE);
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("persona/liquidacion/$servicio->persona_id", 'refresh');
+		}
+		$data['fields_novedad'] = $this->build_fields($baja_model->fields);
+		$data['servicio'] = $servicio;
+		$data['liquidaciones'] = $this->tbcabh_model->get_by_persona($servicio->cuil, AMES_LIQUIDACION);
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load->view('tbcabh/tbcabh_modal_baja_liquidacion', $data);
+	}
+
+	public function desasignar_servicio($id = NULL, $vigente = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $id == NULL || !ctype_digit($id) || $vigente == NULL || !ctype_digit($vigente) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$liquidacion = $this->tbcabh_model->get($id, $vigente);
+		if (empty($liquidacion)) {
+			show_error('No se encontró el registro de la liquidación', 500, 'Registro no encontrado');
+		}
+		if (!empty($liquidacion->servicio_id)) {
+			$this->tbcabh_model->desasignar_servicio($id, $vigente);
+		}
+		redirect("persona/liquidacion/$persona_id");
+	}
+
+	public function tbcabh_no_valido($id = NULL, $vigente = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id) || $vigente == NULL || !ctype_digit($vigente) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$liquidacion = $this->tbcabh_model->get($id, $vigente);
+		if (empty($liquidacion)) {
+			show_error('No se encontró el registro de la liquidación', 500, 'Registro no encontrado');
+		}
+		if (empty($liquidacion->servicio_id)) {
+			$this->tbcabh_model->tbcabh_no_valido($id, $vigente);
+		}
+		redirect("persona/liquidacion/$persona_id");
+	}
+
+	public function limpiar_liquidacion_servicio($servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $servicio_id == NULL || !ctype_digit($servicio_id) || $this->usuario !== '37') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro del servicio', 500, 'Registro no encontrado');
+		}
+		$this->tbcabh_model->limpiar_liquidacion_servicio($servicio->id);
+		redirect("persona/liquidacion/$servicio->persona_id");
+	}
+
+	public function modal_anular_baja_liquidacion($servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		$data['fields'] = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$this->load->model('servicio_novedad_model');
+		$novedades = $this->servicio_novedad_model->get(array(
+			'join' => array(
+				array('novedad_tipo', 'novedad_tipo.id=servicio_novedad.novedad_tipo_id AND novedad_tipo.novedad=\'B\'')
+			),
+			'servicio_id' => $servicio->id));
+		$this->form_validation->set_rules('id', 'Id Servicio', 'integer|required');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = empty($novedades);
+
+				if ($trans_ok) {
+					$trans_ok &= $this->servicio_model->update(array(
+						'id' => $servicio->id,
+						'fecha_baja' => 'NULL',
+						'motivo_baja' => 'NULL'
+						), FALSE);
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("persona/liquidacion/$servicio->persona_id", 'refresh');
+		}
+		$data['servicio'] = $servicio;
+		$data['novedades'] = $novedades;
+		$data['liquidaciones'] = $this->tbcabh_model->get_by_servicio($servicio->id);
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load->view('tbcabh/tbcabh_modal_anular_baja_liquidacion', $data);
+	}
+}
+/* End of file Tbcabh.php */
+/* Location: ./application/controllers/Tbcabh.php */

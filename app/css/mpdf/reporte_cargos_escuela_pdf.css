@@ -1,0 +1,46 @@
+.table-responsive td{
+	font-size: 9px;
+	text-align: center;
+}
+.table-head td{
+	font-size: 10px;
+	text-align: center;
+}
+
+div.div_cargo{
+	border: #000000 solid thin;
+	border-radius: 5px;
+	margin-bottom: 4px;
+	page-break-inside: avoid;
+}
+
+.div_carrera{
+	border: #000000 solid thin;
+	border-radius: 5px;
+	margin-bottom: 4px;
+	background: #ccc;
+	text-align: center;
+	color: #000;
+}
+@media print{
+	.div_carrera{
+		border: #000000 solid thin;
+		border-radius: 5px;
+		margin-bottom: 4px;
+		background: #ccc !important;
+		text-align: center;
+		color: #000;
+	}
+}
+
+div.div_cargo_head{
+	border-bottom: #000000 dotted thin;
+}
+
+th{
+	font-size:11px;
+}
+
+th{
+	text-align: center;
+}

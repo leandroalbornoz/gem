@@ -1,0 +1,172 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alertas extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS);
+		$this->nav_route = 'juntas/alertas';
+		$this->modulos_permitidos = array(ROL_MODULO_ADMINISTRADOR_DE_JUNTAS);
+	}
+
+	public function listar_inscriptos() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 25),
+				array('label' => 'Email', 'data' => 'email', 'width' => 20),
+				array('label' => 'Escuela', 'data' => 'escuela', 'width' => 15),
+				array('label' => 'Cargos', 'data' => 'cargos', 'searchable' => 'false', 'width' => 20),
+				array('label' => 'Títulos', 'data' => 'titulos', 'searchable' => 'false', 'width' => 5),
+				array('label' => '', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'inscriptos_table',
+			'source_url' => 'juntas/alertas/listar_data_inscriptos',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_inscriptos_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Personas inscriptas';
+		$this->load_template('juntas/alertas/alertas_ver', $data);
+	}
+
+	public function listar_data_inscriptos() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select("p.id, p.cuil, p.email, CONCAT(p.apellido,', ', p.nombre) as persona, GROUP_CONCAT(DISTINCT pc.cargo ORDER BY pc.cargo SEPARATOR ' - ') cargos, COUNT(distinct pt.id) titulos, e.nombre as escuela")
+			->unset_column('id')
+			->from('persona p')
+			->join('persona_cargo pc', 'pc.documento_bono = p.documento', 'left')
+			->join('persona_titulo pt', 'pt.persona_id = p.id  and pt.borrado = 0', 'left')
+			->join('inscripcion i', 'i.persona_id = p.id', 'left')
+			->join('escuela e', 'e.id = i.escuela_id', 'left')
+			->where('i.fecha_cierre IS NOT NULL')
+			->group_by('p.id, e.nombre');
+		$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+			. '<a class="btn btn-xs btn-default" href="juntas/escritorio/ver/$1"><i class="fa fa-search"></i> Ver</a>'
+			. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+			. '<ul class="dropdown-menu dropdown-menu-right">'
+			. '<li><a class="dropdown-item" href="juntas/persona_cargo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar cargo</a></li>'
+			. '<li><a class="dropdown-item" href="juntas/persona_titulo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar título</a></li>'
+			. '</ul></div>', 'id');
+		echo $this->datatables->generate();
+	}
+
+	public function listar_auditadas() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 25),
+				array('label' => 'Email', 'data' => 'email', 'width' => 20),
+				array('label' => 'Escuela', 'data' => 'escuela', 'width' => 15),
+				array('label' => 'Cargos', 'data' => 'cargos', 'searchable' => 'false', 'width' => 20),
+				array('label' => 'Títulos', 'data' => 'titulos', 'searchable' => 'false', 'width' => 5),
+				array('label' => '', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'auditadas_table',
+			'source_url' => 'juntas/alertas/listar_data_auditadas',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_auditadas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Personas inscriptas';
+		$this->load_template('juntas/alertas/alertas_ver', $data);
+	}
+
+	public function listar_data_auditadas() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select("p.id, p.cuil, p.email, CONCAT(p.apellido,', ', p.nombre) as persona, GROUP_CONCAT(DISTINCT pc.cargo ORDER BY pc.cargo SEPARATOR ' - ') cargos, COUNT(distinct pt.id) titulos, e.nombre as escuela")
+			->unset_column('id')
+			->from('persona p')
+			->join('persona_cargo pc', 'pc.documento_bono = p.documento', 'left')
+			->join('persona_titulo pt', 'pt.persona_id = p.id', 'left')
+			->join('inscripcion i', 'i.persona_id = p.id', 'left')
+			->join('escuela e', 'e.id = i.escuela_id', 'left')
+			->where('i.fecha_recepcion IS NOT NULL')
+			->group_by('p.id, e.nombre');
+		$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+			. '<a class="btn btn-xs btn-default" href="juntas/escritorio/ver/$1"><i class="fa fa-search"></i> Ver</a>'
+			. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+			. '<ul class="dropdown-menu dropdown-menu-right">'
+			. '<li><a class="dropdown-item" href="juntas/persona_cargo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar cargo</a></li>'
+			. '<li><a class="dropdown-item" href="juntas/persona_titulo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar título</a></li>'
+			. '</ul></div>', 'id');
+		echo $this->datatables->generate();
+	}
+
+	public function listar_vacantes() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Número', 'data' => 'numero', 'width' => 11),
+				array('label' => 'Nombre', 'data' => 'nombre', 'width' => 50),
+				array('label' => 'Departamento', 'data' => 'departamento', 'width' => 50),
+				array('label' => 'Vacantes', 'data' => 'vacantes', 'width' => 13),
+				array('label' => 'Vacantes disponibles', 'data' => 'vacantes_disponibles', 'width' => 13),
+				array('label' => 'Personas inscriptas', 'data' => 'personas_inscriptas', 'width' => 13),
+				array('label' => '', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'vacantes_table',
+			'source_url' => 'juntas/alertas/listar_data_vacantes',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_vacantes_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Escuelas';
+		$this->load_template('juntas/alertas/alertas_ver', $data);
+	}
+
+	public function listar_data_vacantes() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select("e.gem_id as id, e.numero, e.nombre, e.vacantes, e.vacantes_disponibles, (e.vacantes-e.vacantes_disponibles) as personas_inscriptas, e.departamento")
+			->unset_column('id')
+			->from('escuela e')
+			->where('e.vacantes_disponibles >= 0 ');
+		$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+			. '<a class="btn btn-xs btn-default" href="juntas/escuela/listar_validadores/$1"><i class="fa fa-search"></i> Ver validadores</a>'
+			. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+			. '<ul class="dropdown-menu dropdown-menu-right">'
+			. '<li><a class="dropdown-item" href="juntas/escuela/listar_validadas/$1"><i class="fa fa-search"></i> Personas validadas</a></li>'
+			. '<li><a class="dropdown-item" href="juntas/persona_titulo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar título</a></li>'
+			. '</ul></div>', 'id');
+		echo $this->datatables->generate();
+	}
+}
+/* End of file Titulo.php */
+	/* Location: ./application/modules/juntas/controllers/Alertas.php */	

@@ -1,0 +1,54 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Rol_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'rol';
+		$this->msg_name = 'Rol';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'codigo', 'nombre', 'sistema_id', 'rol_padre_id','entidad_tipo_id');
+		$this->fields = array(
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '45', 'required' => TRUE),
+			'sistema' => array('label' => 'Sistema', 'input_type' => 'combo', 'id_name' => 'sistema_id', 'required' => TRUE),
+			'rol_padre' => array('label' => 'Rol de Padre', 'input_type' => 'combo', 'id_name' => 'rol_padre_id')
+		);
+		$this->requeridos = array('nombre', 'sistema_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('rol rol_padre', 'rol_padre.id = rol.rol_padre_id', 'left', array('rol_padre.nombre as rol_padre')),
+			array('entidad_tipo', 'entidad_tipo.id = rol.entidad_tipo_id', 'left', array('entidad_tipo.id as entidad_tipo_id','entidad_tipo.nombre as entidad_tipo')),
+			array('sistema', 'sistema.id = rol.sistema_id', 'left', array('sistema.nombre as sistema'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('rol_id', $delete_id)->count_all_results('parametro') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a parametro.');
+			return FALSE;
+		}
+		if ($this->db->where('rol_padre_id', $delete_id)->count_all_results('rol') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a rol.');
+			return FALSE;
+		}
+		if ($this->db->where('rol_id', $delete_id)->count_all_results('rol_permiso') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a rol de permiso.');
+			return FALSE;
+		}
+		if ($this->db->where('rol_id', $delete_id)->count_all_results('usuario_rol') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a usuario de rol.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Rol_model.php */
+/* Location: ./application/models/Rol_model.php */

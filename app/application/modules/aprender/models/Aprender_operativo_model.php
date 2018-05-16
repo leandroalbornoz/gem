@@ -1,0 +1,114 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Aprender_operativo_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'aprender_operativo';
+		$this->msg_name = 'Operativo Aprender';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'operativo_tipo_id', 'escuela_id', 'fecha_cierre');
+		$this->fields = array(
+			'operativo_tipo' => array('label' => 'Tipo de Operativo', 'input_type' => 'combo', 'id_name' => 'operativo_tipo_id', 'required' => TRUE),
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
+			'fecha_cierre' => array('label' => 'Fecha de Cierre', 'type' => 'datetime')
+		);
+		$this->requeridos = array('operativo_tipo_id', 'escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('aprender_operativo_tipo', 'aprender_operativo_tipo.id = aprender_operativo.operativo_tipo_id', 'left', array('aprender_operativo_tipo.descripcion as operativo_tipo'))
+		);
+	}
+
+	public function get_operativos($escuela_id) {
+		return $this->db
+				->select('ao.id, ao.fecha_cierre, ao.operativo_tipo_id, aot.descripcion as operativo_tipo, COUNT(DISTINCT d.id) divisiones, GROUP_CONCAT(DISTINCT d.division ORDER BY d.division) divisiones_d')
+				->from('aprender_operativo ao')
+				->join('aprender_operativo_tipo aot', 'aot.id = ao.operativo_tipo_id', 'left')
+				->join('escuela e', 'COALESCE(e.escuela_id,e.id)=ao.escuela_id', 'left', false)
+				->join('division d', 'CASE aot.id WHEN 1 THEN d.curso_id=10 OR (d.curso_id=71 AND d.division LIKE \'%4%\') WHEN 2 THEN d.curso_id=12 OR (d.curso_id=71 AND d.division LIKE \'%6%\') WHEN 3 THEN d.curso_id IN (5,18) ELSE FALSE END AND e.id=d.escuela_id AND d.fecha_baja IS NULL', 'left', false)
+				->where('ao.escuela_id', $escuela_id)
+				->group_by('ao.id')
+				->get()->result();
+	}
+
+	public function get_escuela_operativo($escuela_id) {
+		return $this->db->select('escuela_id')
+				->from('aprender_operativo ao')
+				->where('ao.escuela_id', $escuela_id)
+				->get()->row();
+	}
+
+	public function get_vista($escuela_id, $data) {
+		$return['aprender_aplicadores'] = $data['aprender_aplicadores'];
+		$return['escuela'] = $data['escuela'];
+		$return['administrar'] = $data['administrar'];
+		$aprender_operativos = $this->db->select('ao.id, ao.fecha_cierre, ao.operativo_tipo_id, aot.descripcion as operativo_tipo, COUNT(DISTINCT d.id) divisiones, GROUP_CONCAT(DISTINCT d.division ORDER BY d.division) divisiones_d')
+				->from('aprender_operativo ao')
+				->join('aprender_operativo_tipo aot', 'aot.id = ao.operativo_tipo_id', 'left')
+				->join('escuela e', 'COALESCE(e.escuela_id,e.id)=ao.escuela_id', 'left', false)
+				->join('division d', 'CASE aot.id WHEN 1 THEN d.curso_id=10 OR (d.curso_id=71 AND d.division LIKE \'%4%\') WHEN 2 THEN d.curso_id=12 OR (d.curso_id=71 AND d.division LIKE \'%6%\') WHEN 3 THEN d.curso_id IN (5,18) ELSE FALSE END AND e.id=d.escuela_id AND d.fecha_baja IS NULL', 'left', false)
+				->where('ao.escuela_id', $escuela_id)
+				->group_by('ao.id')
+				->get()->result();
+		$return['aprender_operativos'] = $aprender_operativos;
+		return $return;
+	}
+
+	public function buscar_aplicadores($operativo, $dni = '') {
+		$this->db
+			->select('p.id, p.apellido, p.nombre, p.cuil, p.email, p.telefono_fijo, p.telefono_movil, a.id as aplicador_id, oe.numero escuela_asignada')
+			->from('persona p')
+			->join('servicio s', 's.persona_id = p.id AND s.fecha_baja IS NULL')
+			->join('cargo c', 's.cargo_id = c.id')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+			->join('aprender_operativo_aplicador a', "p.id=a.persona_id AND a.estado='Activo'", 'left')
+			->join('aprender_operativo o', 'o.id=a.aprender_operativo_id', 'left')
+			->join('escuela oe', 'oe.id=o.escuela_id', 'left');
+		if (empty($dni)) {
+			$this->db
+				->select('GROUP_CONCAT(DISTINCT cu.descripcion) cursos')
+				->join('division d', 'd.id = c.division_id')
+				->join('curso cu', 'd.curso_id = cu.id')
+				->join('escuela e', 'c.escuela_id=COALESCE(e.escuela_id, e.id)')
+				->where('e.id', $operativo->escuela_id);
+			switch ($operativo->operativo_tipo_id) {
+				case '1':
+					$this->db->where_in('d.curso_id', array(7, 8, 9, 10, 11, 12, 13, 71));
+					$this->db->where_in('c.regimen_id', array(59, 60, 62, 65, 68, 70, 74, 85, 91, 225, 230, 234, 245, 251));
+					break;
+				case '2':
+					$this->db->where_in('d.curso_id', array(7, 8, 9, 10, 11, 12, 13, 71));
+					$this->db->where_in('c.regimen_id', array(59, 60, 62, 65, 68, 70, 74, 85, 91, 225, 230, 234, 245, 251));
+					break;
+				case '3':
+					$this->db->where_in('d.curso_id', array(5, 18));
+					break;
+			}
+		} else {
+			$this->db->select("'' cursos")
+				->where('p.documento_tipo_id', 1)
+				->where('p.documento', $dni);
+		}
+		$this->db->group_by('p.id');
+		return $this->db->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('aprender_operativo_id', $delete_id)->count_all_results('aprender_operativo_aplicador') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a aprender de operativo de aplicador.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Aprender_operativo_model.php */
+/* Location: ./application/models/Aprender_operativo_model.php */

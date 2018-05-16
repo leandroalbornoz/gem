@@ -1,0 +1,8 @@
+Base
+
+DGE04
+
+tabla
+
+[intranet].[dbo].[MovimAlumnos] 
+

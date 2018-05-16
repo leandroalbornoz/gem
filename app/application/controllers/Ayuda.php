@@ -1,0 +1,20 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Ayuda extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = explode(',', ROLES);
+	}
+
+	public function tutoriales() {
+		$data = array();
+		$this->load->model('pregunta_model');
+		$data['preguntas'] = $this->pregunta_model->get_preguntas();
+		$this->load_template('ayuda/ayuda_tutoriales', $data);
+	}
+}
+/* End of file Ayuda.php */
+/* Location: ./application/controllers/Ayuda.php */

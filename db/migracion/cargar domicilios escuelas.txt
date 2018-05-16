@@ -1,0 +1,15 @@
+
+SELECT ted.EscId, ted.EscCodPos,tld.id as localidad_id, ted.EscDepId, ted.EscDom   from tmp_escuela_dge50 ted 
+JOIN tmp_localidad_distrito tld ON ted.EscDepId = tld.DepID AND ted.EscDisId = tld.DisId;
+
+update tmp_escuela_dge50 ted
+JOIN tmp_localidad_distrito tld ON ted.EscDepId = tld.DepID AND ted.EscDisId = tld.DisId
+SET localidad_id =tld.id;
+
+
+UPDATE cedula.escuela e
+JOIN tmp_escuela_dge50 ted ON e.numero = ted.escid
+SET e.codigo_postal=ted.esccodpos, 
+	e.localidad_id = ted.localidad_id,
+	e.calle=ted.escdom
+WHERE e.numero = ted.escid

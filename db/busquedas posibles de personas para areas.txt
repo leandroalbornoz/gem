@@ -1,0 +1,9 @@
+select * from servicio where srvnroliq='273235491641' AND srvbajfch ='17530101';
+
+select * from regsalca where regsalcod in ('0510305');
+
+select * from guiarep where guijurid='64' AND guirepcod ='0700';
+
+select * from cgodet where cgodetid=205;
+
+select * from unidorg; 

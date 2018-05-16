@@ -1,0 +1,73 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Evaluacion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'evaluacion';
+		$this->msg_name = 'Evaluación';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'evaluacion_tipo_id', 'fecha', 'cursada_id', 'tema', 'ciclo_lectivo', 'periodo');
+		$this->fields = array(
+			'evaluacion_tipo' => array('label' => 'Tipo de evaluación', 'input_type' => 'combo', 'id_name' => 'evaluacion_tipo_id', 'required' => TRUE),
+			'fecha' => array('label' => 'Fecha', 'type' => 'date', 'required' => TRUE),
+			'tema' => array('label' => 'Tema', 'maxlength' => '45', 'required' => TRUE),
+			'periodo' => array('label' => 'Periodo', 'input_type' => 'combo', 'id_name' => 'periodo_id', 'required' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'type' => 'number', 'required' => TRUE, 'readonly' => TRUE)
+		);
+		$this->requeridos = array('evaluacion_tipo_id', 'fecha', 'cursada_id', 'ciclo_lectivo');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id', 'left', array('evaluacion_tipo.descripcion as evaluacion_tipo')),
+			array('cursada', 'cursada.id = evaluacion.cursada_id', 'left', array('cursada.id as cursada_id')),
+			array('division', 'cursada.division_id = division.id', 'left', array('CONCAT(curso.descripcion,\' \',division.division) as division')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso')),
+			array('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left', array('espacio_curricular.id as espacio_curricular_id')),
+			array('materia', 'materia.id = espacio_curricular.materia_id', 'left', array('materia.descripcion as espacio_curricular')),
+			array('calendario', 'calendario.id = division.calendario_id', 'left', array('calendario.descripcion as calendario')),
+			array('calendario_periodo', 'calendario_periodo.calendario_id = calendario.id AND calendario_periodo.id = evaluacion.periodo', 'left', array("calendario_periodo.id as periodo_id", "CONCAT(calendario_periodo.periodo, '° ', calendario.nombre_periodo) periodo"))
+		);
+	}
+
+	public function get_evaluaciones_cursada($cursada_id) {
+		return $this->db->select("evaluacion.id,evaluacion_tipo.descripcion as evaluacion_tipo, evaluacion.tema, evaluacion.fecha, CONCAT(curso.descripcion,' ',division.division) as division, cursada.id as cursada_id,SUM(CASE WHEN cursada_nota.asistencia = 'Ausente' THEN 1 ELSE 0 END) ausentes,COUNT(DISTINCT cursada_nota.id) inscriptos, SUM(cursada_nota.nota) as suma_notas")
+				->from('evaluacion')
+				->join('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id')
+				->join('cursada', 'evaluacion.cursada_id = cursada.id')
+				->join('cursada_nota', 'cursada_nota.evaluacion_id = evaluacion.id', 'left')
+				->join('division', 'cursada.division_id = division.id')
+				->join('curso', 'division.curso_id = curso.id', 'left')
+				->join('espacio_curricular', 'cursada.espacio_curricular_id = espacio_curricular.id', 'left')
+				->join('materia', 'materia.id = espacio_curricular.materia_id', 'left')
+				->where('evaluacion.cursada_id', $cursada_id)
+				->order_by('evaluacion.fecha', 'desc')
+				->group_by('evaluacion.id')
+				->get()->result();
+	}
+
+	public function get_notas_evalaucion($evaluacion_id) {
+		return $this->db->select('cursada_nota.id')
+				->from('cursada_nota')
+				->join('evaluacion', 'evaluacion.id = cursada_nota.evaluacion_id', 'left')
+				->where('cursada_nota.evaluacion_id', $evaluacion_id)
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('evaluacion_id', $delete_id)->count_all_results('cursada_nota') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cursada de nota.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Evaluacion_model.php */
+/* Location: ./application/models/Evaluacion_model.php */

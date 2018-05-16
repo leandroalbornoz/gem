@@ -1,0 +1,42 @@
+<link rel="stylesheet" href="plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css">
+<script src="plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js" type="text/javascript"></script>
+<script src="plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js" type="text/javascript"></script>
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'selectizeForm')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<div class="form-group col-md-12">
+			<?php echo $fields['documento_bono']['label']; ?>
+			<?php echo $fields['documento_bono']['form']; ?>
+		</div>
+		<div class="form-group col-md-12">
+			<?php echo $fields['persona']['label']; ?>
+			<?php echo $fields['persona']['form']; ?>
+		</div>
+		<?php if (isset($agregar) && !empty($agregar)): ?>
+			<div class="form-group col-md-12">
+				<?php echo $fields['cargos']['label']; ?>
+				<?php echo $fields['cargos']['form']; ?>
+			</div>
+		<?php endif ?>
+		<div class="form-group col-md-12">
+			<?php echo $fields['cargo']['label']; ?>
+			<?php echo $fields['cargo']['form']; ?>
+		</div>
+		<?php if ($txt_btn == 'Activar'): ?> 
+			<div class="form-group col-md-12">
+				<?php echo $fields['estado']['label']; ?>
+				<?php echo $fields['estado']['form']; ?>
+			</div>
+		<?php endif; ?> 
+	</div>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn), $txt_btn) : ''; ?>
+	<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar' || $txt_btn === 'Activar') ? form_hidden('id', $persona_cargo->id) : ''; ?>
+</div>
+<?php echo form_close(); ?>
