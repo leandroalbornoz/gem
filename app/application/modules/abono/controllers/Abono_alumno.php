@@ -30,7 +30,6 @@ class Abono_alumno extends MY_Controller {
 		} else {
 			$escuela_mes = false;
 		}
-
 		$this->load->model('abono/abono_escuela_monto_model');
 		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $mes);
 		if (empty($monto_escuela_mes)) {
@@ -60,7 +59,7 @@ class Abono_alumno extends MY_Controller {
 		if ($monto_total_escuela == 0 && $cantidad_alumnos_espera->cantidad >= 5) {
 			$this->session->set_flashdata('warning', "No pueden cargarse mas de 5 alumnos en espera");
 		}
-		
+
 		$data['cupos_total_escuela'] = $cupos_total_escuela;
 		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;
@@ -275,10 +274,15 @@ class Abono_alumno extends MY_Controller {
 		}
 		$this->load->model('abono/abono_escuela_monto_model');
 		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $ames);
+		if (empty($monto_escuela_mes)) {
+			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
+		}
 		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $ames);
+		$cupos_sum_escuela_mes = $this->abono_alumno_model->get_suma_cupos_mes($escuela_id, $ames);
 		$cantidad_alumnos_espera = $this->abono_alumno_model->get_cantidad_alumnos_espera($escuela_id, $ames);
 		$this->load->model('abono/abono_tipo_model');
 		$this->array_abono_tipo_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar Tipo Abono --'));
+		unset($array_abono_tipo[4]); // se elimina el tipo contratado para que no se vea en el combo.
 		$this->load->model('abono/abono_motivo_alta_model');
 		$this->array_motivo_alta_control = $array_motivo_alta = $this->get_array('abono_motivo_alta', 'descripcion', 'id', null, array('' => '-- Seleccionar Motivo de Alta --'));
 
@@ -290,12 +294,14 @@ class Abono_alumno extends MY_Controller {
 			$cantidad_alumnos_espera = $this->input->post('cantidad_alumnos_espera');
 			if ($this->input->post('abono_alumno_estado_id') == 1) {
 				$monto_final = $this->input->post('monto_total_escuela') - $this->input->post('monto');
+				$cupo_final = $this->input->post('cupos_total_escuela') - 1;
 			} else {
 				$monto_final = 0;
+				$cupo_final = 0;
 			}
 			if ($this->form_validation->run() === TRUE) {
 				$abono_validado = $this->abono_alumno_model->valida_abono($mes, $this->input->post('abono_tipo'), $this->input->post('numero_abono'));
-				if (empty($abono_validado) && $monto_final >= 0 || $cantidad_alumnos_espera < 5) { //REVISAR ESTA LINEA
+				if (empty($abono_validado) && $monto_final >= 0 && $cupo_final >= 0 || $cantidad_alumnos_espera < 5) {
 					$trans_ok = TRUE;
 					$trans_ok &= $this->abono_alumno_model->create(array(
 						'numero_abono' => $this->input->post('numero_abono'),
@@ -315,8 +321,10 @@ class Abono_alumno extends MY_Controller {
 				} else {
 					if ($monto_final < 0) {
 						$this->session->set_flashdata('error', 'No puede superar el monto restante.');
+					} elseif ($cupo_final < 0) {
+						$this->session->set_flashdata('error', 'No puede superar el cupo de alumnos.');
 					} elseif ($monto_final == 0 && $cantidad_alumnos_espera >= 5) {
-						$this->session->set_flashdata('error', 'No puede cargar mas de 5 alumnos en espera');
+						$this->session->set_flashdata('error', 'No puede cargar mas de 5 alumnos en espera.');
 					} elseif (!empty($abono_validado)) {
 						$this->session->set_flashdata('error', 'Ese abono ya esta cargado en este mes.');
 					} else {
@@ -350,10 +358,13 @@ class Abono_alumno extends MY_Controller {
 		} else {
 			$data['url_redireccion'] = FALSE;
 		}
+		$cupos_total_escuela = $monto_escuela_mes->cupo_alumnos - $cupos_sum_escuela_mes->cupos_escuela_ames;
 		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
 		$this->abono_alumno_model->fields['abono_tipo']['array'] = $array_abono_tipo;
 		$this->abono_alumno_model->fields['motivo_alta']['array'] = $array_motivo_alta;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields);
+		$data['cupos_total_escuela'] = $cupos_total_escuela;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['ames'] = $ames;
 		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;

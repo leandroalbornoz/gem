@@ -86,7 +86,7 @@ class Abono_alumno_model extends MY_Model {
 				->get()->row();
 	}
 	public function get_suma_cupos_mes($escuela_id, $ames) {
-		return $this->db->select('SUM(aa.id) as cupos_escuela_ames')
+		return $this->db->select('count(aa.id) as cupos_escuela_ames')
 				->from('abono_alumno aa')
 				->where('aa.ames', $ames)
 				->where('aa.escuela_id', $escuela_id)

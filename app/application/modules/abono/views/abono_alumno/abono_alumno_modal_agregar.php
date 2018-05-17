@@ -18,26 +18,31 @@
 		</div>
 		<div class="form-group col-md-6">
 			<?php echo $fields['abono_tipo']['label']; ?>
-			<?php echo $fields['abono_tipo']['form']; ?>
-		</div>
-		<?php if ($monto_total_escuela > 0): ?>	
-		<div class="form-group col-md-6">
-			<?php echo $fields['monto']['label']; ?>
-			<?php echo $fields['monto']['form']; ?>
-		</div>
-			<?php else: ?>	
-						<input type="hidden" name="monto" value="<?php echo 0; ?>" id="monto"/>
+			<?php if ($monto_escuela_mes->abono_escuela_estado_id == 2): ?>
+				<input type="text" name="abono_tipo_text" value="Contratado" readonly="1" id="abono_tipo_text" class="form-control">
+				<input type="hidden" name="abono_tipo" value="<?php echo 4; ?>" id="abono_tipo"/>
+			<?php else: ?>
+				<?php echo $fields['abono_tipo']['form']; ?>
 			<?php endif; ?>
+		</div>
+		<?php if ($monto_total_escuela > 0 || $monto_escuela_mes->abono_escuela_estado_id <> 2): ?>	
+			<div class="form-group col-md-6">
+				<?php echo $fields['monto']['label']; ?>
+				<?php echo $fields['monto']['form']; ?>
+			</div>
+		<?php else: ?>	
+			<input type="hidden" name="monto" value="<?php echo 0; ?>" id="monto"/>
+		<?php endif; ?>
 		<div class="form-group col-md-6">
 			<?php echo $fields['motivo_alta']['label']; ?>
 			<?php echo $fields['motivo_alta']['form']; ?>
 		</div>
 		<div class="form-group col-md-6">
 			<label for="alumno">Estado Alumno</label>
-			<?php if ($monto_total_escuela <> 0): ?>	
+			<?php if ($monto_total_escuela <> 0 || $monto_escuela_mes->abono_escuela_estado_id == 2): ?>	
 				<input type="text" name="alumno" value="Asignado" readonly="1" id="alumno" class="form-control">
 				<input type="hidden" name="abono_alumno_estado_id" value="<?php echo 1; ?>" id="abono_alumno_estado_id"/>
-			<?php elseif ($monto_total_escuela == 0): ?>	
+			<?php elseif ($monto_total_escuela == 0 && $monto_escuela_mes->abono_escuela_estado_id == 1): ?>	
 				<input type="text" name="alumno" value="En espera" readonly="1" id="alumno" class="form-control">
 				<input type="hidden" name="abono_alumno_estado_id" value="<?php echo 2; ?>" id="abono_alumno_estado_id"/>
 			<?php endif; ?>
@@ -57,6 +62,7 @@
 <input type="hidden" name="alumno" value="<?php echo $alumno->id; ?>" id="alumno"/>
 <input type="hidden" name="escuela" value="<?php echo $escuela->id; ?>" id="escuela"/>
 <input type="hidden" name="monto_total_escuela" value="<?php echo $monto_total_escuela; ?>" id="monto_total_escuela"/>
+<input type="hidden" name="cupos_total_escuela" value="<?php echo $cupos_total_escuela; ?>" id="cupos_total_escuela"/>
 <input type="hidden" name="cantidad_alumnos_espera" value="<?php echo $cantidad_alumnos_espera; ?>" id="cantidad_alumnos_espera"/>
 <?php if (!$url_redireccion): ?>
 	<input type="hidden" name="ames" value="<?php echo $ames; ?>" id="ames"/>

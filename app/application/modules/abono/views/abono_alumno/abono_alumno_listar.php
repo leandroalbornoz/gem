@@ -167,5 +167,11 @@
 		if (monto_total_escuela == 0 && cantidad_alumnos_espera >= 5) {
 			document.getElementById("btn_agregar_a").className += " disabled";
 		}
+		var cupos_total_escuela = '<?php echo $cupos_total_escuela; ?>';
+		if (cupos_total_escuela == 0) {
+			document.getElementById("btn_agregar_a").className += " disabled";
+		}
+		
+		
 	});
 </script>
