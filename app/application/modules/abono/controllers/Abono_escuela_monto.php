@@ -64,7 +64,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->load->model('escuela_model');
 		$this->array_escuela_control = $array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
 			'join' => array(
-				array('abono_escuela_monto aem', 'aem.escuela_id=escuela.id')
+				array('abono_escuela_monto aem', 'aem.escuela_id=escuela.id', 'left')
 			),
 			'sort_by' => 'numero, nombre'
 			), array('' => '-- Seleccionar Escuela--'));
@@ -247,6 +247,7 @@ class Abono_escuela_monto extends MY_Controller {
 			$escuela_mes = false;
 		}
 		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela->id, $abono_escuela_monto->ames);
+		$cantidad_alumnos_espera = $this->abono_alumno_model->get_cantidad_alumnos_espera($escuela->id, $abono_escuela_monto->ames);
 		$tableData = array(
 			'columns' => array(
 				array('label' => 'N° Abono', 'data' => 'numero_abono', 'class' => 'dt-body-left', 'width' => 8),
@@ -262,6 +263,7 @@ class Abono_escuela_monto extends MY_Controller {
 			'table_id' => 'abono_alumno_table',
 			'source_url' => 'abono/abono_escuela_monto/listar_abono_alumno_data/' . $escuela->id . '/' . 0 . '/' . $abono_escuela_monto->ames
 		);
+		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;
 		$data['monto_total_escuela'] = $abono_escuela_monto->monto - $monto_sum_escuela_mes->monto_escuela_ames;
 		$data['division_id'] = 0;
 		$data['escuela_mes'] = $escuela_mes;
@@ -305,7 +307,7 @@ class Abono_escuela_monto extends MY_Controller {
 			->where('escuela.id', $escuela_id)
 			->where('abono_alumno.ames', $mes)
 			->group_by('alumno.id, abono_alumno.id')
-			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a>', 'id');
+			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1/' . $escuela_id . '/' . $mes . '" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a>', 'id');
 		if ($division_id > 0) {
 			$this->datatables->where('division.id', $division_id);
 		}

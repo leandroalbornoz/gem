@@ -25,7 +25,9 @@
 				<?php echo $fields['abono_tipo']['form']; ?>
 			<?php endif; ?>
 		</div>
-		<?php if ($monto_total_escuela > 0 || $monto_escuela_mes->abono_escuela_estado_id <> 2): ?>	
+		<?php
+		if ($monto_total_escuela > 0 || $monto_escuela_mes->abono_escuela_estado_id <> 2):
+			?>	
 			<div class="form-group col-md-6">
 				<?php echo $fields['monto']['label']; ?>
 				<?php echo $fields['monto']['form']; ?>

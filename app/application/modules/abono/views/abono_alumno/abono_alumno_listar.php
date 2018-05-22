@@ -111,7 +111,10 @@
 						<?php endif; ?>
 						<hr style="margin: 10px 0;">
 						<?php echo $js_table; ?>
-						<?php echo $html_table; ?>
+						<?php
+						echo $html_table;
+						lm($html_table);
+						?>
 					</div>
 				</div>
 			</div>
@@ -171,7 +174,7 @@
 		if (cupos_total_escuela == 0) {
 			document.getElementById("btn_agregar_a").className += " disabled";
 		}
-		
-		
+
+
 	});
 </script>

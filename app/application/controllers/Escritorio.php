@@ -174,6 +174,7 @@ class Escritorio extends MY_Controller {
 				$this->recepcion_model->set_database($DB1);
 				$escuela[0]->pendientes = $this->recepcion_model->get_precepcion($escuela[0]->id);
 				$escuela[0]->recibidos = $this->recepcion_model->get_recibidos($escuela[0]->id);
+				$escuela[0]->reclamos = $this->recepcion_model->get_reclamos($escuela[0]->id);
 
 				$this->escuela_model->fields['recibidos'] = array('label' => 'Recibidos', 'readonly' => TRUE);
 				$this->escuela_model->fields['pendientes'] = array('label' => 'Pendientes', 'readonly' => TRUE);
@@ -184,7 +185,7 @@ class Escritorio extends MY_Controller {
 
 				$data['escuela'] = $escuela[0];
 				$data['txt_btn'] = NULL;
-				$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'pendientes' => '', 'recibidos' => '');
+				$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'pendientes' => '', 'recibidos' => '', 'reclamos' => '');
 				$data['title'] = 'Bono Secundario - Ver escuela';
 				$this->load_template('bono_secundario/escuela/escritorio_escuela_bono', $data);
 				break;

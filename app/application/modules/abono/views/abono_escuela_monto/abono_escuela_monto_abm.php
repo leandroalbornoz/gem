@@ -51,7 +51,16 @@
 </div>
 <div class="modal-footer">
 	<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
-	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn), $txt_btn) : ''; ?>
+	<?php
+	if ($txt_btn === 'Editar') {
+		$btn_style = 'btn btn-warning pull-right';
+	} elseif ($txt_btn === 'Eliminar') {
+		$btn_style = 'btn btn-danger pull-right';
+	} else {
+		$btn_style = 'btn btn-primary pull-right';
+	}
+	?>
+	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => $btn_style, 'title' => $txt_btn), $txt_btn) : ''; ?>
 	<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $abono_escuela_monto->id) : ''; ?>
 </div>
 <?php echo form_close(); ?>

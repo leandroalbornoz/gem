@@ -105,7 +105,7 @@ class Abono_alumno extends MY_Controller {
 			->where('escuela.id', $escuela_id)
 			->where('abono_alumno.ames', $mes)
 			->group_by('alumno.id, abono_alumno.id')
-			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a> <a href="abono/abono_alumno/modal_editar/$1/' . $escuela_id . '/' . $division_id . '/' . $mes . '" class="btn btn-xs btn-warning" title="Editar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i></a> <a href="abono/abono_alumno/modal_eliminar/$1/' . $escuela_id . '/' . $division_id . '/' . $mes . '" class="btn btn-xs btn-danger" title="Eliminar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i></a>', 'id');
+			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1/' . $escuela_id . '/' . $mes . '" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a> <a href="abono/abono_alumno/modal_editar/$1/' . $escuela_id . '/' . $division_id . '/' . $mes . '" class="btn btn-xs btn-warning" title="Editar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i></a> <a href="abono/abono_alumno/modal_eliminar/$1/' . $escuela_id . '/' . $division_id . '/' . $mes . '" class="btn btn-xs btn-danger" title="Eliminar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i></a>', 'id');
 		if ($division_id > 0) {
 			$this->datatables->where('division.id', $division_id);
 		}
@@ -180,6 +180,12 @@ class Abono_alumno extends MY_Controller {
 		if (empty($escuela)) {
 			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
 		}
+		$this->load->model('abono/abono_escuela_monto_model');
+		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $ames);
+		if (empty($monto_escuela_mes)) {
+			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
+		}
+		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $ames);
 		if (isset($_POST) && !empty($_POST)) {
 			if ($id !== $this->input->post('id')) {
 				show_error('Esta solicitud no pasó el control de seguridad.');
@@ -206,6 +212,9 @@ class Abono_alumno extends MY_Controller {
 		} else {
 			$data['url_redireccion'] = FALSE;
 		}
+		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$data['monto_total_escuela'] = $monto_total_escuela;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);
 		$data['abono_alumno'] = $abono_alumno;
 		$data['division_id'] = $division_id;
@@ -391,8 +400,15 @@ class Abono_alumno extends MY_Controller {
 			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
 			return;
 		}
+		$this->load->model('abono/abono_escuela_monto_model');
+		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $ames);
+		if (empty($monto_escuela_mes)) {
+			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
+		}
+		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $ames);
 		$this->load->model('abono/abono_tipo_model');
 		$this->array_alumno_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion');
+		unset($array_abono_tipo[4]); // se elimina el tipo contratado para que no se vea en el combo.
 		$this->load->model('abono/abono_motivo_alta_model');
 		$this->array_motivo_alta_control = $array_motivo_alta = $this->get_array('abono_motivo_alta', 'descripcion');
 		$this->set_model_validation_rules($this->abono_alumno_model);
@@ -439,6 +455,9 @@ class Abono_alumno extends MY_Controller {
 		} else {
 			$data['url_redireccion'] = FALSE;
 		}
+		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$data['monto_total_escuela'] = $monto_total_escuela;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$this->abono_alumno_model->fields['motivo_alta']['array'] = $array_motivo_alta;
 		$this->abono_alumno_model->fields['abono_tipo']['array'] = $array_abono_tipo;
 		$data['division_id'] = $division_id;
@@ -449,7 +468,7 @@ class Abono_alumno extends MY_Controller {
 		$this->load->view('abono/abono_alumno/abono_alumno_modal_abm', $data);
 	}
 
-	public function modal_ver($id = NULL) {
+	public function modal_ver($id = NULL, $escuela_id = NULL, $ames = NULL) {
 		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
 			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
 			return;
@@ -459,11 +478,20 @@ class Abono_alumno extends MY_Controller {
 			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
 			return;
 		}
+		$this->load->model('abono/abono_escuela_monto_model');
+		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $ames);
+		if (empty($monto_escuela_mes)) {
+			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
+		}
+		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $ames);
 		if (!empty($_GET['redirect_url'])) {
 			$data['url_redireccion'] = urldecode($_GET['redirect_url']);
 		} else {
 			$data['url_redireccion'] = FALSE;
 		}
+		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$data['monto_total_escuela'] = $monto_total_escuela;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);
 		$data['abono_alumno'] = $abono_alumno;
 		$data['division_id'] = 0;
@@ -611,7 +639,7 @@ class Abono_alumno extends MY_Controller {
 			->where('escuela.id', $escuela_id)
 			->where('abono_alumno.ames', $mes)
 			->group_by('alumno.id, abono_alumno.id')
-			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a> <div class="checkbox"><input type="checkbox" name="abono_alumno[]" value="$1"> </div>', 'id');
+			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1/' . $escuela_id . '/' . $mes . '" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a> <div class="checkbox"><input type="checkbox" name="abono_alumno[]" value="$1"> </div>', 'id');
 		echo $this->datatables->generate();
 	}
 }

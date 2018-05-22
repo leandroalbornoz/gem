@@ -15,12 +15,21 @@
 		</div>
 		<div class="form-group col-md-6">
 			<?php echo $fields['abono_tipo']['label']; ?>
-			<?php echo $fields['abono_tipo']['form']; ?>
+			<?php if ($monto_escuela_mes->abono_escuela_estado_id == 2): ?>
+				<input type="text" name="abono_tipo_text" value="Contratado" readonly="1" id="abono_tipo_text" class="form-control">
+				<input type="hidden" name="abono_tipo" value="<?php echo 4; ?>" id="abono_tipo"/>
+			<?php else: ?>
+				<?php echo $fields['abono_tipo']['form']; ?>
+			<?php endif; ?>
 		</div>
-		<div class="form-group col-md-3">
-			<?php echo $fields['monto']['label']; ?>
-			<?php echo $fields['monto']['form']; ?>
-		</div>
+		<?php if ($monto_total_escuela > 0 || $monto_escuela_mes->abono_escuela_estado_id <> 2): ?>	
+			<div class="form-group col-md-6">
+				<?php echo $fields['monto']['label']; ?>
+				<?php echo $fields['monto']['form']; ?>
+			</div>
+		<?php else: ?>	
+			<input type="hidden" name="monto" value="<?php echo 0; ?>" id="monto"/>
+		<?php endif; ?>
 		<div class="form-group col-md-6">
 			<?php echo $fields['motivo_alta']['label']; ?>
 			<?php echo $fields['motivo_alta']['form']; ?>
@@ -29,7 +38,16 @@
 </div>
 <div class="modal-footer">
 	<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
-	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn), $txt_btn) : ''; ?>
+	<?php
+	if ($txt_btn === 'Editar') {
+		$btn_style = 'btn btn-warning pull-right';
+	} elseif ($txt_btn === 'Eliminar') {
+		$btn_style = 'btn btn-danger pull-right';
+	} else {
+		$btn_style = 'btn btn-primary pull-right';
+	}
+	?>
+	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => $btn_style, 'title' => $txt_btn), $txt_btn) : ''; ?>
 	<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $abono_alumno->id) : ''; ?>
 </div>
 <input type="hidden" name="division_id" value="<?php echo $division_id; ?>" id="division_id"/>
