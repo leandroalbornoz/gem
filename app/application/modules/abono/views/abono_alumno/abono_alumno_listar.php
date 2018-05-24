@@ -113,7 +113,6 @@
 						<?php echo $js_table; ?>
 						<?php
 						echo $html_table;
-						lm($html_table);
 						?>
 					</div>
 				</div>

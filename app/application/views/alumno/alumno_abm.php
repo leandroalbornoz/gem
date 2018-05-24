@@ -1,3 +1,31 @@
+<style>
+	.datepicker,.datepicker>datepicker-days>.table-condensed{
+		margin:0 auto;
+	}
+</style>
+<script>
+	function agrega_abono() {
+		if (!$("#ames").val()) {
+			console.log("sin valor");
+			$("#ames").focus();
+			$("#ames").select();
+			$("#abono-a").removeAttr("data-remote");
+			$("#abono-a").removeAttr("data-toggle");
+			$("#abono-a").removeAttr("data-target");
+			$("#abono-a").removeAttr("href");
+		} else {
+			var mes = $("#ames").val();
+			var alumno_id = <?php echo $alumno->id; ?>;
+			var escuela_id = <?php echo $escuela->id; ?>;
+			var division_id = <?php echo $division_id; ?>;
+			var redirect_url = "<?php echo urlencode(str_replace(base_url(), '', current_url())); ?>";
+			$("#abono-a").attr("data-remote", "false");
+			$("#abono-a").attr("data-toggle", "modal");
+			$("#abono-a").attr("data-target", "#remote_modal");
+			$("#abono-a").attr("href", "abono/abono_alumno/modal_agregar_abono_alumno/" + alumno_id + "/" + escuela_id + "/" + division_id + "/" + mes + "?redirect_url=" + redirect_url);
+		}
+	}
+</script>
 <div class="content-wrapper">
 	<section class="content-header">
 		<h1>
@@ -442,7 +470,13 @@
 							</div>
 							<div class="box-body ">
 								<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
-									<a class="btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_agregar_abono_alumno/<?= $alumno->id; ?>/<?= $escuela->id . "/" .$division_id . "/" . date('Ym') . "?redirect_url=" . urlencode(str_replace(base_url(), '', current_url())); ?>" title="Agregar"><i class="fa fa-plus"></i></a>
+									<h4>
+										<div class="form-group col-md-2">
+											<a id="abono-a" class="btn btn-xs btn-success" onclick="agrega_abono();" title="Agregar"><i class="fa fa-plus"></i></a>
+											<label>Mes</label>
+											<input type="text" name="ames" value="" id="ames" class="form-control" required="">
+										</div>
+									</h4>
 									<thead>
 										<tr>
 											<th>N° Abono</th>
@@ -564,6 +598,13 @@
 <script>
 	$(document).ready(function() {
 		$('#documento,#documento_tipo').change(verificar_doc_repetido);
+		$("#ames").datepicker({
+			format: "yyyymm",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
 	});
 	function verificar_doc_repetido(e) {
 		var documento_tipo = $('#documento_tipo')[0].selectize.getValue();

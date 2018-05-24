@@ -11,7 +11,7 @@ class Alumno extends MY_Controller {
 		$this->load->model('persona_model');
 		//$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
 		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
-		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL,ROL_ASISTENCIA_DIVISION,ROL_DOCENTE_CURSADA));
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL, ROL_ASISTENCIA_DIVISION, ROL_DOCENTE_CURSADA));
 		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_GRUPO_ESCUELA_CONSULTA, ROL_REGIONAL, ROL_ESCUELA_CAR))) {
 			$this->edicion = FALSE;
 		}
@@ -37,7 +37,7 @@ class Alumno extends MY_Controller {
 		$escuela_mes = $this->abono_alumno_model->get_abonos_escuela($escuela->id);
 		if (empty($escuela_mes)) {
 			$escuela_mes = 1;
-		} 
+		}
 		$tableData = array(
 			'columns' => array(
 				array('label' => 'Documento', 'data' => 'documento', 'width' => 10, 'class' => 'text-sm'),

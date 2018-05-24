@@ -123,15 +123,21 @@ class Abono_alumno extends MY_Controller {
 		}
 		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
 			$mes = date('Ym');
-			redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id/$mes", 'refresh');
+			redirect("abono/abono_alumno/listar/$escuela_id/$mes", 'refresh');
 		}
-
-		if (!empty($this->abono_alumno_model->get_abonos_ames($escuela_id, (new DateTime($mes . '01 -1 month'))->format('Ym'))) && empty($this->abono_alumno_model->get_abonos_ames($escuela_id, $mes))):
+		if (!empty($this->abono_alumno_model->get_abonos_ames($escuela_id, (new DateTime($mes . '01 -1 month'))->format('Ym'))) && empty($this->abono_alumno_model->get_abonos_ames($escuela_id, $mes))) {
 			$escuela_mes = true;
-		else:
+		} else {
 			$escuela_mes = false;
-		endif;
-
+		}
+		$this->load->model('abono/abono_escuela_monto_model');
+		$monto_escuela_mes = $this->abono_escuela_monto_model->get_escuela_mes($escuela_id, $mes);
+		if (empty($monto_escuela_mes)) {
+			show_error('La escuela no tiene asignado un monto para abonos', 500, 'Registro no encontrado');
+		}
+		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $mes);
+		$cupos_sum_escuela_mes = $this->abono_alumno_model->get_suma_cupos_mes($escuela_id, $mes);
+		$cantidad_alumnos_espera = $this->abono_alumno_model->get_cantidad_alumnos_espera($escuela_id, $mes);
 		$tableData = array(
 			'columns' => array(
 				array('label' => 'N° Abono', 'data' => 'numero_abono', 'class' => 'dt-body-left', 'width' => 10),
@@ -146,6 +152,18 @@ class Abono_alumno extends MY_Controller {
 			'table_id' => 'abono_alumno_table',
 			'source_url' => 'abono/abono_alumno/listar_data/' . $escuela_id . '/' . $division_id . '/' . $mes
 		);
+
+		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$cupos_total_escuela = $monto_escuela_mes->cupo_alumnos - $cupos_sum_escuela_mes->cupos_escuela_ames;
+
+		if ($monto_total_escuela == 0 && $cantidad_alumnos_espera->cantidad >= 5) {
+			$this->session->set_flashdata('warning', "No pueden cargarse mas de 5 alumnos en espera");
+		}
+
+		$data['cupos_total_escuela'] = $cupos_total_escuela;
+		$data['monto_total_escuela'] = $monto_total_escuela;
+		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;
+		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['division_id'] = $division_id;
 		$data['escuela_mes'] = $escuela_mes;
 		$data['mes_id'] = $mes;
