@@ -471,10 +471,12 @@
 							<div class="box-body ">
 								<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
 									<h4>
+										<div class="form-group col-md-2 pull-left">
+											<input type="text" name="ames" value="" id="ames" class="form-control" required="">
+										</div>
 										<div class="form-group col-md-2">
 											<a id="abono-a" class="btn btn-xs btn-success" onclick="agrega_abono();" title="Agregar"><i class="fa fa-plus"></i></a>
 											<label>Mes</label>
-											<input type="text" name="ames" value="" id="ames" class="form-control" required="">
 										</div>
 									</h4>
 									<thead>
@@ -497,8 +499,8 @@
 													<td><?= "$abono->motivo_alta"; ?></td>
 													<td><?= "$abono->ames"; ?></td>
 													<td class="text-center">
-														<a class="btn btn-xs btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_editar/<?= $abono->id; ?>/<?= $escuela->id . "?redirect_url=" . urlencode(str_replace(base_url(), '', current_url())); ?>" title="Editar"><i class="fa fa-edit"></i></a>
-														<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_eliminar/<?= $abono->id; ?>/<?= $escuela->id . "?redirect_url=" . urlencode(str_replace(base_url(), '', current_url())); ?>" title="Eliminar"><i class="fa fa-remove"></i></a>
+														<a class="btn btn-xs btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_editar/<?= $abono->id; ?>/<?= $escuela->id."/".$division_id."/".$abono->ames . "?redirect_url=" . urlencode(str_replace(base_url(), '', current_url())); ?>" title="Editar"><i class="fa fa-edit"></i></a>
+														<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_eliminar/<?= $abono->id; ?>/<?= $escuela->id ."/".$division_id."/".$abono->ames . "?redirect_url=" . urlencode(str_replace(base_url(), '', current_url())); ?>" title="Eliminar"><i class="fa fa-remove"></i></a>
 													</td>
 												</tr>
 											<?php endforeach; ?>
