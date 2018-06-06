@@ -1,0 +1,150 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'persona';
+		$this->msg_name = 'Persona';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'cuil', 'documento_tipo_id', 'documento', 'apellido', 'nombre', 'calle', 'calle_numero', 'departamento', 'piso', 'barrio', 'manzana', 'casa', 'localidad_id', 'codigo_postal', 'sexo_id', 'estado_civil_id', 'nivel_estudio_id', 'ocupacion_id', 'telefono_fijo', 'telefono_movil', 'prestadora_id', 'fecha_nacimiento', 'fecha_defuncion', 'obra_social_id', 'contacto_id', 'grupo_sanguineo_id', 'depto_nacimiento_id', 'lugar_traslado_emergencia', 'nacionalidad_id', 'email');
+		$this->fields = array(
+			'cuil' => array('label' => 'CUIL', 'maxlength' => '13'),
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE),
+			'documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+			'calle' => array('label' => 'Calle', 'maxlength' => '80'),
+			'calle_numero' => array('label' => 'Número', 'maxlength' => '20'),
+			'departamento' => array('label' => 'Depto', 'maxlength' => '5'),
+			'piso' => array('label' => 'Piso', 'maxlength' => '5'),
+			'barrio' => array('label' => 'Barrio', 'maxlength' => '45'),
+			'manzana' => array('label' => 'Manzana', 'maxlength' => '5'),
+			'casa' => array('label' => 'Casa', 'type' => 'integer', 'maxlength' => '3'),
+			'localidad' => array('label' => 'Localidad', 'input_type' => 'combo', 'id_name' => 'localidad_id'),
+			'codigo_postal' => array('label' => 'C.P.', 'maxlength' => '8'),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id'),
+			'estado_civil' => array('label' => 'Estado civil', 'input_type' => 'combo', 'id_name' => 'estado_civil_id', 'required' => TRUE),
+			'nivel_estudio' => array('label' => 'Nivel de estudios', 'input_type' => 'combo', 'id_name' => 'nivel_estudio_id'),
+			'ocupacion' => array('label' => 'Ocupación', 'input_type' => 'combo', 'id_name' => 'ocupacion_id'),
+			'telefono_fijo' => array('label' => 'Teléfono Fijo', 'maxlength' => '40'),
+			'telefono_movil' => array('label' => 'Celular', 'maxlength' => '40'),
+			'prestadora' => array('label' => 'Prestadora', 'input_type' => 'combo', 'id_name' => 'prestadora_id'),
+			'fecha_nacimiento' => array('label' => 'Fecha Nacimiento', 'type' => 'date'),
+			'fecha_defuncion' => array('label' => 'Fecha Defunción', 'type' => 'date'),
+			'obra_social' => array('label' => 'Obra social', 'input_type' => 'combo', 'id_name' => 'obra_social_id'),
+			'grupo_sanguineo' => array('label' => 'Grupo sanguíneo', 'input_type' => 'combo', 'id_name' => 'grupo_sanguineo_id'),
+			'depto_nacimiento' => array('label' => 'Lugar Nacimiento', 'input_type' => 'combo', 'id_name' => 'depto_nacimiento_id'),
+			'lugar_traslado_emergencia' => array('label' => 'Lugar de Traslado Emergencia', 'maxlength' => '70'),
+			'nacionalidad' => array('label' => 'Nacionalidad', 'input_type' => 'combo', 'id_name' => 'nacionalidad_id'),
+			'email' => array('label' => 'Email', 'type' => 'email', 'maxlength' => '100'),
+		);
+		$this->requeridos = array('documento_tipo_id', 'documento', 'apellido', 'nombre');
+		$this->unicos = array('cuil');
+		$this->default_join = array(
+			array('departamento', 'departamento.id = persona.depto_nacimiento_id', 'left', array('departamento.descripcion as depto_nacimiento')),
+			array('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left', array('documento_tipo.descripcion_corta as documento_tipo')),
+			array('estado_civil', 'estado_civil.id = persona.estado_civil_id', 'left', array('estado_civil.descripcion as estado_civil')),
+			array('grupo_sanguineo', 'grupo_sanguineo.id = persona.grupo_sanguineo_id', 'left', array('grupo_sanguineo.descripcion as grupo_sanguineo')),
+			array('localidad', 'localidad.id = persona.localidad_id', 'left', array("CONCAT(d_localidad.descripcion, ' - ', localidad.descripcion) as localidad")),
+			array('departamento d_localidad', 'd_localidad.id = localidad.departamento_id', 'left'),
+			array('nacionalidad', 'nacionalidad.id = persona.nacionalidad_id', 'left', array('nacionalidad.descripcion as nacionalidad')),
+			array('nivel_estudio', 'nivel_estudio.id = persona.nivel_estudio_id', 'left', array('nivel_estudio.descripcion as nivel_estudio')),
+			array('obra_social', 'obra_social.id = persona.obra_social_id', 'left', array('obra_social.descripcion as obra_social')),
+			array('ocupacion', 'ocupacion.id = persona.ocupacion_id', 'left', array('ocupacion.descripcion as ocupacion')),
+			array('prestadora', 'prestadora.id = persona.prestadora_id', 'left', array('prestadora.descripcion as prestadora')),
+			array('sexo', 'sexo.id = persona.sexo_id', 'left', array('sexo.descripcion as sexo'))
+		);
+	}
+
+	public function get_by_cuil($cuil) {
+		return $this->db->select('nombre, apellido')->from('persona')->where('cuil', $cuil)->get()->row();
+	}
+
+	public function get_by_documento($documento) {
+		return $this->db->select('id, nombre, apellido')->from('persona')->where('documento', $documento)->get()->row();
+	}
+
+	public function migrar($cuil) {
+		$db_rrhh = $this->load->database('dge55', TRUE);
+		$persona_dge50 = $db_rrhh->select('PerCuil, SUBSTRING(PerCuil, 4, 8) NroDocumen, PerApe, PerNom, PerDomClle, PerDomNro, PerDomPiso, PerDomDpto, PerDomTel, PerDomTel2, PerFecNac, PerSex, PerEstCivC')
+				->from('dge50.sirrhh.dbo.persona')
+				->where('PerCuil', $cuil)
+				->get()->row();
+		if (!empty($persona_dge50)) {
+			$ok = $this->create(array(
+				'cuil' => trim($persona_dge50->PerCuil),
+				'documento_tipo_id' => 1,
+				'documento' => trim($persona_dge50->NroDocumen),
+				'apellido' => trim($persona_dge50->PerApe),
+				'nombre' => trim($persona_dge50->PerNom),
+				'calle' => trim($persona_dge50->PerDomClle),
+				'calle_numero' => trim($persona_dge50->PerDomNro),
+				'piso' => trim($persona_dge50->PerDomPiso),
+				'departamento' => trim($persona_dge50->PerDomDpto),
+				'telefono_fijo' => trim($persona_dge50->PerDomTel),
+				'telefono_movil' => trim($persona_dge50->PerDomTel2),
+				'fecha_nacimiento' => (new DateTime($persona_dge50->PerFecNac))->format('Y-m-d'),
+				'sexo_id' => trim($persona_dge50->PerSex),
+				'estado_civil_id' => empty($persona_dge50->PerEstCivC) ? null : trim($persona_dge50->PerEstCivC))
+			);
+		} else {
+			return null;
+		}
+		if ($ok) {
+			return (object) array('apellido' => trim($persona_dge50->PerApe), 'nombre' => trim($persona_dge50->PerNom));
+		} else {
+			return null;
+		}
+	}
+
+	function get_persona_parcial($opcion, $parametro) {
+		$this->db->select('persona.id, persona.cuil, persona.apellido, persona.nombre, persona.fecha_nacimiento, persona.sexo_id, persona.calle, persona.calle_numero, persona.piso, persona.departamento, persona.telefono_fijo, persona.telefono_movil, persona.codigo_postal, persona.email, persona.documento, CONCAT(departamento.descripcion, " - ", localidad.descripcion) as localidad, documento_tipo.descripcion_corta as documento_tipo, sexo.descripcion as sexo, persona.localidad_id, sexo.descripcion')
+			->from('persona')
+			->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id')
+			->join('localidad', 'localidad.id = persona.localidad_id')
+			->join('departamento', 'departamento.id = localidad.departamento_id')
+			->join('sexo', 'sexo.id = persona.sexo_id');
+		if ($opcion === 'cuil'):
+			$this->db->where('persona.cuil', $parametro);
+		elseif ($opcion === 'id'):
+			$this->db->where('persona.id', $parametro);
+		endif;
+		$query = $this->db->get();
+		return $query->row();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('persona_id', $delete_id)->count_all_results('alumno') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno.');
+			return FALSE;
+		}
+		if ($this->db->where('pariente_id', $delete_id)->count_all_results('familia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a familia.');
+			return FALSE;
+		}
+		if ($this->db->where('persona_id', $delete_id)->count_all_results('familia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a familia.');
+			return FALSE;
+		}
+		if ($this->db->where('contacto_id', $delete_id)->count_all_results('persona') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a persona.');
+			return FALSE;
+		}
+		if ($this->db->where('persona_id', $delete_id)->count_all_results('servicio') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a servicio.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Persona_model.php */
+/* Location: ./application/models/Persona_model.php */

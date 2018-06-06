@@ -1,0 +1,560 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Suple_persona extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('suplementarias/suple_persona_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+		$this->roles_editar = array(ROL_ADMIN, ROL_USI, ROL_JEFE_LIQUIDACION);
+		$this->nav_route = 'suplementaria/suple_persona';
+	}
+
+	public function agregar($suple_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$model_s = new stdClass();
+		$model_s->fields = array(
+			'p_documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id'),
+			'p_documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '8', 'required' => TRUE),
+			'p_apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'p_nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+		);
+		$estado_procesado = $this->suple_persona_model->count_personas_by_estado($suple_id, 2);
+		$estado_pagado = $this->suple_persona_model->count_personas_by_estado($suple_id, 5);
+		if (($estado_procesado > 0 ) || ($estado_pagado > 0 )) {
+			$this->session->set_flashdata('error', 'Esta suplementaria ya cerró por lo tanto no se puede agregar personas a ella.');
+			redirect('suplementarias/suple/ver/' . $suple_id, 'refresh');
+		}
+
+		$this->load->model('documento_tipo_model');
+		$this->array_p_documento_tipo_control = $model_s->fields['p_documento_tipo']['array'] = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('1' => ''));
+
+		$this->load->model('suplementarias/suple_model');
+		$this->load->model('suplementarias/suple_persona_concepto_model');
+		$this->load->model('suplementarias/suple_estado_model');
+		$this->load->model('suplementarias/suple_concepto_model');
+		$this->load->model('suplementarias/suple_persona_model');
+
+		$this->array_concepto_control = $array_concepto = $this->get_array('suple_concepto', 'id', 'id', null, array('' => '-- Seleccionar concepto --'));
+		$this->array_suple_persona_control = $array_suple_persona = $this->get_array('suple_persona', 'id', 'id', null, array('' => '-- Seleccionar persona --'));
+		$this->set_model_validation_rules($this->suple_persona_model);
+		$this->form_validation->set_rules('concepto_i_l[]', 'Concepto Inicial', 'integer');
+		$this->form_validation->set_rules('concepto_i_f[]', 'Monto Concepto Inicial', 'money');
+		$this->form_validation->set_rules('concepto_o_l[]', 'Otro Concepto', 'integer');
+		$this->form_validation->set_rules('concepto_o_f[]', 'Monto Otro Concepto', 'money');
+		$this->form_validation->set_rules('servicio_id', 'Servicio', 'integer');
+		$this->form_validation->set_rules('p_documento', 'DNI', 'required');
+		$this->form_validation->set_rules('p_apellido', 'Apellido', 'required');
+		$this->form_validation->set_rules('p_nombre', 'Nombre', 'required');
+		if ($this->form_validation->run() === TRUE) {
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$trans_ok &= $this->suple_persona_model->create(array(
+				'suple_id' => $this->input->post('suple'),
+				'servicio_id' => $this->input->post('servicio_id'),
+				'periodo' => $this->input->post('periodo'),
+				'importe' => $this->input->post('importe'),
+				'observaciones' => $this->input->post('observaciones'),
+				'estado_id' => 1), FALSE);
+			$suple_persona_id = $this->suple_persona_model->get_row_id();
+
+			$conceptos_i_id = $this->input->post('concepto_i_l');
+			$conceptos_i_value = $this->input->post('concepto_i_f');
+			$conceptos_o_id = $this->input->post('concepto_o_l');
+			$conceptos_o_value = $this->input->post('concepto_o_f');
+			for ($i = 0; $i < count($conceptos_i_id); $i++) {
+				if ($conceptos_i_id[$i] > 0 && $conceptos_i_value[$i] != 0) {
+					$trans_ok &= $this->suple_persona_concepto_model->create(array(
+						'concepto_id' => $conceptos_i_id[$i],
+						'suple_persona_id' => $suple_persona_id,
+						'importe' => $conceptos_i_value[$i]), FALSE);
+				}
+			}
+			for ($o = 0; $o < count($conceptos_o_id); $o++) {
+				if ($conceptos_o_id[$o] > 0 && $conceptos_o_value > 0) {
+					$trans_ok &= $this->suple_persona_concepto_model->create(array(
+						'concepto_id' => $conceptos_o_id[$o],
+						'suple_persona_id' => $suple_persona_id,
+						'importe' => $conceptos_o_value[$o]), FALSE);
+				}
+			}
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->suple_persona_model->get_msg());
+				redirect('suplementarias/suple/ver/' . $suple_id, 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar guardar.';
+				if ($this->suple_persona_model->get_error())
+					$errors .= '<br>' . $this->suple_persona_model->get_error();
+			}
+		}
+
+		$this->load->model('suple_concepto_model');
+		$conceptos_db = $this->suple_concepto_model->get(array('sort_by' => 'orden'));
+		$conceptos_form = array();
+		foreach ($conceptos_db as $concepto) {
+			$concepto->conc_id = $concepto->id;
+			$concepto->id = 0;
+			$concepto->importe = 0;
+			if ($concepto->inicial) {
+				$concepto_form = array();
+				$concepto_form['label'] = form_label(utf8_encode($concepto->descripcion), "concepto_i_f_$concepto->conc_id", array('title' => utf8_encode($concepto->descripcion), 'style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+				$concepto_form['label'] .= form_hidden("concepto_i_l[]", $concepto->conc_id);
+				$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+					'<div class="input-group">' .
+					'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+					form_input(array(
+						'id' => "concepto_i_f_$concepto->conc_id",
+						'name' => 'concepto_i_f[]'), $this->form_validation->set_value('concepto_i_f[]', $concepto->importe), 'style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text"') .
+					'</div>';
+				$conceptos_form[$concepto->tipo]['i'][] = $concepto_form;
+			} else {
+				if (empty($otros_conceptos[$concepto->tipo]))
+					$otros_conceptos[$concepto->tipo]['0'] = '--- Seleccionar Concepto ---';
+				$otros_conceptos[$concepto->tipo][$concepto->conc_id] = "$concepto->descripcion";
+			}
+		}
+
+		if (!empty($otros_conceptos)) {
+			foreach ($otros_conceptos as $tipo => $otros_conceptos_tipo) {
+				for ($i = 0; $i < min(array(count($otros_conceptos_tipo) - 1, 3)); $i++) {
+					$concepto_form = array();
+					$concepto_form['label'] = form_label(form_dropdown(array('id' => "concepto_o_l_$i", 'name' => "concepto_o_l[]"), $otros_conceptos_tipo, '0', 'style="width: 100%;"'), "concepto_o_f_$i", array('style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+					$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+						'<div class="input-group">' .
+						'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+						form_input(array(
+							'id' => "concepto_o_f_$i",
+							'name' => 'concepto_o_f[]'), $this->form_validation->set_value('concepto_o_f[]', 0), 'style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text" readonly tabindex="-1"') .
+						'</div>';
+					$conceptos_form[$tipo]['o'][] = $concepto_form;
+				}
+			}
+		}
+
+		$data['conceptos_form'] = $conceptos_form;
+		$data['descripcion_tipos'] = array('HR' => 'Haberes Remunerativos', 'HN' => 'Haberes No Remunerativos', 'RT' => 'Descuentos / Retenciones', 'P' => 'Patronales');
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->suple_persona_model->get_error() ? $this->suple_persona_model->get_error() : $this->session->flashdata('error')));
+
+		$this->suple_persona_model->fields['estado']['value'] = "Iniciada";
+		$this->suple_persona_model->fields['estado']['readonly'] = TRUE;
+		$this->suple_persona_model->fields['importe']['readonly'] = TRUE;
+		$data['message'] = $this->session->flashdata('message');
+		$data['suple_id'] = $suple_id;
+		$data['fields_s'] = $this->build_fields($model_s->fields);
+		$data['fields'] = $this->build_fields($this->suple_persona_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = 'Gestión Escuelas Mendoza - Agregar persona';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('suplementarias/suple_persona/suple_persona_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$suple_persona = $this->suple_persona_model->get_one($id);
+
+		if (empty($suple_persona)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('suplementarias/suple_model');
+		$this->load->model('suplementarias/suple_estado_model');
+		$this->load->model('suplementarias/suple_persona_concepto_model');
+		$this->load->model('suplementarias/suple_concepto_model');
+		$this->load->model('suplementarias/suple_persona_model');
+		$this->array_concepto_control = $array_concepto = $this->get_array('suple_concepto', 'id', 'id', null, array('' => '-- Seleccionar concepto --'));
+		$this->set_model_validation_rules($this->suple_persona_model);
+		$this->form_validation->set_rules('concepto_i_l[]', 'Concepto Inicial', 'integer');
+		$this->form_validation->set_rules('concepto_i_f[]', 'Monto Concepto Inicial', 'money');
+		$this->form_validation->set_rules('concepto_o_l[]', 'Otro Concepto', 'integer');
+		$this->form_validation->set_rules('concepto_o_f[]', 'Monto Otro Concepto', 'money');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->suple_persona_model->update(array(
+					'id' => $this->input->post('id'),
+					'suple_id' => $suple_persona->suple_id,
+					'persona_id' => $suple_persona->id,
+					'periodo' => $this->input->post('periodo'),
+					'importe' => $this->input->post('importe'),
+					'observaciones' => $this->input->post('observaciones'),
+					'estado_id' => $suple_persona->estado_id), FALSE);
+				$conceptos_i_id = $this->input->post('concepto_i_l');
+				$conceptos_i_value = $this->input->post('concepto_i_f');
+				$conceptos_o_id = $this->input->post('concepto_o_l');
+				$conceptos_o_value = $this->input->post('concepto_o_f');
+
+				for ($i = 0; $i < count($conceptos_i_id); $i++) {
+					if ($conceptos_i_id[$i] > 0 && $conceptos_i_value[$i] != 0) {
+						$trans_ok &= $this->suple_persona_concepto_model->update(array(
+							'id' => $conceptos_i_id[$i],
+							'importe' => $conceptos_i_value[$i]), FALSE);
+					} else if ($conceptos_i_id[$i] > 0) {
+						$conc_db = $this->suple_persona_concepto_model->get(array('id' => $conceptos_i_id[$i], 'join' => array(array('table' => 'suple_concepto', 'where' => 'suple_concepto.id=suple_persona_concepto.concepto_id', 'columnas' => array('suple_concepto.inicial')))));
+						if (!empty($conc_db)) {
+							if ($conc_db->inicial) {
+								$trans_ok &= $this->suple_persona_concepto_model->update(array('id' => $conceptos_i_id[$i], 'importe' => '0'), FALSE);
+							} else {
+								$trans_ok &= $this->suple_persona_concepto_model->delete(array('id' => $conc_db->id), FALSE);
+							}
+						}
+					}
+				}
+
+				for ($o = 0; $o < count($conceptos_o_id); $o++) {
+					if ($conceptos_o_id[$o] > 0 && $conceptos_o_value > 0) {
+						$trans_ok &= $this->suple_persona_concepto_model->create(array(
+							'concepto_id' => $conceptos_o_id[$o],
+							'suple_persona_id' => $id,
+							'importe' => $conceptos_o_value[$o]), FALSE);
+					}
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->suple_persona_model->get_msg());
+					redirect("suplementarias/suple/ver/$suple_persona->suple_id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar guardar.';
+					if ($this->suple_persona_model->get_error())
+						$errors .= '<br>' . $this->suple_persona_model->get_error();
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->suple_persona_model->get_error() ? $this->suple_persona_model->get_error() : $this->session->flashdata('error')));
+
+		$conceptos_db = $this->suple_persona_concepto_model->get(array(
+			'join' => array(array('type' => 'right', 'table' => 'suple_concepto', 'where' => "suple_concepto.id=suple_persona_concepto.concepto_id AND suple_persona_id=$suple_persona->id", 'columnas' => array('suple_concepto.tipo', 'suple_concepto.codigo', 'suple_concepto.descripcion', 'suple_concepto.inicial', 'suple_concepto.id as conc_id'))),
+			'where' => array("(suple_persona_concepto.suple_persona_id = $id OR (suple_persona_concepto.suple_persona_id IS NULL))"),
+			'sort_by' => 'orden'));
+		$conceptos_form = array();
+		foreach ($conceptos_db as $concepto) {
+			if (isset($concepto->id)) {
+				$concepto_form = array();
+				$concepto_form['label'] = form_label(utf8_encode($concepto->descripcion), "concepto_i_f_$concepto->id", array('title' => utf8_encode($concepto->descripcion), 'style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+				$concepto_form['label'] .= form_hidden("concepto_i_l[]", $concepto->id);
+				$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+					'<div class="input-group">' .
+					'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+					form_input(array(
+						'id' => "concepto_i_f_$concepto->id",
+						'name' => 'concepto_i_f[]'), $this->form_validation->set_value('concepto_i_f[]', $concepto->importe), 'style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text"') .
+					'</div>';
+				$conceptos_form[$concepto->tipo]['i'][] = $concepto_form;
+			} else {
+				if ($concepto->inicial) {
+					$concepto_form = array();
+					$concepto_form['label'] = form_label(utf8_encode($concepto->descripcion), "concepto_o_f_$concepto->id", array('title' => utf8_encode($concepto->descripcion), 'style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+					$concepto_form['label'] .= form_hidden("concepto_o_l[]", $concepto->conc_id);
+					$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+						'<div class="input-group">' .
+						'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+						form_input(array(
+							'id' => "concepto_o_f_$concepto->id",
+							'name' => 'concepto_o_f[]'), $this->form_validation->set_value('concepto_o_f[]', $concepto->importe), 'style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text"') .
+						'</div>';
+					$conceptos_form[$concepto->tipo]['o'][] = $concepto_form;
+				} else {
+					if (empty($otros_conceptos[$concepto->tipo]))
+						$otros_conceptos[$concepto->tipo]['0'] = '--- Seleccionar Concepto ---';
+					$otros_conceptos[$concepto->tipo][$concepto->conc_id] = "$concepto->descripcion";
+				}
+			}
+		}
+		if (!empty($otros_conceptos)) {
+			foreach ($otros_conceptos as $tipo => $otros_conceptos_tipo) {
+				for ($i = 0; $i < min(array(count($otros_conceptos_tipo) - 1, 3)); $i++) {
+					$concepto_form = array();
+					$concepto_form['label'] = form_label(form_dropdown(array('id' => "concepto_o_l_$i", 'name' => "concepto_o_l[]"), $otros_conceptos_tipo, '0', 'style="width: 100%;"'), "concepto_o_f_$i", array('style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+					$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+						'<div class="input-group">' .
+						'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+						form_input(array(
+							'id' => "concepto_o_f_$i",
+							'name' => 'concepto_o_f[]'), $this->form_validation->set_value('concepto_o_f[]', 0), 'style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text" readonly  tabindex="-1"') .
+						'</div>';
+					$conceptos_form[$tipo]['o'][] = $concepto_form;
+				}
+			}
+		}
+
+		$data['suple_id'] = $suple_persona->suple_id;
+		$data['conceptos_form'] = $conceptos_form;
+		$data['descripcion_tipos'] = array('HR' => 'Haberes Remunerativos', 'HN' => 'Haberes No Remunerativos', 'RT' => 'Descuentos / Retenciones', 'P' => 'Patronales');
+		$data['fields'] = $this->build_fields($this->suple_persona_model->fields, $suple_persona);
+		$data['suple_persona'] = $suple_persona;
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar persona';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('suplementarias/suple_persona/suple_persona_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_editar) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$suple_persona = $this->suple_persona_model->get_one($id);
+		if (empty($suple_persona)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'persona' => array('label' => 'Nombre y Apellido'),
+			'cuil' => array('label' => 'CUIL'),
+			'servicio_id' => array('label' => 'Servicio'),
+		);
+
+		$datos_persona = $this->suple_persona_model->get_datos_persona($suple_persona);
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->suple_persona_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->suple_persona_model->get_msg());
+				redirect("suplementarias/suple/ver/$suple_persona->suple_id", 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->suple_persona_model->get_error() ? $this->suple_persona_model->get_error() : $this->session->flashdata('error')));
+
+		$data['suple_id'] = $suple_persona->suple_id;
+		$data['fields'] = $this->build_fields($this->suple_persona_model->fields, $suple_persona, TRUE);
+		$data['suple_persona'] = $suple_persona;
+		$data['txt_btn'] = 'Eliminar';
+		$data['fields_p'] = $this->build_fields($model->fields, $datos_persona[0], TRUE);
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = 'Gestión Escuelas Mendoza - Eliminar persona';
+		$this->load_template('suplementarias/suple_persona/suple_persona_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'persona' => array('label' => 'Nombre y Apellido'),
+			'cuil' => array('label' => 'CUIL'),
+			'servicio_id' => array('label' => 'Servicio'),
+		);
+
+		$suple_persona = $this->suple_persona_model->get_one($id);
+
+		if (empty($suple_persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('suplementarias/suple_model');
+		$this->load->model('suplementarias/suple_persona_concepto_model');
+		$this->load->model('suplementarias/suple_concepto_model');
+
+		$conceptos_db = $this->suple_persona_concepto_model->get(array(
+			'join' => array(array('table' => 'suple_concepto', 'where' => 'suple_concepto.id = suple_persona_concepto.concepto_id', 'columnas' => array('suple_concepto.tipo', 'suple_concepto.codigo', 'suple_concepto.descripcion', 'suple_concepto.inicial'))),
+			'suple_persona_id' => $id, 'sort_by' => 'orden'));
+		$conceptos_form = array();
+		if (!empty($conceptos_db))
+			foreach ($conceptos_db as $concepto) {
+				$concepto_form = array();
+				$concepto_form['label'] = form_label(utf8_encode($concepto->descripcion), "concepto_i_f_$concepto->id", array('title' => utf8_encode($concepto->descripcion), 'style' => 'overflow:hidden; white-space:nowrap; text-overflow:ellipsis; width:100%; display:block;'));
+				$concepto_form['label'] .= form_hidden("concepto_i_l[]", $concepto->id);
+				$concepto_form['form'] = '<div style="float:right;" class="help-block with-errors"></div>' .
+					'<div class="input-group">' .
+					'<span class="input-group-addon"><i class="fa fa-dollar"></i></span>' .
+					form_input(array(
+						'id' => "concepto_i_f_$concepto->id",
+						'name' => 'concepto_i_f[]'), $this->form_validation->set_value('concepto_i_f[]', $concepto->importe), 'readonly style="text-align: right;" class="form-control concepto" pattern="[-]?(\d{1,3}(\.\d{3})*|\d+)(,\d{1,2})?" title="Debe ingresar un importe" type="text"') .
+					'</div>';
+				$conceptos_form[$concepto->tipo]['i'][] = $concepto_form;
+			}
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['suple_id'] = $suple_persona->suple_id;
+		$data['conceptos_form'] = $conceptos_form;
+		$data['descripcion_tipos'] = array('HR' => 'Haberes Remunerativos', 'HN' => 'Haberes No Remunerativos', 'RT' => 'Descuentos / Retenciones', 'P' => 'Patronales');
+		$data['fields'] = $this->build_fields($this->suple_persona_model->fields, $suple_persona, TRUE);
+		$data['suple_persona'] = $suple_persona;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = 'Gestión Escuelas Mendoza - Ver persona';
+		$this->load_template('suplementarias/suple_persona/suple_persona_abm', $data);
+	}
+
+	public function cambiar_estado($suple_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_editar) || $suple_id == NULL || !ctype_digit($suple_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('suplementarias/suple_model');
+		$suple = $this->suple_model->get(array('id' => $suple_id));
+		if (empty($suple)) {
+			show_error('No se encontró la suplementaria a recibir', 500, 'Registro no encontrado');
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Apellido y Nombre', 'data' => 'persona', 'width' => 15),
+				array('label' => 'Estado', 'data' => 'estado', 'width' => 15),
+				array('label' => 'Seleccionar', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'cambiar_estado_table',
+			'source_url' => "suplementarias/suple_persona/personas_cambiar_estado_data/$suple_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$model = new stdClass();
+		$model->fields = array(
+			'persona_estado[]' => array('label' => 'Persona', 'required' => TRUE),
+			'nuevo_estado' => array('label' => 'Nuevo estado', 'input_type' => 'combo', 'required' => TRUE),
+		);
+
+		$p_estado_iniciada = $this->suple_persona_model->count_personas_by_estado($suple_id, 1);
+		$p_estado_aprobada = $this->suple_persona_model->count_personas_by_estado($suple_id, 3);
+
+		$this->load->model('suple_estado_model');
+
+		$this->array_nuevo_estado_control = $array_nuevo_estado = array('' => '-- Seleccionar estado --');
+		if ($p_estado_iniciada == 0) {
+			if ($p_estado_aprobada == 0) {
+				$array_nuevo_estado['P-Pa'] = 'Procesada => Pagada';
+			} else {
+				$array_nuevo_estado['A-P'] = 'Aprobada => Procesada';
+			}
+			$this->array_nuevo_estado_control = $array_nuevo_estado;
+		} else {
+			$array_nuevo_estado['I-A'] = 'Iniciada => Aprobada';
+			$array_nuevo_estado['I-R'] = 'Iniciada => Rechazada';
+			$this->array_nuevo_estado_control = $array_nuevo_estado;
+		}
+
+		unset($this->array_nuevo_estado_control['']);
+		$model->fields['nuevo_estado']['array'] = $array_nuevo_estado;
+
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$persona_estado_ids = $this->input->post('persona_estado');
+			$seleccion_estado = $this->input->post('nuevo_estado');
+			switch ($seleccion_estado) {
+				case 'I-R':
+					$id_nuevo_estado = 4;
+					break;
+				case 'I-A':
+					$id_nuevo_estado = 3;
+					break;
+				case 'A-P':
+					$id_nuevo_estado = 2;
+					break;
+				case 'P-Pa':
+					$id_nuevo_estado = 5;
+					break;
+			}
+			$count = count($persona_estado_ids);
+			for ($i = 0; $i < $count; $i++) {
+				if ($trans_ok) {
+					$trans_ok &= $this->suple_persona_model->update(array(
+						'id' => $persona_estado_ids[$i],
+						'estado_id' => $id_nuevo_estado,
+						), FALSE);
+				}
+			}
+
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', 'Movimiento realizado satisfactoriamente');
+				redirect("suplementarias/suple/ver/$suple_id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar actualizar.';
+				if ($this->suple_persona_model->get_error())
+					$errors .= '<br>' . $this->suple_persona_model->get_error();
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->suple_persona_model->get_error() ? $this->suple_persona_model->get_error() : $this->session->flashdata('error')));
+
+		$data['array_estado'] = $array_nuevo_estado;
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['suple_id'] = $suple_id;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['class'] = array('agregar_persona' => '', 'cambiar_estado' => '');
+		$data['title'] = TITLE . ' - Suplementaria';
+		$this->load_template('suple_persona/suple_personas_estado_cambiar', $data);
+	}
+
+	public function personas_cambiar_estado_data($suple_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $suple_id == NULL || !ctype_digit($suple_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('suplementarias/suple_model');
+		$suple = $this->suple_model->get(array('id' => $suple_id));
+		$columnas = $this->input->post('columns');
+		if (isset($columnas[2]['search']['value'])) {
+			switch ($columnas[2]['search']['value']) {
+				case 'I-R':
+					$_POST['columns'][2]['search']['value'] = 'Iniciada';
+					break;
+				case 'I-A':
+					$_POST['columns'][2]['search']['value'] = 'Iniciada';
+					break;
+				case 'A-P':
+					$_POST['columns'][2]['search']['value'] = 'Aprobada';
+					break;
+				case 'P-Pa':
+					$_POST['columns'][2]['search']['value'] = 'Procesada';
+					break;
+			}
+		}
+		if (empty($suple)) {
+			show_error('No se encontró la suplementaria a recibir', 500, 'Registro no encontrado');
+		}
+		$this->datatables
+			->select('suple_estado.descripcion as estado, suple_persona.id, persona.cuil, CONCAT(persona.apellido, \', \', persona.nombre) as persona')
+			->unset_column('id')
+			->from('persona')
+			->join('servicio', 'servicio.persona_id = persona.id', 'inner')
+			->join('suple_persona', 'suple_persona.servicio_id = servicio.id', 'inner')
+			->join('suple_estado', 'suple_persona.estado_id = suple_estado.id', 'inner')
+			->where('suple_persona.suple_id', $suple->id);
+		if ($this->edicion) {
+			$this->datatables->add_column('edit', '<input type="checkbox" name="persona_estado[]" value="$1">', 'id');
+		} else {
+			$this->datatables->add_column('edit', '', '');
+		}
+
+		echo $this->datatables->generate();
+	}
+}
+/* End of file Suple_persona.php */
+/* Location: ./application/modules/suplementarias/controllers/Suple_persona.php */
+
+	

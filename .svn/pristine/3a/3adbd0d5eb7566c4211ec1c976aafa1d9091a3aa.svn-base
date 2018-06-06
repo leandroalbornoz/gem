@@ -1,0 +1,134 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Alumnos de <?= "$division->curso $division->division"; ?> - <label class="label label-default"><?php echo $ciclo_lectivo; ?></label>
+			<a class="btn btn-sm btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i> Cambiar</a>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id; ?>"><?= "Esc. $escuela->nombre_corto"; ?></a></li>
+			<li><a href="division/listar/<?= $escuela->id ?>">Cursos y Divisiones</a></li>
+			<?php if (!empty($division)): ?>
+				<li><a href="division/ver/<?= $division->id ?>"><?php echo "$division->curso $division->division"; ?></a></li>
+			<?php endif; ?>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta" href="division/ver/<?php echo (!empty($division->id)) ? $division->id : ''; ?>">
+							<i class="fa fa-search" id="btn-ver"></i> Ver división
+						</a>
+						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="division/alumnos/<?php echo $division->id; ?>">
+							<i class="fa fa-users" id="btn-alumnos"></i> Alumnos
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn bg-blue btn-app btn-app-zetta" id="persona_buscar_listar" href="division/persona_buscar_listar_modal/<?php echo "$division->id/$ciclo_lectivo"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal">
+								<i class="fa fa-plus" id="btn-agregar-alumno"></i> Agregar
+							</a>
+							<?php if (ENVIRONMENT !== 'production'): ?>
+								<a class="btn btn-app btn-app-zetta" href="division_inasistencia/listar/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+									<i class="fa fa-clock-o"></i> Asistencia
+								</a>
+							<?php endif; ?>
+							<a class="btn btn-app btn-app-zetta" href="division/mover_alumnos/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+								<i class="fa fa-users" id="btn-mover-alumnos"></i> Mover alumnos
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="division/sacar_alumnos/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+								<i class="fa fa-users" id="btn-sacar-alumnos"></i> Retirar alumnos
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="division/pase_alumnos/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+								<i class="fa fa-users" id="btn-sacar-alumnos"></i> Pase de alumnos
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta pull-right" href="division/cargos/<?php echo $division->id; ?>">
+							<i class="fa fa-users" id="btn-cargos"></i> Cargos
+						</a>
+						<a class="btn btn-app btn-app-zetta pull-right" href="division/ver_horario/<?php echo (!empty($division->id)) ? $division->id : ''; ?>">
+							<i class="fa fa-clock-o" id="btn-horarios"></i> Horarios
+						</a>
+						<hr style="margin: 10px 0;">
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="division/<?php echo empty($txt_btn) ? "ver/$division->id" : ""; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<?php echo form_open("division/cambiar_cl_alumnos/$division->id/$ciclo_lectivo"); ?>
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">Cambiar Ciclo Lectivo</h4>
+			</div>
+			<div class="modal-body">
+				<div class="row">
+					<div class="form-group col-md-12" style="text-align:center;">
+						<div id="datepicker" data-date="<?php echo "01/01/$ciclo_lectivo"; ?>"></div>
+						<input type="hidden" name="ciclo_lectivo" id="ciclo_lectivo" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+			</div>
+			<?php echo form_close(); ?>
+			<div style="display:none;" id="div_persona_buscar_listar"></div>
+		</div>
+	</div>
+</div>
+<script>
+	var alumno_table;
+	function complete_alumno_table() {
+		agregar_filtros('alumno_table', alumno_table, 7);
+	}
+</script>
+<script>
+<?php if ($abrir_modal): ?>
+		$(document).ready(function() {
+			$('#div_persona_buscar_listar').append('<a id="a_persona_buscar_listar" href="division/persona_buscar_listar_modal/<?php echo $division->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+			setTimeout(function() {
+				$('#a_persona_buscar_listar').click();
+			}, 500);
+		});
+<?php endif; ?>
+</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "years",
+			minViewMode: "years",
+			language: 'es',
+			todayHighlight: false,
+			endDate: '+0y'
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#ciclo_lectivo").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

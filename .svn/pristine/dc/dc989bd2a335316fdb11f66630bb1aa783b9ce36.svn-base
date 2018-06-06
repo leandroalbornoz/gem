@@ -1,0 +1,151 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Evaluacion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('evaluacion_model');
+		$this->load->model('cursada_model');
+		$this->load->model('cursada_nota_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_DOCENTE_CURSADA);
+		$this->nav_route = 'alumnos/evaluacion';
+	}
+
+	public function modal_agregar($cursada_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $cursada_id == NULL || !ctype_digit($cursada_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$cursada = $this->cursada_model->get_one($cursada_id);
+		if (empty($cursada)) {
+			return $this->modal_error('No se encontró el registro de la cursada', 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			return $this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$this->load->model('evaluacion_tipo_model');
+		$this->array_evaluacion_tipo_control = $array_evaluacion_tipo = $this->get_array('evaluacion_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de evaluación --'));
+
+		$this->set_model_validation_rules($this->evaluacion_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->evaluacion_model->create(array(
+					'evaluacion_tipo_id' => $this->input->post('evaluacion_tipo'),
+					'fecha' => $this->get_date_sql('fecha'),
+					'cursada_id' => $cursada->id,
+					'tema' => $this->input->post('tema')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->evaluacion_model->get_msg());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->evaluacion_model->get_error());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cursada/escritorio/$cursada->id", 'refresh');
+			}
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['cursada'] = $cursada;
+		$this->evaluacion_model->fields['evaluacion_tipo']['array'] = $array_evaluacion_tipo;
+		$data['fields'] = $this->build_fields($this->evaluacion_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar evaluación';
+		$this->load->view('evaluacion/evaluacion_modal_abm', $data);
+	}
+
+	public function modal_editar($evaluacion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $evaluacion_id == NULL || !ctype_digit($evaluacion_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$evaluacion = $this->evaluacion_model->get_one($evaluacion_id);
+		if (empty($evaluacion)) {
+			return $this->modal_error('No se encontró el registro de la cursada', 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($evaluacion->cursada_id);
+		if (empty($cursada)) {
+			return $this->modal_error('No se encontró el registro de la cursada', 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			return $this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+		if ($this->rol->codigo === ROL_DOCENTE_CURSADA) {
+			if (!$this->usuarios_model->verificar_permiso('cursada', $this->rol, $cursada)) {
+				return $this->modal_error('No tiene permisos para acceder a la cursada', 'Acción no autorizada');
+			}
+		}
+		$cursada_nota = $this->cursada_nota_model->verificar_cursada_nota($evaluacion_id);
+		if (!empty($cursada_nota)) {
+			return $this->modal_error('No se puede editar la evaluación si posee notas cargadas', 'Accion no permitida');
+		}
+		$this->load->model('evaluacion_tipo_model');
+		$this->array_evaluacion_tipo_control = $array_evaluacion_tipo = $this->get_array('evaluacion_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de evaluación --'));
+
+		$this->set_model_validation_rules($this->evaluacion_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($cursada->id != $this->input->post('cursada_id')) {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->evaluacion_model->update(array(
+					'id' => $evaluacion->id,
+					'fecha' => $this->get_date_sql('fecha'),
+					'cursada_id' => $cursada->id,
+					'tema' => $this->input->post('tema')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->evaluacion_model->get_msg());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->evaluacion_model->get_error());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cursada/escritorio/$cursada->id", 'refresh');
+			}
+		}
+
+		$this->evaluacion_model->fields['evaluacion_tipo']['array'] = $array_evaluacion_tipo;
+		$this->evaluacion_model->fields['evaluacion_tipo']['disabled'] = TRUE;
+		$data['fields'] = $this->build_fields($this->evaluacion_model->fields, $evaluacion);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = 'Editar';
+		$data['evaluacion'] = $evaluacion;
+		$data['cursada'] = $cursada;
+		$data['title'] = 'Editar evaluación';
+		$this->load->view('evaluacion/evaluacion_modal_editar', $data);
+	}
+}
+/* End of file Evaluacion.php */
+/* Location: ./application/controllers/Evaluacion.php */

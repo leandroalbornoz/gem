@@ -1,0 +1,239 @@
+<style>
+	.table-striped>tbody>tr:nth-of-type(odd) {
+    background-color: #d9d9d9;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Auditoría de Altas <?php echo $planilla_tipo->descripcion; ?> - <label class="label label-default"><?php echo empty($escuela->departamento) ? 'N/D' : $escuela->departamento; ?></label> <label class="label label-default"><?php echo $mes; ?></label>
+			<a class="btn btn-xs btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i> Cambiar mes</a>
+		</h1>
+		<ol class="breadcrumb">
+			<?php if ($rol_escuela): ?>
+				<li><a href="escuela/escritorio/<?php echo $escuela->id; ?>"><i class="fa fa-home"></i><?php echo "Esc. $escuela->nombre_corto"; ?></a></li>
+				<li class="active">Auditoría de Altas</li>
+			<?php else: ?>
+				<li><a href="liquidaciones/escritorio"><i class="fa fa-home"></i> Inicio</a></li>
+				<li><a href="liquidaciones/escritorio/index/<?php echo $mes; ?>">Auditoría Altas <?php echo $mes; ?></a></li>
+				<li><a href="liquidaciones/altas/departamento/<?php echo $planilla_tipo->id . '/' . $mes . '/' . (empty($escuela->departamento_id) ? '0' : $escuela->departamento_id); ?>"><?php echo empty($escuela->departamento) ? 'N/D' : $escuela->departamento; ?></a></li>
+				<li class="active"><?php echo "Esc. $escuela->nombre_corto"; ?></li>
+			<?php endif; ?>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-header with-border">
+						<h3 class="box-title"><label>Escuela</label> <?php echo "$escuela->nombre_largo" . (empty($escuela->cue) ? '' : " - <label>CUE:</label> $escuela->cue") . (empty($escuela->cue) ? '' : " - <label>Repa:</label> $escuela->reparticion"); ?></h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-sm-6"><label>Nivel:</label> <?php echo $escuela->nivel; ?></div>
+							<div class="col-sm-6"><label>Supervisión:</label> <?php echo $escuela->supervision; ?></div>
+							<div class="col-sm-12"><label>Domicilo:</label> <?php echo "$escuela->calle $escuela->calle_numero $escuela->localidad"; ?></div>
+							<div class="col-sm-6"><label>Telefono:</label> <?php echo $escuela->telefono; ?></div>
+							<div class="col-sm-6"><label>Email:</label> <?php echo "$escuela->email/$escuela->email2"; ?></div>
+						</div>
+						<?php $estados = array('cargadas' => 'Cargado', 'aprobadas' => 'Auditado', 'rechazadas' => 'Rechazado'); ?>
+						<?php foreach ($estados as $estado_id => $estado): ?>
+							<h2 style="border-top: #0044cc medium double">Altas <?php echo $estado_id; ?></h2>
+							<table class="table table-condensed table-bordered table-striped">
+								<thead>
+									<tr>
+										<th>Persona</th>
+										<th style="min-width: 300px;">Cargo</th>
+										<th>Alta/Baja</th>
+										<th>Reemplaza</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($altas as $alta): ?>
+										<?php if ($alta->estado === $estado): ?>
+											<tr>
+												<td>
+													<?= $alta->cuil; ?> <b>(<?= empty($alta->liquidacion) ? '' : substr($alta->liquidacion, -2); ?>)</b>
+													<?php if ($alta->estado === 'Cargado'): ?>
+														<?php if ($this->edicion === TRUE): ?>
+															<a class="text-sm btn btn-xs btn-warning" target="_blank" href="persona/editar/<?= $alta->persona_id; ?>"><i class="fa fa-edit"></i> Editar</a>
+														<?php else: ?>
+															<a class="text-sm btn btn-xs btn-primary" target="_blank" href="persona/ver/<?= $alta->persona_id; ?>"><i class="fa fa-eye"></i> Ver</a>
+														<?php endif; ?>
+													<?php else: ?>
+														<a class="text-sm btn btn-xs btn-primary" target="_blank" href="persona/ver/<?= $alta->persona_id; ?>"><i class="fa fa-search"></i> Ver</a>
+													<?php endif; ?>
+													<br>
+													<?= $alta->persona; ?>
+													<br>
+													<?= (empty($alta->fecha_nacimiento) ? '--Sin Fecha Nac.--' : (new DateTime($alta->fecha_nacimiento))->format('d/m/Y')); ?> - <b><?= $alta->situacion_revista; ?></b>
+												</td>
+												<td>
+													<?= $alta->regimen; ?>
+													<span class="text-sm"><?= $alta->regimen_desc; ?></span>-<b><?= $alta->clase === '0000' ? $alta->puntos : $alta->clase; ?></b>
+													<br>
+													<span class="text-sm"><?= $alta->division; ?></span>
+													<br>
+													<span class="text-sm"><?= $alta->materia; ?></span>
+													<br>
+													<?php if (!empty($alta->observaciones)): ?>
+														<br>
+														Obs.Serv.:<span class="text-sm"><?= $alta->observaciones; ?></span>
+													<?php endif; ?>
+													<?php if (!empty($alta->observaciones_c)): ?>
+														<br>
+														Obs.Cargo:<span class="text-sm"><?= $alta->observaciones_c; ?></span>
+													<?php endif; ?>
+												</td>
+												<td>
+													Alta: <?= (new DateTime($alta->fecha_alta))->format('d/m/Y'); ?>
+													<br>
+													Baja: <?= empty($alta->fecha_baja) ? 'No' : (new DateTime($alta->fecha_baja))->format('d/m/Y'); ?>
+													<br>
+													<?php if ($alta->regimen_tipo_id === '1'): ?>
+														Días: <?= min(array($alta->dias, 30)); ?>
+													<?php else: ?>
+														Oblig: <?= min(array($alta->obligaciones, $alta->carga_horaria * 4)); ?>
+													<?php endif; ?>
+													<?php if ($this->edicion === TRUE): ?>
+														<?php if ($estado === 'Cargado'): ?>
+															<a class="text-sm btn btn-xs btn-warning" href="liquidaciones/altas/modal_editar/<?php echo $escuela->id . '/' . $mes . '/' . $alta->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Editar"><i class="fa fa-edit"></i></a>
+
+														<?php else: ?>
+															<a class="text-sm btn btn-xs btn-primary" href="liquidaciones/altas/modal_ver/<?php echo $escuela->id . '/' . $mes . '/' . $alta->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a>
+														<?php endif; ?>
+													<?php else: ?>
+														<a class="text-sm btn btn-xs btn-primary" href="liquidaciones/altas/modal_ver/<?php echo $escuela->id . '/' . $mes . '/' . $alta->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a>
+													<?php endif; ?>
+													<a class="text-sm btn btn-xs btn-primary" href="liquidaciones/altas/modal_ver_auditoria/<?php echo $escuela->id . '/' . $mes . '/' . $alta->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Ver modificaciones"><i class="fa fa-eye"></i></a>
+												</td>
+												<td>
+													<?= $alta->reemplaza_cuil; ?>
+													<?= empty($alta->reemplaza_liquidacion) ? '' : '(' . substr($alta->reemplaza_liquidacion, -2) . ')'; ?>
+													<br>
+													<?= $alta->reemplaza_persona; ?>
+													<br>
+													<?= $alta->reemplaza_articulo; ?>
+													<span class="text-sm"><?= $alta->reemplaza_articulo_desc; ?></span>
+												</td>
+												<td>
+													<?php if ($this->edicion === TRUE): ?>
+														<?php if ($estado === 'Cargado'): ?>
+															<button class="btn btn-xs btn-success" type="submit" name="aprobar" value="<?php echo $alta->id; ?>"><i class="fa fa-check"></i> Aprobar</button>
+															<br>
+															<a class="btn btn-xs btn-danger" href="liquidaciones/altas/modal_rechazar/<?php echo $escuela->id . '/' . $mes . '/' . $alta->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Rechazar</a>
+														<?php elseif ($estado === 'Auditado'): ?>
+															<button class="btn btn-xs btn-danger" type="submit" name="revertir" value="<?php echo $alta->id; ?>"><i class="fa fa-ban"></i> Revertir aprobación</button>
+														<?php elseif ($estado === 'Rechazado'): ?>
+															<button class="btn btn-xs btn-danger" type="submit" name="revertir" value="<?php echo $alta->id; ?>"><i class="fa fa-ban"></i> Revertir rechazo</button>
+															<br><b>Motivo: </b><?php echo $alta->motivo_rechazo; ?>
+														<?php endif; ?>
+													<?php elseif ($estado === 'Rechazado'): ?>
+														<br><b>Motivo: </b><?php echo $alta->motivo_rechazo; ?>
+													<?php endif; ?>
+												</td>
+											</tr>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+							<br>
+							<br>
+						<?php endforeach; ?>
+						<?php if (!empty($autoridades)): ?>
+							<hr>
+							<h3>Autoridades</h3>
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr>
+										<th>Tipo de autoridad</th>
+										<th>CUIL</th>
+										<th>Nombre</th>
+										<th>Tél. Fijo</th>
+										<th>Celular</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($autoridades as $autoridad): ?>
+										<tr>
+											<td><?= $autoridad->autoridad; ?></td>
+											<td><?= $autoridad->cuil; ?></td>
+											<td><?= $autoridad->persona; ?></td>
+											<td><?= $autoridad->telefono_fijo; ?></td>
+											<td><?= $autoridad->telefono_movil; ?></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						<?php endif; ?>
+					</div>
+					<div class="box-footer">
+						<?php if (!$rol_escuela): ?>
+							<a class="btn btn-default" href="liquidaciones/altas/aud_escuelas/<?php echo "$planilla_tipo->id/$mes"; ?>" title="Volver">Volver</a>
+							<?php echo form_hidden('id', $escuela->id); ?>
+						<?php endif; ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<?php echo form_open(base_url("liquidaciones/altas/cambiar_mes/$planilla_tipo->id/$mes/$escuela->id")); ?>
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+			</div>
+			<div style="display:none;" id="div_servicio_alta"></div>
+			<div class="modal-body">
+				<div class="row">
+					<div class="form-group col-md-12" style="text-align:center;">
+						<div id="datepicker" data-date="<?php echo (new DateTime("{$mes}01"))->format('d/m/Y'); ?>"></div>
+						<input type="hidden" name="mes" id="mes" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

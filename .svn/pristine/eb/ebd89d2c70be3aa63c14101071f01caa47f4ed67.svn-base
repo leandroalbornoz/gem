@@ -1,0 +1,82 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'persona';
+		$this->msg_name = 'Persona';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'cuil', 'apellido', 'nombre', 'fecha_nacimiento', 'sexo_id', 'calle', 'calle_numero', 'piso', 'departamento', 'telefono_fijo', 'telefono_movil', 'localidad_id', 'codigo_postal', 'email', 'documento', 'documento_tipo_id', 'gem_id', 'usuario_id');
+		$this->fields = array(
+			'cuil' => array('label' => 'Cuil', 'maxlength' => '13', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '25'),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '25'),
+			'fecha_nacimiento' => array('label' => 'Fecha de Nacimiento (dd/mm/aaaa)', 'type' => 'date', 'placeholder' => 'dd/mm/aaaa'),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo', 'readonly' => TRUE),
+			'calle' => array('label' => 'Calle', 'maxlength' => '60'),
+			'calle_numero' => array('label' => 'Número', 'maxlength' => '5'),
+			'piso' => array('label' => 'Piso', 'maxlength' => '2'),
+			'departamento' => array('label' => 'Dpto', 'maxlength' => '5'),
+			'telefono_fijo' => array('label' => 'Teléfono', 'maxlength' => '20'),
+			'telefono_movil' => array('label' => 'Teléfono alternativo', 'maxlength' => '20'),
+			'localidad' => array('label' => 'Localidad', 'input_type' => 'combo', 'id_name' => 'localidad_id'),
+			'codigo_postal' => array('label' => 'Código Postal', 'maxlength' => '8'),
+			'email' => array('label' => 'Email', 'maxlength' => '100', 'readonly' => TRUE, 'tabindex' => '-1'),
+			'documento' => array('label' => 'N° Documento', 'maxlength' => '8', 'readonly' => TRUE),
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE, 'readonly' => TRUE)
+		);
+		$this->requeridos = array('cuil');
+		$this->unicos = array('cuil');
+		
+	}
+
+	function get_persona($persona_id) {
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$DB1->select('persona.id, persona.cuil, persona.apellido, persona.nombre, persona.fecha_nacimiento, persona.sexo_id, persona.calle, persona.calle_numero, persona.piso, persona.departamento, persona.telefono_fijo, persona.telefono_movil, persona.codigo_postal, persona.email, persona.documento, persona.usuario_id, CONCAT(departamento.descripcion, " - ", localidad.descripcion) as localidad, CONCAT(escuela.numero, " - ", escuela.nombre) as escuela, documento_tipo.descripcion_corta as documento_tipo, sexo.descripcion as sexo')
+			->from('persona')
+			->join('inscripcion', 'persona.id = inscripcion.persona_id')
+			->join('escuela', 'escuela.id = inscripcion.escuela_id')
+			->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id')
+			->join('localidad', 'localidad.id = persona.localidad_id')
+			->join('departamento', 'departamento.id = localidad.departamento_id')
+			->join('sexo', 'sexo.id = persona.sexo_id')
+			->where('persona_id', $persona_id);
+		$query = $DB1->get();
+		return $query->row();
+	}
+
+	public function get_indices() {
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$indices = array();
+		$indices['Personas inscriptas del total de registradas'] = $DB1->select('COUNT(1) total, SUM(CASE WHEN inscripcion.fecha_cierre IS NULL THEN 0 ELSE 1 END) cantidad')
+				->from('persona')
+				->join('inscripcion', 'persona.id = inscripcion.persona_id')
+				->get()->row();
+		$indices['Personas inscriptas del total de registradas']->link = 'juntas/alertas/listar_inscriptos';
+		$indices['Personas Auditadas'] = $DB1->select('SUM(CASE WHEN inscripcion.fecha_cierre IS NULL THEN 0 ELSE 1 END) total, SUM(CASE WHEN inscripcion.fecha_recepcion IS NULL THEN 0 ELSE 1 END) cantidad')
+				->from('persona')
+				->join('inscripcion', 'persona.id = inscripcion.persona_id')
+				->get()->row();
+		$indices['Personas Auditadas']->link = 'juntas/alertas/listar_auditadas';
+		$indices['Vacantes disponibles'] = $DB1->select('SUM(escuela.vacantes) total, SUM(escuela.vacantes_disponibles) cantidad')
+				->from('escuela')
+				->get()->row();
+		$indices['Vacantes disponibles']->link = 'juntas/alertas/listar_vacantes';
+		return $indices;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Persona_model.php */
+/* Location: ./application/modules/gem/bono_secundario/models/Persona_model.php */

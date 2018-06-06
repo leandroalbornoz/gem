@@ -1,0 +1,61 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escuela_carrera_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'escuela_carrera';
+		$this->msg_name = 'Carrera de escuela';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'carrera_id');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'carrera' => array('label' => 'Carrera', 'input_type' => 'combo', 'id_name' => 'carrera_id', 'required' => TRUE)
+		);
+		$this->requeridos = array('escuela_id', 'carrera_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('carrera', 'carrera.id = escuela_carrera.carrera_id', 'left', array('carrera.descripcion as carrera')),
+			array('escuela', 'escuela.id = escuela_carrera.escuela_id', 'left', array('escuela.nombre as escuela'))
+		);
+	}
+
+	public function get_by_escuela($escuela_id) {
+		$options['escuela_id'] = $escuela_id;
+		$options['join'] = array(
+			array('carrera', 'carrera.id=escuela_carrera.carrera_id', '', array('carrera.descripcion as carrera')),
+			array('division', 'carrera.id=division.carrera_id AND escuela_carrera.escuela_id=division.escuela_id', 'left', array('COUNT(DISTINCT division.id) as divisiones')),
+		);
+		$options['group_by'] = 'carrera.id';
+		$options['sort_by'] = 'carrera.descripcion';
+		return $this->get($options);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+
+	public function get_escuela($id) {
+		$escuela = $this->db->from('escuela_carrera')
+			->select('escuela.id, escuela.numero, escuela.anexo, escuela.nombre')
+			->join('escuela', 'escuela_carrera.escuela_id = escuela.id')
+			->where('escuela_carrera.id', $id)
+			->get()
+			->row();
+		if (is_object($escuela)) {
+			$escuela->nombre_corto = $escuela->numero . ($escuela->anexo === '0' ? '' : "/$escuela->anexo");
+			$escuela->nombre_largo = $escuela->numero . ($escuela->anexo === '0' ? '' : "/$escuela->anexo") . ' ' . $escuela->nombre;
+		}
+		return $escuela;
+	}
+}
+/* End of file Escuela_carrera_model.php */
+/* Location: ./application/models/Escuela_carrera_model.php */

@@ -1,0 +1,129 @@
+<?php if (in_array($this->rol->codigo, ARRAY(ROL_ADMIN, ROL_LIQUIDACION))): ?>
+	<div class="row">
+		<div class="form-group col-sm-3">
+			<?php echo $fields['dependencia']['label']; ?>
+			<?php echo $fields['dependencia']['form']; ?>
+		</div>
+		<div class="form-group col-sm-3">
+			<?php echo $fields['linea']['label']; ?>
+			<?php echo $fields['linea']['form']; ?>
+		</div>
+		<div class="form-group col-sm-3">
+			<?php echo $fields['nivel']['label']; ?>
+			<?php echo $fields['nivel']['form']; ?>
+		</div>
+		<div class="form-group col-sm-3">
+			<?php echo $fields['supervision']['label']; ?>
+			<?php echo $fields['supervision']['form']; ?>
+		</div>
+	</div>
+	<div class="form-group pull-left">
+		<label>&nbsp;</label><br/>
+		<button class="btn btn-primary" id="btn-search" type="button">
+			<i class="fa fa-search"></i> Buscar Escuelas
+		</button>
+	</div>
+<?php endif; ?>
+<div class="form-group pull-right">
+	<label style="width:100%">&nbsp;</label>
+	<a class="btn btn-sm btn-primary" href="javascript:seleccionar_todo()" title="Marcar todos">Marcar todos</a>
+	<a class="btn btn-sm btn-danger"  href="javascript:deseleccionar_todo()" title="Desmarcar todos">Desmarcar todos</a>
+</div>
+<table class="table table-hover table-bordered table-condensed no-footer" role="grid" id="tbl_listar_entidades">
+	<thead>
+		<tr style="background-color: #f4f4f4" >
+			<th style="text-align: center;" colspan="8">Lista de escuelas filtradas</th>
+		</tr>
+		<tr>
+			<th style="width: 5%;">Número</th>
+			<th style="width: 5%;">Anexo</th>
+			<th style="width: 30%;">Nombre</th>
+			<th style="width: 15%;">Dependencia</th>
+			<th style="width: 10%;">Nivel</th>
+			<th style="width: 15%;">Línea</th>
+			<th style="width: 15%;">Supervisión</th>
+			<th style="width: 5%;"></th>
+		</tr>
+	</thead>
+	<tbody>
+	</tbody>
+</table>
+<script>
+	function seleccionar_todo() {
+		for (i = 0; i < document.form_mensaje.elements.length; i++)
+			if (document.form_mensaje.elements[i].type == "checkbox")
+				document.form_mensaje.elements[i].checked = 1
+	}
+	function deseleccionar_todo() {
+		for (i = 0; i < document.form_mensaje.elements.length; i++)
+			if (document.form_mensaje.elements[i].type == "checkbox")
+				document.form_mensaje.elements[i].checked = 0
+	}
+	var table_entidades;
+	$(document).ready(function() {
+		table_entidades = $('#tbl_listar_entidades').DataTable({dom: 'tp', autoWidth: false, paging: false, pagingType: 'simple_numbers', language: {url: 'plugins/datatables/spanish.json'}, pageLength: 10, lengthMenu: [10], columnDefs: [{orderable: false, targets: [1, 4, 5]}]});
+<?php if (in_array($this->rol->codigo, ARRAY(ROL_ADMIN, ROL_LIQUIDACION))): ?>
+			$('#btn-search').click(function() {
+<?php endif; ?>
+			table_entidades.clear();
+			var nivel = $('#nivel').val();
+			var dependencia = $('#dependencia').val();
+			var linea = $('#linea').val();
+			var supervision = $('#supervision').val();
+			$('#tbl_listar_entidades tbody').html('');
+			$.ajax({
+				type: 'POST',
+				url: 'mensaje/mensaje_difusion_listar_entidades?',
+				data: {nivel: nivel, dependencia: dependencia, linea: linea, supervision: supervision, entidad_tipo: <?php echo $rol_seleccionado->entidad_tipo_id; ?>},
+				dataType: 'json',
+				success: function(result) {
+					if (result.status === 'success') {
+						for (var idx in result.escuelas) {
+							var escuela = result.escuelas[idx];
+							table_entidades.row.add([
+								escuela.numero,
+								escuela.anexo,
+								escuela.nombre,
+								escuela.dependencia,
+								escuela.nivel,
+								escuela.linea,
+								escuela.supervision,
+								'<input type="checkbox" align="center" name="entidad[]" value=' + escuela.id + '>'
+							]);
+						}
+						table_entidades.draw();
+					} else {
+						table_entidades.row.add([
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-']);
+						table_entidades.draw();
+					}
+				}
+			});
+<?php if (in_array($this->rol->codigo, ARRAY(ROL_ADMIN, ROL_LIQUIDACION))): ?>
+			});
+<?php endif; ?>
+		$('#form_mensaje').change('input[type="checkbox"]', function() {
+			$('#cartel').addClass('hidden');
+			$('#seleccionar').prop('disabled', false);
+			var cantidad = $('#form_mensaje').find('input[type="checkbox"]:checked').size();
+			$('#para_escuelas').val(cantidad + ' destinatarios seleccionados');
+		});
+		$("#seleccionar").on("click", function() {
+			var cantidad = $('#form_mensaje').find('input[type="checkbox"]:checked').size();
+			if (cantidad === 0) {
+				$('#seleccionar').prop('disabled', true);
+				$('#cartel').removeClass('hidden');
+			} else {
+				$('#cartel').addClass('hidden');
+				$('#seleccionar').prop('disabled', false);
+			}
+		});
+	});
+</script>

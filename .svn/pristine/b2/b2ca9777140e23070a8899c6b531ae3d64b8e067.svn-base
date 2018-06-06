@@ -1,0 +1,389 @@
+<style>
+	.cursada-si.active{
+		color: green;
+	}
+	.cursada-no.active{
+		color: red;
+	}
+	.inasistencia .active{
+		font-weight: bold;
+	}
+	.input-group-sm>.form-control, .input-group-sm>.input-group-addon, .input-group-sm>.input-group-btn>.btn {
+    height: 25px;
+		padding: 3px 7px;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Agregar Cursadas
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id ?>"><?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li><a href="division/listar/<?= $escuela->id ?>">Cursos y Divisiones</a></li>
+			<?php if (!empty($division)): ?>
+				<li><a href="division/ver/<?= $division->id ?>"><?php echo "$division->curso $division->division"; ?></a></li>
+			<?php endif; ?>
+			<li><a href="<?php echo $controlador; ?>/listar/<?php echo $division->id; ?>">Cursadas</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php $data_submit = array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn); ?>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_cursadas')); ?>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta" href="division/ver/<?php echo $division->id; ?>">
+							<i class="fa fa-search"></i> Ver División
+						</a>
+						<a class="btn btn-app btn-app-zetta" href="cursada/listar/<?php echo $division->id; ?>">
+							<i class="fa fa-book"></i> Cursadas
+						</a>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['agregar']; ?>">
+							<i class="fa fa-plus"></i> Agregar
+						</a>
+						<table class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+							<thead>
+								<tr>
+									<th colspan="9" class="text-center bg-gray"><h5><b>Cursadas ya cargadas para esta división</b></h5></th>
+								</tr>
+								<tr>
+									<th style="width: 10%;">División</th>
+									<th style="width: 15%;">Materia</th>
+									<th style="width: 10%;text-align: center;">Optativo</th>
+									<th style="width: 15%;text-align: center;">Extra</th>
+									<th style="width: 10%;text-align: center;">Desde</th>
+									<th style="width: 20%;text-align: center;">Cargo/s</th>
+									<th style="width: 10%;">Carga horaria</th>
+									<th style="width: 10%;text-align: center;">Hs cubiertas</th>
+								</tr>
+							</thead>
+							<tbody>
+
+								<?php if (!empty($cursadas_division)): ?>
+									<?php foreach ($cursadas_division as $ec_id => $cursada_division): ?>
+										<tr>
+											<td><?php echo $cursada_division->division; ?></td>
+											<td><?php echo $cursada_division->espacio_curricular; ?></td>
+											<td><?php echo $cursada_division->optativo; ?></td>
+											<td><?php echo $cursada_division->extra; ?></td>
+											<td><?php echo (new DateTime($cursada_division->fecha_desde))->format('d/m/Y'); ?></td>
+											<td style="text-align: center;">
+												<?php if (!empty($cursada_division->cargo_cursada)): ?>
+													<?php echo $cursada_division->personas_cargo; ?>
+												<?php else: ?>
+													Sin cargo asignado
+												<?php endif; ?>
+											</td>
+											<td><?php echo $cursada_division->carga_horaria; ?></td>
+											<td style="text-align: center;">
+												<?php if (empty($cursada_division->cargo_cursada)): ?>
+													Sin horas cubiertas
+												<?php else: ?>
+													<?php echo $cursada_division->carga_horaria_cargo; ?>
+												<?php endif; ?>
+											</td>
+										</tr>
+									<?php endforeach; ?>		
+								<?php else: ?>
+									<tr>
+										<td colspan="8" style="text-align: center;">-- No hay cursadas cargadas en esta división -- </td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+						</table>
+						<table id="espacio_curricular_table" class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+							<thead>
+								<tr>
+									<th colspan="7" class="text-center bg-gray">
+										<h5>
+											<b style="position: absolute;right: 45%;">Espacios Curriculares</b>
+											<div class="pull-right">
+												<a class="btn btn-sm btn-primary" id="seleccionar_todos">Marcar todos</a>
+												<a class="btn btn-sm btn-danger" id="deseleccionar_todos">Desmarcar todos</a>
+											</div>
+										</h5>
+									</th>
+								</tr>
+								<tr>
+									<th style="width: 35%;">Materia</th>
+									<th style="width: 10%;">Carga horaria</th>
+									<?php if ($escuela->nivel_id === '7'): ?>
+										<th style="width: 5%;">Cuatrimestre</th>
+									<?php endif; ?>
+									<th style="width: <?php echo ($escuela->nivel_id === '7') ? "5%" : "10%"; ?>">Optativo</th>
+									<th style="width: 35%;text-align: center;">Extra</th>
+									<th style="width: 10%;text-align: center;"></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php $fila = 0; ?>
+								<?php if (!empty($espacios_curriculares)): ?>
+									<?php foreach ($espacios_curriculares as $ec_id => $ec_materia): ?>
+										<?php $fila++; ?>
+										<tr>
+											<td><?php echo $ec_materia; ?></td>
+											<td align="center">
+												<div class="input-group input-group-sm">
+													<input type="number" class="form-control carga_horaria" min="0" value="<?php echo (isset($carga_horaria[$ec_id]) ? "$carga_horaria[$ec_id]" : "0"); ?>" step="1" name="carga_horaria[<?php echo $fila; ?>]" required>
+												</div>
+											</td>
+											<?php if ($escuela->nivel_id === '7'): ?>
+												<td align="center">
+													<div class="btn-group btn-group-xs inasistencia" data-toggle="buttons">
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre[$ec_id] === '0') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="0" <?php echo ($cuatrimestre[$ec_id] === '0') ? "checked" : ""; ?>> Anual
+														</label>
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre[$ec_id] === '1') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="1" <?php echo ($cuatrimestre[$ec_id] === '1') ? "checked" : ""; ?>> 1°
+														</label>
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre[$ec_id] === '2') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="2" <?php echo ($cuatrimestre[$ec_id] === '2') ? "checked" : ""; ?>> 2°
+														</label>
+													</div>
+												</td>
+											<?php endif; ?>
+											<td align="center">
+												<div class="btn-group btn-group-xs inasistencia" data-toggle="buttons">
+													<label class="btn btn-default cursada-si">
+														<input type="radio" name="optativa[<?php echo $fila; ?>]" value="Si"> Si
+													</label>
+													<label class="btn btn-default cursada-no text-success active">
+														<input type="radio" name="optativa[<?php echo $fila; ?>]" value="No" checked> No
+													</label>
+												</div>
+											</td>
+											<td align="center">
+												<div class="input-group input-group-sm">
+													<input type="text" class="form-control cursada_extra" name="extra[<?php echo $fila; ?>]" maxlength="15">
+													<span class="input-group-btn">
+														<button type="button" name="add" class="btn btn-success tr_clone_add" title="duplicar"><i class="fa fa-clone"></i></button>
+													</span>
+													<span class="input-group-btn">
+														<button type="button" name="del" class="btn btn-danger tr_clone_del hidden"><i class="fa fa-remove"></i></button>
+													</span>
+												</div>
+											</td>
+											<td align="center">
+												<input type="checkbox" class="cursada_check" name="cursada[<?php echo $fila; ?>]" value="<?php echo $ec_id; ?>">
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php else: ?>
+									<tr>
+										<td colspan="6" style="text-align: center;">-- No hay espacios curriculares en este curso, por favor verifique la carrera --</td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+							<tr><td colspan="6"></td></tr>
+							<thead>
+								<tr>
+									<th colspan="6" class="text-center bg-gray"><h5><b>Espacios Extracurriculares</b></h5></th>
+								</tr>
+								<tr>
+									<th style="width: 35%;">Materia</th>
+									<th style="width: 10%;">Carga horaria</th>
+									<?php if ($escuela->nivel_id === '7'): ?>
+										<th style="width: 5%;">Cuatrimestre</th>
+									<?php endif; ?>
+									<th style="width: <?php echo ($escuela->nivel_id === '7') ? "5%" : "10%"; ?>">Optativo</th>
+									<th style="width: 35%;text-align: center;">Extra</th>
+									<th style="width: 10%;text-align: center;"></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php if (!empty($espacios_extracurriculares)): ?>
+									<?php foreach ($espacios_extracurriculares as $ec_id => $ec_materia): ?>
+										<?php $fila++; ?>
+										<tr>
+											<td><?php echo $ec_materia; ?></td>
+											<td align="center">
+												<div class="input-group input-group-sm">
+													<input type="number" class="form-control carga_horaria" min="0" value="<?php echo (isset($carga_horaria[$ec_id]) ? "$carga_horaria[$ec_id]" : "0"); ?>" step="1" name="carga_horaria[<?php echo $fila; ?>]" required>
+												</div>
+											</td>
+											<?php if ($escuela->nivel_id === '7'): ?>
+												<td align="center">
+													<div class="btn-group btn-group-xs inasistencia" data-toggle="buttons">
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre_extra[$ec_id] === '0') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="0" <?php echo ($cuatrimestre_extra[$ec_id] === '0') ? "checked" : ""; ?>> Anual
+														</label>
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre_extra[$ec_id] === '1') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="1" <?php echo ($cuatrimestre_extra[$ec_id] === '1') ? "checked" : ""; ?>> 1°
+														</label>
+														<label class="btn btn-default cursada-si <?php echo ($cuatrimestre_extra[$ec_id] === '2') ? "text-success active" : ""; ?>">
+															<input type="radio" name="cuatrimestre[<?php echo $fila; ?>]" value="2" <?php echo ($cuatrimestre_extra[$ec_id] === '2') ? "checked" : ""; ?>> 2°
+														</label>
+													</div>
+												</td>
+											<?php endif; ?>
+											<td align="center">
+												<div class="btn-group btn-group-xs inasistencia" data-toggle="buttons">
+													<label class="btn btn-default cursada-si">
+														<input type="radio" name="optativa[<?php echo $fila; ?>]" value="Si"> Si
+													</label>
+													<label class="btn btn-default cursada-no text-success active">
+														<input type="radio" name="optativa[<?php echo $fila; ?>]" value="No" checked> No
+													</label>
+												</div>
+											</td>
+											<td align="center">
+												<div class="input-group input-group-sm">
+													<input type="text" class="form-control cursada_extra" name="extra[<?php echo $fila; ?>]" maxlength="15">
+													<span class="input-group-btn">
+														<button type="button" name="add" class="btn btn-success tr_clone_add"><i class="fa fa-clone"></i></button>
+													</span>
+													<span class="input-group-btn">
+														<button type="button" name="del" class="btn btn-danger tr_clone_del hidden"><i class="fa fa-remove"></i></button>
+													</span>
+												</div>
+											</td>
+											<td align="center">
+												<input type="checkbox" class="cursada_check_extra" name="cursada[<?php echo $fila; ?>]" value="<?php echo $ec_id; ?>">
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php else: ?>
+									<tr>
+										<td colspan="6" style="text-align: center;">-- No hay espacios extracurriculares en este curso --</td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+						</table>
+						<input type="hidden" value="<?php echo $fila; ?>" id="fila">
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="cursada/listar/<?php echo $division->id; ?>" title="Cancelar">Cancelar</a>
+						<?php echo (!empty($txt_btn)) ? form_submit($data_submit, $txt_btn) : ''; ?>
+						<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $cursada->id) : ''; ?>
+						<div class="row pull-right hidden" style="padding-right: 5%;"  id="cartel">
+							<div class="bg-red text-bold" style="border-radius: 2px;"><h5>Estas cursadas ya fueron cargadas verifique el extra.</h5></div>
+						</div>
+						<div class="row pull-right hidden" style="padding-right: 5%;"  id="cartel2">
+							<div class="bg-red text-bold" style="border-radius: 2px;"><h5>Ingrese una carga horaria valida.</h5></div>
+						</div>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	var arr_cursadas = <?php echo json_encode($cursadas); ?>;
+	function verificar_cursadas(event) {
+		$('input[type=checkbox]:checked').each(function(){
+			$(this).closest('tr').css('color', '');
+		});
+		if ($('input[type=checkbox]:checked').length === 0) {
+			event.preventDefault();
+		}
+		var arr_id = new Array();
+		var arr_extra = new Array();
+		$('input[type=checkbox]:checked').each(function() {
+			arr_id.push($(this).val());
+			arr_extra.push($(this).closest('tr').find('.cursada_extra').val());
+		});
+		for (var i = 0; i < arr_id.length; i++) {
+			for (var j = i + 1; j < arr_id.length; j++) {
+				if (arr_id[i] === arr_id[j]) {
+					if (arr_extra[i] === arr_extra[j]) {
+						($('[value=' + arr_id[j] + ']')).closest('tr').css('color', 'red');
+						$('#cartel').removeClass('hidden');
+						event.preventDefault();
+					}
+				}
+			}
+		}
+
+		$('input[type=checkbox]:checked').each(function() {
+			var id = $(this).val();
+			var carga_horaria = $(this).closest('tr').find('.carga_horaria').val();
+			var extra = $(this).closest('tr').find('.cursada_extra').val();
+			if (extra === '') {
+				extra = null;
+			}
+			if (carga_horaria <= 0) {
+				$('#cartel2').removeClass('hidden');
+				$(this).closest('tr').css('color', 'red');
+				event.preventDefault();
+			}
+			for (var i = 0; i < arr_cursadas.length; i++) {
+				if (arr_cursadas[i].espacio_curricular === id && arr_cursadas[i].extra === extra) {
+					$('#cartel').removeClass('hidden');
+					$(this).closest('tr').css('color', 'red');
+					event.preventDefault();
+				}
+			}
+		});
+	}
+
+	$(document).ready(function() {
+		$('input[type=checkbox]').prop('checked', true);
+
+		$('#form_cursadas').submit(verificar_cursadas);
+
+		$(".tr_clone_add").on("click", function() {
+			var fila = $('#fila').val();
+			fila++;
+			var new_tr = $(this).closest('tr').clone();
+			var del = new_tr.find('button.tr_clone_del').removeClass('hidden');
+			new_tr.find('button.tr_clone_add').replaceWith(del);
+			var indice2 = new_tr.find('input[type="radio"]').attr('name').replace('cuatrimestre', '');
+			var indice = new_tr.find('input[type="radio"]').attr('name').replace('optativa', '');
+			var names = ['carga_horaria', 'cuatrimestre', 'optativa', 'extra', 'cursada'];
+			for (var i in names) {
+				new_tr.find('[name="' + names[i] + indice2 + '"]').prop('name', names[i] + '[' + fila + ']');
+				new_tr.find('[name="' + names[i] + indice + '"]').prop('name', names[i] + '[' + fila + ']');
+			}
+			$(this).closest('tr').after(new_tr);
+			$('#fila').val(fila);
+		});
+
+		$(document).on('click', '.tr_clone_del', function() {
+			$(this).closest('tr').remove();
+		});
+
+		$(document).on('click', 'input[type=checkbox]', function() {
+			$(this).closest('tr').css('color', '');
+			$('#cartel').addClass('hidden');
+			$('#cartel2').addClass('hidden');
+		});
+
+		$(document).on('click', '.carga_horaria', function() {
+			$(this).closest('tr').css('color', '');
+			$('#cartel').addClass('hidden');
+			$('#cartel2').addClass('hidden');
+		});
+
+		$(document).on('click', '#seleccionar_todos', function() {
+			var checkboxes = $(this).closest('#form_cursadas').find('.cursada_check');
+			checkboxes.prop('checked', true);
+		});
+
+		$(document).on('click', '#deseleccionar_todos', function() {
+			var checkboxes = $(this).closest('#form_cursadas').find('.cursada_check');
+			checkboxes.prop('checked', false);
+			checkboxes.closest('tr').css('color', '');
+			$('#cartel').addClass('hidden');
+		});
+
+	});
+</script>

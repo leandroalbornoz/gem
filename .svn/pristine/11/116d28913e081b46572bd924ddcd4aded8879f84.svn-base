@@ -1,0 +1,59 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Titulo_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'titulo';
+		$this->msg_name = 'Titulo';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'NroTit', 'NroTitS', 'NomTitLon', 'titulo_tipo_id', 'titulo_tipo_clasificacion_id');
+		$this->requeridos = array('NomTitLon', 'titulo_tipo_clasificacion_id');
+		//$this->unicos = array();
+		$this->default_join = array();
+	}
+
+	function find_titulos($nombre, $titulo_tipo) {
+		$this->db->select('id, NomTitLon as titulo')
+			->from('titulo')
+			->like('NomTitLon', $nombre)
+			->where('titulo_tipo_id', $titulo_tipo);
+		$query = $this->db->get();
+		return $query->result();
+	}
+
+	function buscar_titulo($titulo, $subtitulo) {
+		$this->db->select('id')
+			->from('titulo')
+			->where('NroTit', $titulo)
+			->where('NroTitS', $subtitulo);
+		$query = $this->db->get();
+		return $query->row();
+	}
+
+	function find_titulo($titulo_id, $subtitulo_id) {
+		$DB1 = $this->load->database('dge55', TRUE);
+		$DB1->select("(CONVERT(NVARCHAR(20),NroTit)+'-'+CONVERT(NVARCHAR(20),NroTitS)) id, RTRIM(CONVERT(NVARCHAR(130),NomTitLon)) titulo")
+			->from('dge55.rhjuntas.dbo.TITSUB')
+			->where('NroTit', $titulo_id)
+			->where('NroTitS', $subtitulo_id);
+		$query = $DB1->get();
+
+		return $query->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+
+		return TRUE;
+	}
+}
+/* End of file Titulo_model.php */
+/* Location: ./application/modules/titulos/models/Titulo_model.php */

@@ -1,0 +1,181 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Datatables Functions Helper
+ *
+ * @package    CodeIgniter
+ * @subpackage helpers
+ * @category   helper
+ * @version    0.0.1
+ * @author     ZettaSys <info@zettasys.com.ar>
+ *
+ */
+if (!function_exists('dt_column_division_horario')) {
+
+	function dt_column_division_horario($horarios = '') {
+		if ($horarios > 0) {
+			return '<i class="fa fa-check text-success"></i> Asignado';
+		} else {
+			return '<i class="fa fa-times text-danger"></i> No asignado';
+		}
+	}
+}
+
+if (!function_exists('dt_column_servicio_menu')) {
+
+	function dt_column_servicio_menu($mes = '', $id = '', $escuela_id = '', $fecha_baja = '') {
+		if (empty($fecha_baja)) {
+			return '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio/ver/' . $id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn-warning" href="servicio/editar/' . $id . '" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item btn-primary" href="servicio_novedad/modal_agregar/' . $mes . '/' . $id . '/' . $escuela_id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-plus-o"></i> Agregar novedad</a></li>'
+				. '<li><a class="dropdown-item btn-danger" href="servicio_novedad/modal_baja/' . $mes . '/' . $id . '/' . $escuela_id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-minus-o"></i> Baja</a></li>'
+				. '<li><a class="dropdown-item btn-success" href="servicio/agregar_reemplazo/' . $mes . '/' . $id . '/' . $escuela_id . '"><i class="fa fa-plus"></i> Reemplazo</a></li>'
+				. '</ul></div>';
+		} else {
+			return '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio/ver/' . $id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn-warning" href="servicio/editar/' . $id . '" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item btn-success" href="servicio/agregar_reemplazo/' . $mes . '/' . $id . '/' . $escuela_id . '"><i class="fa fa-plus"></i> Reemplazo</a></li>'
+				. '</ul></div>';
+		}
+	}
+}
+
+if (!function_exists('dt_column_servicio_funcion_menu')) {
+
+	function dt_column_servicio_funcion_menu($mes = '', $id = '', $escuela_id = '', $fecha_baja = '') {
+		if (empty($fecha_baja)) {
+			return '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio_funcion/ver/' . $id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn-primary" href="servicio_novedad/modal_agregar_funcion/' . $mes . '/' . $id . '/' . $escuela_id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-plus-o"></i> Agregar novedad</a></li>'
+				. '</ul></div>';
+		} else {
+			return '<a class="btn btn-xs btn-default" href="servicio_funcion/ver/' . $id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>';
+		}
+	}
+}
+
+if (!function_exists('dt_column_area_personal_menu')) {
+
+	function dt_column_area_personal_menu($mes = '', $servicio_id = '', $area_id = '', $fecha_baja = '') {
+		if (empty($fecha_baja)) {
+			return '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="areas/personal/ver/' . $servicio_id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+//				. '<li><a class="dropdown-item" href="areas/personal/editar/' . $servicio_id . '" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item btn-primary" href="areas/personal_novedad/modal_agregar/' . $mes . '/' . $servicio_id . '/' . $area_id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-plus-o"></i> Agregar novedad</a></li>'
+				. '<li><a class="dropdown-item btn-danger" href="areas/personal_novedad/modal_baja/' . $mes . '/' . $servicio_id . '/' . $area_id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-minus-o"></i> Baja</a></li>'
+				. '</ul></div>';
+		} else {
+			return '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio/ver/' . $servicio_id . '" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn-warning" href="servicio/editar/' . $servicio_id . '" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '</ul></div>';
+		}
+	}
+}
+
+if (!function_exists('dt_column_servicio_novedad_menu')) {
+
+	function dt_column_servicio_novedad_menu($mes = '', $id = '', $escuela_id = '', $novedad_tipo = '', $es_funcion = '0', $pendiente = '0', $fecha_cierre = '', $origen_id = '') {
+		if ($pendiente !== '0') {
+			$template = '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio_novedad/modal_editar_pendiente/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . ($pendiente === '2' ? '/1' : '') . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-check"></i> Confimar</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="servicio_novedad/modal_eliminar/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>';
+		} else {
+			$template = '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="servicio_novedad/modal_ver/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">';
+
+			if (empty($fecha_cierre)) {
+				if ($novedad_tipo === 'N') {
+					if (!empty($origen_id)) {
+						$template .= '<li><a class="dropdown-item" href="servicio_novedad/modal_editar_pendiente/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Editar</a></li>';
+					} else {
+						$template .= '<li><a class="dropdown-item" href="servicio_novedad/modal_editar/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Editar</a></li>';
+					}
+				}
+			}
+			$template .= '<li><a class="dropdown-item" href="servicio_novedad/modal_eliminar/' . $mes . '/' . $id . '/' . $escuela_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>';
+		}
+		return $template;
+	}
+}
+
+if (!function_exists('dt_column_personal_novedad_menu')) {
+
+	function dt_column_personal_novedad_menu($mes = '', $id = '', $area_id = '', $novedad_tipo = '', $es_funcion = '0', $pendiente = '0', $fecha_cierre = '', $origen_id = '') {
+		if ($pendiente === '1') {
+			$template = '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="areas/personal_novedad/modal_editar_pendiente/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-check"></i> Confimar</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="areas/personal_novedad/modal_eliminar/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>';
+		} else {
+			$template = '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="areas/personal_novedad/modal_ver/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">';
+
+			if (empty($fecha_cierre)) {
+				if ($novedad_tipo !== 'B' && $novedad_tipo !== 'J') {
+					if (!empty($origen_id)) {
+						$template .= '<li><a class="dropdown-item" href="areas/personal_novedad/modal_editar_pendiente/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '/1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Editar</a></li>';
+					} else {
+						$template .= '<li><a class="dropdown-item" href="areas/personal_novedad/modal_editar/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Editar</a></li>';
+					}
+				}
+			}
+			$template .= '<li><a class="dropdown-item" href="areas/personal_novedad/modal_eliminar/' . $mes . '/' . $id . '/' . $area_id . '/' . $es_funcion . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>';
+		}
+
+		return $template;
+	}
+}
+
+if (!function_exists('dt_column_alertas_cargos_sin_horarios_menu')) {
+
+	function dt_column_alertas_cargos_sin_horarios_menu($cargo_id = '', $division_id = '') {
+		if (empty($division_id)) {
+			return '<a class="btn btn-xs btn-default" href="cargo/horarios/' . $cargo_id . '/alertas" title="Horarios Cargo"><i class="fa fa-clock-o"></i> H.Cargo</a>';
+		} else {
+			return '<a class="btn btn-xs btn-default" href="division/ver_horario/' . $division_id . '/alertas" title="Horarios División"><i class="fa fa-clock-o"></i> H.División</a>';
+		}
+//			return '<div class="btn-group" role="group">'
+//				. '<a class="btn btn-xs btn-default" href="cargo/horarios/$1" title="Horarios Cargo"><i class="fa fa-clock-o"></i> H.Cargo</a>'
+//				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+//				. '<ul class="dropdown-menu dropdown-menu-right">'
+//				. '<li><a class="dropdown-item" href="division/horarios/$2" title="Horarios División"><i class="fa fa-clock-o"></i> H.División</a></li>'
+//				. '</ul></div>';
+	}
+}
+
+if (!function_exists('dt_column_mensaje_leido')) {
+
+	function dt_column_mensaje_leido($leido = '', $fecha = '', $usuario = '') {
+		if ($leido === '1') {
+			return '<i class="fa fa-envelope-open-o" title="Leído por ' . $usuario . ' a las ' . (new DateTime($fecha))->format('H:i') . ' el día ' . (new DateTime($fecha))->format('d/m/y') . '"></i>';
+		} else {
+			return '<i class="fa fa-envelope" title="No leído"></i>';
+		}
+	}
+}

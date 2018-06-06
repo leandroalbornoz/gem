@@ -1,0 +1,533 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Usuario extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('usuario_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_PRIVADA, ROL_SEOS, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION, ROL_DIR_ESCUELA);
+		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
+		$this->modulos_permitidos = array(ROL_MODULO_ADMINISTRADOR_DE_JUNTAS);
+		$this->nav_route = 'usuarios/usuario';
+	}
+
+	public function listar() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => 'details-control'),
+				array('label' => 'Usuario', 'data' => 'usuario', 'width' => 13),
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 21),
+				array('label' => 'Rol', 'data' => 'rol', 'width' => 17),
+				array('label' => 'Entidad', 'data' => 'entidad', 'width' => 20),
+				array('label' => 'Activo', 'data' => 'active', 'class' => 'dt-body-right', 'width' => 7),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(2, 'asc')),
+			'table_id' => 'usuario_table',
+			'source_url' => "usuario/listar_data/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'responsive' => FALSE,
+			'reuse_var' => TRUE,
+			'initComplete' => 'complete_usuario_table',
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Usuarios';
+		$this->load_template('usuario/usuario_listar', $data);
+	}
+
+	public function listar_data($rol_codigo = NULL, $entidad_id = '') {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select('usuario.id, usuario.usuario, persona.cuil as cuil, CONCAT(persona.apellido, \', \', persona.nombre) as persona, rol.nombre as rol, entidad.nombre as entidad, (CASE usuario.active WHEN 1 THEN "Activo" ELSE "No Activo" END) as active')
+			->unset_column('id')
+			->from('usuario')
+			->join('usuario_persona', 'usuario_persona.usuario_id=usuario.id')
+			->join('usuario_rol', 'usuario_rol.usuario_id=usuario.id', 'left')
+			->join('rol', 'usuario_rol.rol_id=rol.id', 'left')
+			->join('entidad_tipo', 'rol.entidad_tipo_id=entidad_tipo.id', 'left')
+			->join('entidad', 'entidad.tabla=entidad_tipo.tabla and entidad.id=usuario_rol.entidad_id', 'left')
+			->join('persona', "persona.cuil = usuario_persona.cuil", 'left')
+			->where('usuario.active', 1)
+			->group_by('usuario.id')
+			->add_column('', '', 'id');
+
+		switch ($this->rol->codigo) {
+			case ROL_ADMIN:
+			case ROL_USI:
+				$this->datatables
+					->add_column('edit', '<div class="btn-group" role="group">'
+						. '<a class="btn btn-xs btn-default" href="usuario/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+						. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+						. '<ul class="dropdown-menu dropdown-menu-right">'
+						. '<li><a class="dropdown-item" href="usuario/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+						. '<li><a class="dropdown-item" href="usuario/eliminar/$1" title="Eliminar"><i class="fa fa-remove"></i> Eliminar</a></li>'
+						. '<li><a class="btn-primary dropdown-item" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a></li>'
+						. '</ul></div>', 'id');
+				break;
+			case ROL_MODULO:
+				$this->datatables
+					->add_column('edit', '<div class="btn-group" role="group">'
+						. '<a class="btn btn-xs btn-default" href="usuario/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+						. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+						. '<ul class="dropdown-menu dropdown-menu-right">'
+						. '<li><a class="btn-primary dropdown-item" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a></li>'
+						. '</ul></div>', 'id');
+				break;
+			case ROL_GRUPO_ESCUELA:
+			case ROL_LINEA:
+				$this->datatables
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->join('nivel', 'COALESCE(escuela.nivel_id,supervision.nivel_id)=nivel.id', 'left')
+					->where('nivel.linea_id', $this->rol->entidad_id)
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 1)
+					->add_column('edit', '<div class="btn-group" role="group">'
+						. '<a class="btn btn-xs btn-default" href="usuario/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+						. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+						. '<ul class="dropdown-menu dropdown-menu-right">'
+						. '<li><a class="btn-primary dropdown-item" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a></li>'
+						. '</ul></div>', 'id');
+				break;
+			case ROL_PRIVADA:
+				$this->datatables
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 2)
+					->add_column('edit', '<div class="btn-group" role="group">'
+						. '<a class="btn btn-xs btn-default" href="usuario/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+						. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+						. '<ul class="dropdown-menu dropdown-menu-right">'
+						. '<li><a class="btn-primary dropdown-item" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a></li>'
+						. '</ul></div>', 'id');
+				break;
+			case ROL_SEOS:
+				$this->datatables
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 3)
+					->add_column('edit', '<div class="btn-group" role="group">'
+						. '<a class="btn btn-xs btn-default" href="usuario/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+						. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+						. '<ul class="dropdown-menu dropdown-menu-right">'
+						. '<li><a class="btn-primary dropdown-item" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a></li>'
+						. '</ul></div>', 'id');
+				break;
+			case ROL_JEFE_LIQUIDACION:
+				$this->datatables
+					->where("rol.codigo IN ('" . ROL_CONSULTA_LINEA . "', '" . ROL_REGIONAL . "', '" . ROL_LINEA . "','" . ROL_GRUPO_ESCUELA . "', '" . ROL_DIR_ESCUELA . "', '" . ROL_SUPERVISION . "', '" . ROL_AREA . "', '" . ROL_LIQUIDACION . "')")
+					->add_column('edit', '<a class="btn btn-xs btn-primary" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a>', 'id');
+				break;
+			case ROL_LIQUIDACION:
+				$this->datatables
+					->where("rol.codigo IN ('" . ROL_CONSULTA_LINEA . "', '" . ROL_REGIONAL . "', '" . ROL_LINEA . "', '" . ROL_GRUPO_ESCUELA . "', '" . ROL_DIR_ESCUELA . "', '" . ROL_SUPERVISION . "', '" . ROL_AREA . "')")
+					->add_column('edit', '<a class="btn btn-xs btn-primary" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a>', 'id');
+				break;
+			case ROL_DIR_ESCUELA:
+				$this->datatables
+					->where("rol.codigo IN ('" . ROL_ESCUELA_ALUM . "', '" . ROL_ESCUELA_CAR . "', '" . ROL_DIR_ESCUELA . "') AND usuario_rol.entidad_id = {$this->rol->entidad_id}")
+					->add_column('edit', '<a class="btn btn-xs btn-primary" href="usuario/editar_roles/$1" title="Editar roles"><i class="fa fa-pencil"></i> Editar roles</a>', 'id');
+				break;
+			default:
+		}
+		echo $this->datatables->generate();
+	}
+
+	public function agregar($usuario_id) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $usuario_id == NULL || !ctype_digit($usuario_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$usuario = $this->usuarios_model->get_usuario($usuario_id);
+		if (empty($usuario)) {
+			show_error('No se encontró el usuario a agregar en intranet.mendoza.edu.ar', 500, 'Acción no autorizada');
+		}
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get_by_cuil($usuario->cuil);
+//		if (empty($persona)) {
+//			$persona = $this->persona_model->migrar($usuario->cuil);
+//		}
+		if (empty($persona)) {
+			$this->session->set_flashdata('error', "No se encontró la persona con CUIL $usuario->cuil, por favor agréguela antes de habilitar el usuario.");
+			redirect("usuario/agregar_persona/$usuario->cuil/$usuario_id");
+		}
+		$usuario->nombre = "$persona->apellido, $persona->nombre";
+		$this->form_validation->set_rules('usuario', 'Usuario', 'integer|required');
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->usuario_model->migrar($usuario_id);
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->usuario_model->get_msg());
+				redirect("usuario/editar_roles/$usuario_id", 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->usuario_model->get_error() ? $this->usuario_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->usuario_model->fields, $usuario);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['usuario_id'] = $usuario_id;
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled', 'editar_roles' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar usuario';
+		$this->load_template('usuario/usuario_abm', $data);
+	}
+
+	public function agregar_persona($cuil, $usuario_id) {
+		$this->load->model('persona_model');
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("usuarios/permisos");
+		}
+
+		if (!empty($cuil) && strlen($cuil) === 13) {
+			$persona_documento = $this->persona_model->get(array('documento_tipo_id' => '1', 'documento' => substr($cuil, 3, 8)));
+			if (!empty($persona_documento)) {
+				redirect("usuario/editar_persona/{$persona_documento[0]->id}/$cuil/$usuario_id");
+			}
+		}
+		$persona_model = new stdClass();
+		$persona_model->fields = array(
+			'cuil' => array('label' => 'CUIL', 'maxlength' => '13', 'readonly' => TRUE),
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE),
+			'documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id'),
+			'fecha_nacimiento' => array('label' => 'Fecha Nacimiento', 'type' => 'date'),
+		);
+
+		$this->load->model('documento_tipo_model');
+		$this->load->model('sexo_model');
+		$this->array_documento_tipo_control = $array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar --'));
+		$this->array_sexo_control = $array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+		$this->set_model_validation_rules($persona_model);
+		if ($this->form_validation->run() === TRUE) {
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_model->create(array(
+				'cuil' => $this->input->post('cuil'),
+				'documento_tipo_id' => $this->input->post('documento_tipo'),
+				'documento' => $this->input->post('documento'),
+				'apellido' => $this->input->post('apellido'),
+				'nombre' => $this->input->post('nombre'),
+				'sexo_id' => $this->input->post('sexo'),
+				'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento')
+				), FALSE);
+
+			if ($trans_ok) {
+				$this->load->model('usuario_model');
+				$trans_ok &= $this->usuario_model->migrar($usuario_id);
+			}
+
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->persona_model->get_msg());
+				redirect("usuario/editar_roles/$usuario_id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->persona_model->get_error() ? $this->persona_model->get_error() : $this->session->flashdata('error')));
+
+		$persona_model->fields['documento_tipo']['array'] = $array_documento_tipo;
+		$persona_model->fields['sexo']['array'] = $array_sexo;
+		$persona_model->fields['cuil']['value'] = $cuil;
+
+		$data['fields'] = $this->build_fields($persona_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar persona';
+		$this->load_template('usuario/usuario_agregar_persona', $data);
+	}
+
+	public function editar_persona($id, $cuil, $usuario_id) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get(array('id' => $id, 'join' => array(
+				array('documento_tipo', 'persona.documento_tipo_id=documento_tipo.id', 'left', array('documento_tipo.descripcion_corta as documento_tipo'))
+		)));
+		if (empty($persona)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$persona->cuil = $cuil;
+
+		$persona_model = new stdClass();
+		$persona_model->fields = array(
+			'cuil' => array('label' => 'CUIL', 'maxlength' => '13', 'readonly' => TRUE),
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE),
+			'documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id'),
+			'fecha_nacimiento' => array('label' => 'Fecha Nacimiento', 'type' => 'date'),
+		);
+
+		$this->load->model('documento_tipo_model');
+		$this->load->model('sexo_model');
+		$this->array_documento_tipo_control = $array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar --'));
+		$this->array_sexo_control = $array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+		$persona_model->fields['documento_tipo']['array'] = $array_documento_tipo;
+		$persona_model->fields['sexo']['array'] = $array_sexo;
+
+		$this->set_model_validation_rules($persona_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_model->update(array(
+					'id' => $id,
+					'cuil' => $cuil,
+					'documento_tipo_id' => $this->input->post('documento_tipo'),
+					'documento' => $this->input->post('documento'),
+					'apellido' => $this->input->post('apellido'),
+					'nombre' => $this->input->post('nombre'),
+					'sexo_id' => $this->input->post('sexo'),
+					'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento'),
+					), FALSE);
+				if ($trans_ok) {
+					$this->load->model('usuario_model');
+					$trans_ok &= $this->usuario_model->migrar($usuario_id);
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->persona_model->get_msg());
+					redirect("usuario/editar_roles/$usuario_id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->persona_model->get_error() ? $this->persona_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($persona_model->fields, $persona);
+		$data['txt_btn'] = 'Editar';
+		$data['persona'] = $persona;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar persona';
+		$this->load_template('usuario/usuario_editar_persona', $data);
+	}
+
+	public function permisos() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['title'] = TITLE . ' - Permisos de usuarios';
+		$this->load_template('usuario/usuario_permisos', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_admin) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$usuario = $this->usuario_model->get_one($id);
+		if (empty($usuario)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->array_active_control = $this->usuario_model->fields['active']['array'];
+		$this->set_model_validation_rules($this->usuario_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->usuario_model->update(array(
+					'id' => $this->input->post('id'),
+					'active' => $this->input->post('active')
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->usuario_model->get_msg());
+					redirect('usuario/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->usuario_model->get_error() ? $this->usuario_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->usuario_model->fields, $usuario);
+
+		$this->load->model('usuario_rol_model');
+		$data['roles'] = $this->usuario_rol_model->get(array(
+			'usuario_id' => $id,
+			'join' => $this->usuario_rol_model->default_join
+		));
+		$data['usuario'] = $usuario;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '', 'editar_roles' => '');
+		$data['title'] = TITLE . ' - Editar usuario';
+		$this->load_template('usuario/usuario_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_admin) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$usuario = $this->usuario_model->get_one($id);
+		if (empty($usuario)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->usuario_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->usuario_model->get_msg());
+				redirect('usuario/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->usuario_model->get_error() ? $this->usuario_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->usuario_model->fields, $usuario, TRUE);
+
+		$this->load->model('usuario_rol_model');
+		$data['roles'] = $this->usuario_rol_model->get(array(
+			'usuario_id' => $id,
+			'join' => $this->usuario_rol_model->default_join
+		));
+		$data['usuario'] = $usuario;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active', 'editar_roles' => '');
+		$data['title'] = TITLE . ' - Eliminar usuario';
+		$this->load_template('usuario/usuario_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$usuario = $this->usuario_model->get_one($id);
+		if (empty($usuario)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->usuario_model->fields, $usuario, TRUE);
+
+		$this->load->model('usuario_rol_model');
+		$data['roles'] = $this->usuario_rol_model->get(array(
+			'usuario_id' => $id,
+			'join' => $this->usuario_rol_model->default_join
+		));
+		$data['usuario'] = $usuario;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '', 'editar_roles' => '');
+		$data['title'] = TITLE . ' - Ver usuario';
+		$this->load_template('usuario/usuario_abm', $data);
+	}
+
+	public function editar_roles($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$usuario = $this->usuario_model->get_one($id);
+		if (empty($usuario)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->usuario_model->fields, $usuario, TRUE);
+
+		$this->load->model('usuario_rol_model');
+		$data['roles'] = $this->usuario_rol_model->get(array(
+			'usuario_id' => $id,
+			'join' => $this->usuario_rol_model->default_join
+		));
+		$data['usuario'] = $usuario;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => '', 'editar_roles' => 'active btn-app-zetta-active');
+		$data['txt_btn'] = 'Editar roles';
+		$data['title'] = TITLE . ' - Ver usuario';
+		$this->load_template('usuario/usuario_abm', $data);
+	}
+
+	public function excel() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$campos = array(
+			'A' => array('Usuario', 40),
+			'B' => array('CUIL', 15),
+			'C' => array('Persona', 50),
+			'D' => array('Rol', 20),
+			'E' => array('Entidad', 50),
+		);
+		$usuarios_query = $this->db->select('usuario.usuario, persona.cuil as cuil, CONCAT(persona.apellido, \', \', persona.nombre) as persona, rol.nombre as rol, entidad.nombre as entidad')
+			->from('usuario')
+			->join('usuario_persona', 'usuario_persona.usuario_id=usuario.id')
+			->join('usuario_rol', 'usuario_rol.usuario_id=usuario.id', 'left')
+			->join('rol', 'usuario_rol.rol_id=rol.id', 'left')
+			->join('entidad_tipo', 'rol.entidad_tipo_id=entidad_tipo.id', 'left')
+			->join('entidad', 'entidad.tabla=entidad_tipo.tabla and entidad.id=usuario_rol.entidad_id', 'left')
+			->join('persona', "persona.cuil = usuario_persona.cuil", 'left')
+			->order_by('persona.apellido, persona.nombre');
+
+		switch ($this->rol->codigo) {
+			case ROL_GRUPO_ESCUELA:
+			case ROL_LINEA:
+				$usuarios_query
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->join('nivel', 'COALESCE(escuela.nivel_id,supervision.nivel_id)=nivel.id', 'left')
+					->where('nivel.linea_id', $this->rol->entidad_id)
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 1);
+				break;
+			case ROL_PRIVADA:
+				$usuarios_query
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 2);
+				break;
+			case ROL_SEOS:
+				$usuarios_query
+					->join('escuela', "entidad_tipo.tabla='escuela' and escuela.id=usuario_rol.entidad_id", 'left')
+					->join('supervision', "entidad_tipo.tabla='supervision' and supervision.id=usuario_rol.entidad_id", 'left')
+					->where('COALESCE(escuela.dependencia_id,supervision.dependencia_id)', 3);
+				break;
+			default:
+		}
+		$usuarios = $usuarios_query->get()->result_array();
+
+		if (!empty($usuarios)) {
+			$this->exportar_excel(array('title' => "Usuarios {$this->rol->codigo}"), $campos, $usuarios);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect("usuarios/listar", 'refresh');
+		}
+	}
+}
+/* End of file Usuario.php */
+/* Location: ./application/controllers/Usuario.php */

@@ -1,0 +1,22 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Comedor_escuela_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'comedor_escuela';
+		$this->msg_name = 'Comedor escuela';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'mes_desde', 'mes_hasta');
+		$this->fields = array(
+			'mes_desde' => array('label' => 'Mes desde', 'type' => 'date', 'required' => TRUE),
+			'mes_hasta' => array('label' => 'Mes hasta', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->requeridos = array('escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+		);
+	}
+}

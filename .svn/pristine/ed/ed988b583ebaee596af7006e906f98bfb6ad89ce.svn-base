@@ -1,0 +1,61 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_novedad_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->auditoria = TRUE;
+		$this->aud_table_name = 'aud_servicio_novedad';
+		$this->table_name = 'servicio_novedad';
+		$this->msg_name = 'Novedad de servicio';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'servicio_id', 'ames', 'novedad_tipo_id', 'fecha_desde', 'fecha_hasta', 'estado', 'dias', 'obligaciones', 'reemplazo_id', 'planilla_alta_id', 'planilla_baja_id', 'origen_id', 'motivo_rechazo');
+		$this->fields = array(
+			'novedad_tipo' => array('label' => 'Artículo', 'input_type' => 'combo', 'id_name' => 'novedad_tipo_id', 'required' => TRUE),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date', 'class' => 'noFormat', 'required' => TRUE, 'readonly' => TRUE),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date', 'class' => 'noFormat', 'required' => TRUE, 'readonly' => TRUE),
+			'dias' => array('label' => 'Días', 'placeholder' => 'Cantidad', 'type' => 'numeric'),
+			'obligaciones' => array('label' => 'Obligaciones', 'placeholder' => 'Cantidad', 'type' => 'numeric'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado', 'required' => TRUE, 'readonly' => TRUE, 'array' => array('Cargado' => 'Cargado', 'Auditado' => 'Auditado'))
+		);
+		$this->requeridos = array('servicio_id', 'novedad_tipo_id', 'fecha_desde', 'fecha_hasta', 'estado');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('novedad_tipo', 'novedad_tipo.id = servicio_novedad.novedad_tipo_id', '', array('novedad_tipo.descripcion_corta as novedad_tipo', 'novedad_tipo.articulo', 'novedad_tipo.inciso', 'novedad_tipo.concomitante', 'novedad_tipo.novedad', 'novedad_tipo.reemplazo')),
+			array('servicio', 'servicio.id = servicio_novedad.servicio_id', '', array('servicio.cargo_id'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('origen_id', $delete_id)->count_all_results('servicio_novedad') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a novedades pendientes.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	public function get_auditoria($id) {
+		$historicos = parent::get_auditoria($id);
+		$novedad_tipo = array();
+		foreach ($historicos as $h_id => $historico) {
+			if (!isset($novedad_tipo[$historico->novedad_tipo_id])) {
+				$novedad_tipo[$historico->novedad_tipo_id] = $this->db->select("CONCAT(articulo, '-', inciso, ' ', descripcion) novedad_tipo")->from('novedad_tipo')->where('id', $historico->novedad_tipo_id)->get()->row()->novedad_tipo;
+			}
+			$historico->novedad_tipo = $novedad_tipo[$historico->novedad_tipo_id];
+			$historico->fecha_desde = (new DateTime($historico->fecha_desde))->format('d/m/y');
+			$historico->fecha_hasta = (new DateTime($historico->fecha_hasta))->format('d/m/y');
+			$historico->audi_fecha = (new DateTime($historico->audi_fecha))->format('d/m/y H:i');
+		}
+		return $historicos;
+	}
+}
+/* End of file Servicio_novedad_model.php */
+/* Location: ./application/models/Servicio_novedad_model.php */

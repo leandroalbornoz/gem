@@ -1,0 +1,29 @@
+<div class="box box-warning">
+		<div class="box-header with-border">
+			<h3 class="box-title">Operativo Leer y Escribir en 2° - 2017</h3>
+			<div class="box-tools pull-right">
+				<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+			</div>
+		</div>
+		<div class="box-body">
+			<div class="row">
+				<div class="col-xs-12">
+					<table class="table table-bordered table-condensed table-striped table-hover">
+						<tr><th colspan="3" class="text-center">2° Grado</th></tr>
+						<tr>
+							<th>División</th>
+							<th>N° de alumnos cargados</th>
+							<th>Fecha de carga</th>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	<?php if ($administrar): ?>
+			<div class="box-footer">
+				<a class="btn btn-primary" href="operativo_evaluar/evaluar_operativo/listar_divisiones/<?php echo $escuela->id;?>">
+					<i class="fa fa-cogs"></i> Administrar
+				</a>
+			</div>
+	<?php endif; ?>
+	</div>

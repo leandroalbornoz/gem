@@ -1,0 +1,40 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Abono_alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'abono_alumno';
+		$this->msg_name = 'Abono Escuelas';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'abono_tipo_id', 'numero_abono', 'fecha_desde', 'fecha_hasta', 'monto');
+		$this->fields = array(
+			'alumno' => array('label' => 'Alumno', 'readonly' => TRUE),
+			'abono_tipo' => array('label' => 'Tipo Abono', 'input_type' => 'combo', 'id_name' => 'abono_tipo_id', 'required' => TRUE),
+			'numero_abono' => array('label' => 'Número de Abono', 'type' => 'number', 'required' => TRUE),
+			'fecha_desde' => array('label' => 'Fecha Desde', 'type' => 'date', 'required' => TRUE),
+			'fecha_hasta' => array('label' => 'Fecha Hasta', 'type' => 'date', 'required' => TRUE),
+			'monto' => array('label' => 'Monto Abono', 'type' => 'numeric', 'required' => TRUE)
+		);
+		$this->requeridos = array('numero_abono','fecha_desde','fecha_hasta','monto');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = abono_alumno.alumno_id'),
+			array('persona', 'persona.id = alumno.persona_id', '', array("CONCAT(persona.apellido, ', ', persona.nombre) as alumno")),
+			array('abono_tipo', 'abono_tipo.id = abono_alumno.abono_tipo_id', '', array('abono_tipo.descripcion as abono_tipo')),);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Abono_alumno_model.php */
+/* Location: ./application/modules/abono/models/Abono_alumno_model.php */

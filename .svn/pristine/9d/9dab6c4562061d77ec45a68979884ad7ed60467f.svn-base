@@ -1,0 +1,554 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_division extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->load->model('alumno_division_model');
+		$this->load->model('alumno_model');
+		$this->load->model('persona_model');
+		$this->roles_permitidos = explode(',', ROLES);
+		$this->roles_admin = array(ROL_ADMIN);
+		if (in_array($this->rol->codigo, array(ROL_PRIVADA, ROL_SEOS, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'alumnos/alumno_division';
+	}
+
+	public function agregar_existente($division_id = NULL, $ciclo_lectivo = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $division_id == NULL || !ctype_digit($division_id) || $ciclo_lectivo == NULL || !ctype_digit($ciclo_lectivo) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$persona = $this->persona_model->get_one($persona_id);
+		if (empty($persona)) {
+			show_error('No se encontró el registro de la persona', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('alumno_model');
+		$this->load->model('alumno_division_model');
+		$alumno = $this->alumno_model->get_by_persona($persona_id);
+		$trayectoria = array();
+		if (!empty($alumno)) {
+			if ($escuela->formal === 'Si') {
+				$a_d_anterior = $this->alumno_model->get_ultima_division($alumno->id);
+				if (!empty($a_d_anterior)) {
+					$data['division_anterior'] = $a_d_anterior->id;
+				}
+			}
+			$trayectoria = $this->alumno_division_model->get_trayectoria_alumno($alumno->id);
+			if (!empty($trayectoria)) {
+				foreach ($trayectoria as $div_trayectoria) {
+					if ($div_trayectoria->legajo === NULL) {
+						$div_trayectoria->legajo = '';
+					}
+					$div_trayectoria->fecha_desde = (new DateTime($div_trayectoria->fecha_desde))->format('d/m/y');
+					if ($div_trayectoria->fecha_hasta === NULL) {
+						$div_trayectoria->fecha_hasta = '';
+					} else {
+						$div_trayectoria->fecha_hasta = (new DateTime($div_trayectoria->fecha_hasta))->format('d/m/y');
+					}
+					if ($div_trayectoria->causa_salida === NULL) {
+						$div_trayectoria->causa_salida = '';
+					}
+				}
+			}
+		}
+
+		$this->load->model('causa_entrada_model');
+		unset($this->alumno_division_model->fields['division']);
+		unset($this->alumno_division_model->fields['fecha_hasta']);
+		unset($this->alumno_division_model->fields['causa_salida']);
+		unset($this->alumno_division_model->fields['estado']);
+		$persona->division = "$division->curso $division->division";
+
+		$this->array_causa_entrada_control = $array_causa_entrada = $this->get_array('causa_entrada', 'descripcion', 'id', null, array('' => '-- Seleccionar motivo de entrada --'));
+		$this->set_model_validation_rules($this->alumno_division_model);
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$division_anterior_id = $this->input->post('division_anterior');
+				$alumno_id = $this->input->post('alumno_id');
+				if (!empty($a_d_anterior) && $a_d_anterior->id !== $division_anterior_id) {
+					show_error('Esta solicitud no pasó el control de seguridad.');
+				}
+				if (!empty($alumno) && $alumno->id !== $alumno_id) {
+					show_error('Esta solicitud no pasó el control de seguridad.');
+				}
+				if (!empty($a_d_anterior)) {
+					$trans_ok &= $this->alumno_division_model->update(array(
+						'id' => $division_anterior_id,
+						'estado_id' => 2
+						), FALSE);
+				}
+				if ($trans_ok) {
+					if (empty($alumno_id)) {
+						$trans_ok &= $this->alumno_model->create(array('persona_id' => $persona_id), FALSE);
+						$alumno_id = $this->alumno_model->get_row_id();
+					}
+					$trans_ok &= $this->alumno_division_model->create(array(
+						'alumno_id' => $alumno_id,
+						'legajo' => $this->input->post('legajo'),
+						'division_id' => $division->id,
+						'fecha_desde' => $this->get_date_sql('fecha_desde'),
+						'ciclo_lectivo' => $this->input->post('ciclo_lectivo'),
+						'estado_id' => 1,
+						'causa_entrada_id' => $this->input->post('causa_entrada')
+						), FALSE);
+					$alumno_division_id = $this->alumno_division_model->get_row_id();
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->alumno_division_model->get_msg());
+					if ($this->input->post('editar') === '1') {
+						redirect("alumno/editar/$alumno_division_id", 'refresh');
+					} else {
+						$this->session->set_flashdata('abrir_modal', TRUE);
+						redirect("division/alumnos/$division_id/" . $this->input->post('ciclo_lectivo'), 'refresh');
+					}
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar actualizar.';
+					if ($this->alumno_division_model->get_error())
+						$errors .= '<br>' . $this->alumno_division_model->get_error();
+					if ($this->alumno_model->get_error())
+						$errors .= '<br>' . $this->alumno_model->get_error();
+				}
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : $errors);
+
+		$this->alumno_division_model->fields['causa_entrada']['array'] = $array_causa_entrada;
+
+		$data['fields_alumno'] = $this->build_fields($this->alumno_division_model->fields_alumno, $persona);
+		$data['fields'] = $this->build_fields($this->alumno_division_model->fields);
+		$data['escuela'] = $escuela;
+		$data['persona'] = $persona;
+		$data['alumno'] = $alumno;
+		$data['trayectoria'] = $trayectoria;
+		$data['division'] = $division;
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Agregar alumno a división';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('alumno_division/alumno_division_agregar_existente', $data);
+	}
+
+	public function agregar_nuevo($division_id = NULL, $ciclo_lectivo = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $division_id == NULL || !ctype_digit($division_id) || $ciclo_lectivo == NULL || !ctype_digit($ciclo_lectivo)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('causa_entrada_model');
+		$this->load->model('documento_tipo_model');
+		unset($this->alumno_division_model->fields['division']);
+		unset($this->alumno_division_model->fields['fecha_hasta']);
+		unset($this->alumno_division_model->fields['causa_salida']);
+		unset($this->alumno_division_model->fields['estado']);
+		$model_alumno = new stdClass();
+		$model_alumno->fields = array(
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE, 'array' => $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('1' => ''))),
+			'documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha Nacimiento', 'type' => 'date'),
+			'division' => array('label' => 'División', 'readonly' => TRUE, 'value' => "$division->curso $division->division")
+		);
+		$this->array_causa_entrada_control = $array_causa_entrada = $this->get_array('causa_entrada', 'descripcion', 'id', null, array('' => '-- Seleccionar motivo de entrada --'));
+		$this->array_documento_tipo_control = $model_alumno->fields['documento_tipo']['array'];
+		$this->set_model_validation_rules($this->alumno_division_model);
+		$this->set_model_validation_rules($model_alumno);
+		if ($this->form_validation->run() === TRUE) {
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			if ($trans_ok) {
+				$trans_ok &= $this->persona_model->create(array(
+					'documento_tipo_id' => $this->input->post('documento_tipo'),
+					'documento' => $this->input->post('documento'),
+					'nombre' => $this->input->post('nombre'),
+					'apellido' => $this->input->post('apellido'),
+					'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento')
+					), FALSE);
+				$persona_id = $this->persona_model->get_row_id();
+				$trans_ok &= $this->alumno_model->create(array('persona_id' => $persona_id), FALSE);
+				$alumno_id = $this->alumno_model->get_row_id();
+				$trans_ok &= $this->alumno_division_model->create(array(
+					'alumno_id' => $alumno_id,
+					'legajo' => $this->input->post('legajo'),
+					'division_id' => $division->id,
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'ciclo_lectivo' => $this->input->post('ciclo_lectivo'),
+					'estado_id' => 1,
+					'causa_entrada_id' => $this->input->post('causa_entrada')
+					), FALSE);
+				$alumno_division_id = $this->alumno_division_model->get_row_id();
+			}
+
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->alumno_division_model->get_msg());
+				if ($this->input->post('editar') === '1') {
+					redirect("alumno/editar/$alumno_division_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('abrir_modal', TRUE);
+					redirect("division/alumnos/$division_id/" . $this->input->post('ciclo_lectivo'), 'refresh');
+				}
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar actualizar.';
+				if ($this->alumno_division_model->get_error())
+					$errors .= '<br>' . $this->alumno_division_model->get_error();
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->alumno_division_model->get_error() ? $this->alumno_division_model->get_error() : $this->session->flashdata('error')));
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->alumno_model->get_error() ? $this->alumno_model->get_error() : $this->session->flashdata('error')));
+
+		$this->alumno_division_model->fields['causa_entrada']['array'] = $array_causa_entrada;
+
+		$data['fields_alumno'] = $this->build_fields($model_alumno->fields);
+		$data['fields'] = $this->build_fields($this->alumno_division_model->fields);
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Agregar alumno a división';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('alumno_division/alumno_division_agregar_nuevo', $data);
+	}
+
+	public function modal_eliminar_alumno_division($alumno_division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $alumno_division_id == NULL || !ctype_digit($alumno_division_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('alumno_division_model');
+		$alumno_division = $this->alumno_division_model->get_one($alumno_division_id);
+		if (empty($alumno_division)) {
+			$this->modal_error('No se encontró el registro del alumno', 'Registro no encontrado');
+			return;
+		}
+		$division = $this->division_model->get_one($alumno_division->division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$alumno_division->escuela = $escuela->nombre_largo;
+
+		$model = new stdClass();
+		$model->fields = array(
+			'ciclo_lectivo' => array('label' => 'Ciclo lectivo'),
+			'escuela' => array('label' => 'Escuela'),
+			'division' => array('label' => 'División'),
+			'legajo' => array('label' => 'Legajo'),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date'),
+			'causa_entrada' => array('label' => 'Causa de entrada'),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date'),
+			'causa_salida' => array('label' => 'Causa de salida'),
+			'estado' => array('label' => 'Estado')
+		);
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($alumno_division_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+				return;
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->alumno_division_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->alumno_division_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("division/alumnos/$alumno_division->division_id/$alumno_division->ciclo_lectivo", 'refresh');
+		}
+
+		$model->fields['division']['value'] = "$alumno_division->curso $alumno_division->division";
+		$model->fields['ciclo_lectivo']['value'] = $alumno_division->ciclo_lectivo;
+
+
+		$data['fields'] = $this->build_fields($model->fields, $alumno_division, TRUE);
+		$data['alumno_division'] = $alumno_division;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar trayectoria de alumno';
+		$this->load->view('alumno_division/alumno_division_modal_abm', $data);
+	}
+
+	public function modal_editar_alumno_division($alumno_division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_admin) || $alumno_division_id == NULL || !ctype_digit($alumno_division_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('alumno_division_model');
+		$alumno_division = $this->alumno_division_model->get_one($alumno_division_id);
+		if (empty($alumno_division)) {
+			$this->modal_error('No se encontró el registro del alumno', 'Registro no encontrado');
+			return;
+		}
+		$division = $this->division_model->get_one($alumno_division->division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$alumno_division->escuela = $escuela->nombre_largo;
+
+		$model = new stdClass();
+		$model->fields = array(
+			'ciclo_lectivo' => array('label' => 'Ciclo lectivo'),
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id'),
+			'legajo' => array('label' => 'Legajo'),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date'),
+			'causa_entrada' => array('label' => 'Causa de entrada', 'input_type' => 'combo', 'required'),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date'),
+			'causa_salida' => array('label' => 'Causa de salida', 'input_type' => 'combo', 'id_name' => 'causa_salida_id'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado_id')
+		);
+
+		$this->load->model('estado_alumno_model');
+		$this->load->model('causa_entrada_model');
+		$this->load->model('causa_salida_model');
+		$this->array_estado_control = $array_estado = $this->get_array('estado_alumno', 'descripcion', 'id', null, array('' => '-- Seleccionar estado --'));
+		$this->array_division_control = $array_division = $this->get_array('division', 'division', 'id', array(
+			'select' => array('division.id', 'CONCAT(curso.descripcion, \' \', division.division) as division'),
+			'join' => array(
+				array('curso', 'curso.id=division.curso_id')
+			),
+			'escuela_id' => $escuela->id,
+			'where' => array('fecha_baja IS NULL'),
+			'sort_by' => 'curso.descripcion, division.division'
+			), array('' => '-- Sin división --'));
+
+		$this->array_causa_entrada_control = $array_causa_entrada = $this->get_array('causa_entrada', 'descripcion', 'id', null, array('' => '-- Seleccionar motivo de entrada --'));
+		$this->array_causa_salida_control = $array_causa_salida = $this->get_array('causa_salida', 'descripcion', 'id', null, array('' => '-- Seleccionar motivo de salida --'));
+
+		$this->set_model_validation_rules($model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($alumno_division_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->alumno_division_model->update(array(
+					'id' => $this->input->post('id'),
+					'division_id' => $this->input->post('division'),
+					'legajo' => $this->input->post('legajo'),
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'causa_entrada_id' => $this->input->post('causa_entrada'),
+					'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+					'causa_salida_id' => $this->input->post('causa_salida'),
+					'estado_id' => $this->input->post('estado'),
+					'ciclo_lectivo' => $this->input->post('ciclo_lectivo'),
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->alumno_division_model->get_msg());
+					redirect("division/alumnos/$alumno_division->division_id/$alumno_division->ciclo_lectivo", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', validation_errors());
+					redirect("alumno/ver/$alumno_division->id", 'refresh');
+				}
+			}
+		}
+
+		$model->fields['causa_entrada']['array'] = $array_causa_entrada;
+		$model->fields['causa_salida']['array'] = $array_causa_salida;
+		$model->fields['estado']['array'] = $array_estado;
+		$model->fields['division']['array'] = $array_division;
+
+		$data['fields'] = $this->build_fields($model->fields, $alumno_division);
+		$data['alumno_division'] = $alumno_division;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar trayectoria de alumno';
+		$this->load->view('alumno_division/alumno_division_modal_abm', $data);
+	}
+
+	public function modal_grado_multiple($alumno_division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $alumno_division_id == NULL || !ctype_digit($alumno_division_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('alumno_division_model');
+		$alumno_division = $this->alumno_division_model->get_one($alumno_division_id);
+		if (empty($alumno_division)) {
+			$this->modal_error('No se encontró el registro del alumno', 'Registro no encontrado');
+			return;
+		}
+		$division = $this->division_model->get_one($alumno_division->division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'curso' => array('label' => 'Curso', 'input_type' => 'combo', 'id_name' => 'curso_id', 'required' => TRUE)
+		);
+
+		$this->load->model('division_model');
+		$this->load->model('curso_model');
+		$this->array_curso_control = $array_curso = $this->get_array('curso', 'descripcion', 'id', array(
+			'nivel_id' => $alumno_division->nivel_id,
+			'grado_multiple' => 'No'
+			), array('' => '-- Seleccionar curso --'));
+
+		$this->set_model_validation_rules($model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($alumno_division_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->alumno_division_model->update(array(
+					'id' => $this->input->post('id'),
+					'curso_id' => $this->input->post('curso')
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->alumno_division_model->get_msg());
+					redirect("alumno/ver/$alumno_division->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', validation_errors());
+					redirect("alumno/ver/$alumno_division->id", 'refresh');
+				}
+			}
+		}
+
+		$model->fields['curso']['array'] = $array_curso;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['alumno_division'] = $alumno_division;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar curso de Alumno de Grado Múltiple';
+		$this->load->view('alumno_division/alumno_division_modal_curso_grado_multiple', $data);
+	}
+
+	public function modal_inasistencia_alumno($alumno_division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $alumno_division_id == NULL || !ctype_digit($alumno_division_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$alumno_division = $this->alumno_division_model->get_one($alumno_division_id);
+		if (empty($alumno_division)) {
+			$this->modal_error('No se encontró el registro del alumno', 'Registro no encontrado');
+			return;
+		}
+
+		$division = $this->division_model->get_one($alumno_division->division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('division_inasistencia_model');
+		$division_inasistencia = $this->division_inasistencia_model->get(array('division_id' => $division->id));
+		if (empty($division_inasistencia)) {
+			$this->modal_error('No se encontró ningún registro de inasistencia del alumno', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('calendario_model');
+		$periodos = $this->calendario_model->get_periodos($division->calendario_id, $alumno_division->ciclo_lectivo);
+		if (empty($periodos)) {
+			$this->modal_error('No se encontró ningún registro de inasistencia del alumno', 'Registro no encontrado');
+			return;
+		}
+		
+		$alumno_division->escuela = $escuela->nombre_largo;
+		$alumno_tipo_inasistencia_diaria = $this->alumno_division_model->get_alumno_tipo_inasistencia($alumno_division->id);
+		$alumno_inasistencia = $this->alumno_division_model->get_alumno_inasistencia($alumno_division->id);
+		$inasistencias = $this->division_inasistencia_model->get_registros($division->id, $alumno_division->ciclo_lectivo);
+
+		$data['inasistencias'] = $inasistencias;
+		$data['alumno_inasistencia'] = $alumno_inasistencia;
+		$data['alumno_tipo_inasistencia_diaria'] = $alumno_tipo_inasistencia_diaria;
+		$data['periodos'] = $periodos;
+		$data['alumno'] = $this->alumno_model->get_one($alumno_division->alumno_id);
+		$data['ciclo_lectivo'] = $alumno_division->ciclo_lectivo;
+		$data['division'] = $division;
+		$data['alumno_division'] = $alumno_division;
+		$data['txt_btn'] = '';
+		$data['title'] = 'Asistencia del alumno';
+		$this->load->view('alumno_division/alumno_division_modal_inasistencias', $data);
+	}
+}
+/* End of file Alumno_division.php */
+/* Location: ./application/controllers/Alumno_division.php */

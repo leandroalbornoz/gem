@@ -1,0 +1,21 @@
+<?php
+
+class Testsoap extends CI_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->library("Nusoap");
+		$this->load->library('encryption');
+	}
+
+	private function testServiceLlamados() {
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/llamados/service?wsdl");
+		$params = array(
+			'api_key' => '4A614E645267556B58703273357638792F423F4428472B4B6250655368566D59'
+		);
+		$result = $client->call('get_llamados', $params);
+		print_r("Llamados: ");
+		print_r($result);
+	}
+
+}

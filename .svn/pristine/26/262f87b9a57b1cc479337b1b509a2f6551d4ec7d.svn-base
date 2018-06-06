@@ -1,0 +1,80 @@
+<div class="content-wrapper">
+	<section class="content">
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<table style="width: 100%;">
+							<tr>
+								<td style="width:70px; text-align: center;"><img style="font-family: sans-serif; font-size:20px; color: #3c8dbc;" alt="Logo DGE" src="<?php echo BASE_URL; ?>img/generales/logo-dge-sm.jpg" height="70" width="70"></td>
+								<td style="font-size: 1.5em; font-weight: bold; text-decoration: underline; text-align: center;">Estadísticas de cursos y divisiones</td>
+								<td style="width:70px; text-align: center;"><img style="font-family: sans-serif; font-size:20px; color: #3c8dbc;" alt="Logo GEM" src="<?php echo BASE_URL; ?>img/generales/logo-login.jpg" height="70" width="70"></td>
+							</tr>
+						</table>
+						<br>
+						<div class="row">
+							<div class="col-xs-12">
+								<div class="box">
+									<div class="box-header text-center">
+										<h3 class="box-title">Cursos y divisiones</h3>
+									</div>
+									<div class="box-body table-responsive no-padding">
+										<table class="table table-bordered table-condensed table-striped table-hover">
+											<thead>
+												<tr>
+													<th>División</th>
+													<th>Turno</th>
+													<th>Carrera</th>
+													<th style="width: 60px;">Cargos</th>
+													<th style="width: 60px;">Horas</th>
+													<th style="width: 80px;">Alumnos</th>
+													<th style="width: 34px;"></th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php $total_cargos = 0; ?>
+												<?php $total_horas = 0; ?>
+												<?php foreach ($divisiones as $division): ?>
+													<tr>
+														<td><?php echo "$division->curso $division->division"; ?></td>
+														<td><?php echo "$division->turno"; ?></td>
+														<td class="text-sm"><?php echo "$division->carrera"; ?></td>
+														<td class="text-center"><?php echo "$division->cargos"; ?></td>
+														<td class="text-center"><?php echo "$division->horas"; ?></td>
+														<td class="text-right">
+															<?php foreach ($division->alumnos_cl as $cl => $alumnos): ?>
+																<?php $class = $cl == date('Y') ? 'bg-green' : '' ?>
+																<?php echo "$alumnos&nbsp;<span style='margin-top: -2px; padding: 1px 7px; margin-left: 2px;' class='badge $class'>$cl</span><br>"; ?>
+																<?php $alumnos_cl[$cl][] = $alumnos; ?>
+															<?php endforeach; ?>
+														</td>
+														<td>
+														</td>
+													</tr>
+													<?php $total_cargos += $division->cargos; ?>
+													<?php $total_horas += $division->horas; ?>
+												<?php endforeach; ?>
+											</tbody>
+											<tr><th></th></tr>
+											<tr>
+												<th colspan="3">Totales generales para la escuela</th>
+												<th style="text-align: center;"><?php echo $total_cargos; ?></th>
+												<th style="text-align: center;"><?php echo $total_horas; ?></th>
+												<th class="text-right">
+													<?php foreach ($alumnos_cl as $cl => $alumnos): ?>
+														<?php echo array_sum($alumnos); ?>&nbsp;<span style="margin-top: -2px; padding: 1px 7px; margin-left: 2px;" class="badge <?php echo ($cl == date('Y')) ? 'bg-green' : 'bg-default'; ?>"><?= $cl; ?></span><br>
+													<?php endforeach; ?>
+												</th>
+												<th></th>
+											</tr>
+										</table>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+

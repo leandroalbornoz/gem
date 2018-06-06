@@ -1,0 +1,442 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Caracteristica extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('caracteristica_model');
+		$this->load->model('caracteristica_tipo_model');
+		$this->roles_permitidos = array(ROL_ADMIN);
+		$this->nav_route = 'par/caracteristica';
+	}
+
+	public function listar($entidad, $caracteristica_tipo_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && isset($caracteristica_tipo_id) && ctype_digit($caracteristica_tipo_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Descripción', 'data' => 'descripcion', 'width' => 40),
+				array('label' => 'Valor Vacío', 'data' => 'valor_vacio', 'width' => 20),
+				array('label' => 'Lista Valores', 'data' => 'lista_valores', 'width' => 15),
+				array('label' => 'Valor Múltiple', 'data' => 'valor_multiple', 'width' => 15),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'caracteristica_table',
+			'source_url' => "caracteristica/listar_data/$entidad/$caracteristica_tipo_id"
+		);
+
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Caracteristicas';
+		$this->load_template('caracteristica/caracteristica_listar', $data);
+	}
+
+	public function listar_data($entidad, $caracteristica_tipo_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && isset($caracteristica_tipo_id) && ctype_digit($caracteristica_tipo_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('caracteristica.id, caracteristica.descripcion, caracteristica.valor_vacio, caracteristica.lista_valores, caracteristica.valor_multiple, caracteristica.caracteristica_tipo_id, caracteristica_tipo.descripcion as caracteristica_tipo')
+			->unset_column('id')
+			->from('caracteristica')
+			->join('caracteristica_tipo', 'caracteristica_tipo.id = caracteristica.caracteristica_tipo_id', 'left')
+			->where('entidad', $entidad)
+			->where('caracteristica.caracteristica_tipo_id', $caracteristica_tipo_id)
+			->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="caracteristica/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="caracteristica/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item" href="caracteristica/editar_valores/$1"><i class="fa fa-pencil" id="btn-editar-valores"></i> Editar valores</a></li>'
+				. '<li><a class="dropdown-item" href="caracteristica/eliminar/$1" title="Eliminar"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function agregar($entidad, $caracteristica_tipo_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && isset($caracteristica_tipo_id) && ctype_digit($caracteristica_tipo_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('nivel_model');
+		$this->array_niveles_control = $array_niveles = $this->get_array('nivel', 'descripcion', 'id', null, array('' => '-- Sin niveles --'));
+		$this->array_caracteristica_tipo_control = $array_caracteristica_tipo = $this->get_array('caracteristica_tipo', 'descripcion', 'id', array('entidad' => $entidad, 'sort_by' => 'descripcion'), array('' => '-- Seleccionar tipo de característica --'));
+		$this->array_lista_valores_control = $this->caracteristica_model->fields['lista_valores']['array'];
+		$this->array_valor_multiple_control = $this->caracteristica_model->fields['valor_multiple']['array'];
+
+		$this->set_model_validation_rules($this->caracteristica_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->caracteristica_model->create(array(
+					'descripcion' => $this->input->post('descripcion'),
+					'caracteristica_tipo_id' => $this->input->post('caracteristica_tipo'),
+					'valor_vacio' => $this->input->post('valor_vacio'),
+					'lista_valores' => $this->input->post('lista_valores'),
+					'valor_multiple' => $this->input->post('valor_multiple')
+					), FALSE);
+
+				$caracteristica_id = $this->caracteristica_model->get_row_id();
+
+				if ($trans_ok) {
+					$niveles = $this->input->post('niveles');
+					if (!empty($niveles)) {
+						$this->load->model('caracteristica_nivel_model');
+						foreach ($niveles as $nivel_id) {
+							$trans_ok &= $this->caracteristica_nivel_model->create(array(
+								'nivel_id' => $nivel_id,
+								'caracteristica_id' => $caracteristica_id), FALSE);
+						}
+					}
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->caracteristica_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar agregar.';
+					if ($this->caracteristica_model->get_error())
+						$errors .= '<br>' . $this->caracteristica_model->get_error();
+				}
+				if ($this->input->post('lista_valores') === 'Si') {
+					redirect("caracteristica/editar_valores/$caracteristica_id", 'refresh');
+				} else {
+					redirect("caracteristica/listar/$entidad/" . $caracteristica_tipo_id, 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("caracteristica/listar/$entidad/" . $caracteristica_tipo_id, 'refresh');
+			}
+		}
+		$this->caracteristica_model->fields['niveles']['array'] = $array_niveles;
+		$this->caracteristica_model->fields['niveles']['value'] = array_keys($array_niveles);
+		$this->caracteristica_model->fields['caracteristica_tipo']['array'] = $array_caracteristica_tipo;
+		$this->caracteristica_model->fields['caracteristica_tipo']['value'] = $caracteristica_tipo_id;
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields);
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled', 'editar_valores' => 'disabled');
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar caracteristica';
+		$this->load_template('caracteristica/caracteristica_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$caracteristica = $this->caracteristica_model->get_one($id);
+		if (empty($caracteristica)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('caracteristica_nivel_model');
+		$niveles_actuales = $this->caracteristica_nivel_model->get(array('caracteristica_id' => $caracteristica->id));
+		$caracteristica->niveles = array();
+		$niveles_caracteristica = array();
+		if (!empty($niveles_actuales)) {
+			foreach ($niveles_actuales as $niv_act) {
+				$caracteristica->niveles[] = $niv_act->nivel_id;
+				$niveles_caracteristica[$niv_act->nivel_id] = $niv_act->id;
+			}
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica->caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('caracteristica_valor_model');
+		$this->load->model('nivel_model');
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+		$this->array_lista_valores_control = $this->caracteristica_model->fields['lista_valores']['array'];
+		$this->array_valor_multiple_control = $this->caracteristica_model->fields['valor_multiple']['array'];
+		$this->array_caracteristica_tipo_control = $array_caracteristica_tipo = $this->get_array('caracteristica_tipo', 'descripcion', 'id', array('entidad' => $caracteristica_tipo->entidad, 'sort_by' => 'descripcion'));
+		$this->array_niveles_control = $array_niveles = $this->get_array('nivel', 'descripcion', 'id', null, array('' => '-- Sin niveles --'));
+		$this->set_model_validation_rules($this->caracteristica_model);
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->caracteristica_model->update(array(
+					'id' => $this->input->post('id'),
+					'descripcion' => $this->input->post('descripcion'),
+					'caracteristica_tipo_id' => $this->input->post('caracteristica_tipo'),
+					'valor_vacio' => $this->input->post('valor_vacio'),
+					'lista_valores' => $this->input->post('lista_valores'),
+					'valor_multiple' => $this->input->post('valor_multiple')
+					), FALSE);
+
+				if ($trans_ok) {
+					$niveles = $this->input->post('niveles');
+					if (!empty($niveles)) {
+						foreach ($niveles as $nivel_id) {
+							if (isset($niveles_caracteristica[$nivel_id])) {
+								unset($niveles_caracteristica[$nivel_id]);
+							} else {
+								$trans_ok &= $this->caracteristica_nivel_model->create(array(
+									'nivel_id' => $nivel_id,
+									'caracteristica_id' => $caracteristica->id
+									), FALSE);
+							}
+						}
+					}
+					if (!empty($niveles_caracteristica)) {
+						foreach ($niveles_caracteristica as $nivel_id => $caracteristica_nivel_id) {
+							$trans_ok &= $this->caracteristica_nivel_model->delete(array('id' => $caracteristica_nivel_id), FALSE);
+						}
+					}
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->caracteristica_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar editar.';
+					if ($this->caracteristica_model->get_error())
+						$errors .= '<br>' . $this->caracteristica_model->get_error();
+					if ($this->caracteristica_nivel_model->get_error())
+						$errors .= '<br>' . $this->caracteristica_nivel_model->get_error();
+					$this->session->set_flashdata('error', $errors);
+				}
+				redirect("caracteristica/listar/$caracteristica->entidad/$caracteristica->caracteristica_tipo_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("caracteristica/editar/$id", 'refresh');
+			}
+		}
+
+		$this->caracteristica_model->fields['caracteristica_tipo']['array'] = $array_caracteristica_tipo;
+		$this->caracteristica_model->fields['niveles']['array'] = $array_niveles;
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica);
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->caracteristica_model->get_error() ? $this->caracteristica_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['caracteristica'] = $caracteristica;
+		$data['valores'] = $valores;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'editar_valores' => '', 'eliminar' => '');
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = TITLE . ' - Editar característica';
+		$this->load_template('caracteristica/caracteristica_abm', $data);
+	}
+
+	public function editar_valores($id) {
+
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$caracteristica = $this->caracteristica_model->get_one($id);
+		if (empty($caracteristica)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica->caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+		unset($this->caracteristica_model->fields['niveles']);
+		$this->load->model('caracteristica_nivel_model');
+		$niveles = $this->caracteristica_nivel_model->get(array(
+			'caracteristica_id' => $id,
+			'join' => array(
+				array('table' => 'nivel', 'where' => 'caracteristica_nivel.nivel_id=nivel.id', 'columnas' => array('nivel.descripcion as nivel'))
+			)
+		));
+
+		$this->load->model('caracteristica_tipo_model');
+		$this->load->model('caracteristica_valor_model');
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['caracteristica'] = $caracteristica;
+		$data['valores'] = $valores;
+		$data['niveles'] = $niveles;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => '', 'editar_valores' => 'active btn-app-zetta-active');
+		$data['txt_btn'] = 'Editar valores';
+		$data['title'] = TITLE . ' - Ver característica';
+		$this->load_template('caracteristica/caracteristica_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$caracteristica = $this->caracteristica_model->get_one($id);
+		if (empty($caracteristica)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica->caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+		unset($this->caracteristica_model->fields['niveles']);
+
+		$this->load->model('caracteristica_tipo_model');
+		$this->load->model('caracteristica_valor_model');
+		$this->load->model('caracteristica_nivel_model');
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+		$niveles = $this->caracteristica_nivel_model->get(array(
+			'caracteristica_id' => $id,
+			'join' => array(
+				array('table' => 'nivel', 'where' => 'caracteristica_nivel.nivel_id=nivel.id', 'columnas' => array('nivel.descripcion as nivel'))
+			)
+		));
+
+		$this->set_model_validation_rules($this->caracteristica_model);
+		$errors = '';
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$this->load->model('caracteristica_escuela_model');
+			$caracteristica_escuela_delete = $this->caracteristica_escuela_model->get(array(
+				'caracteristica_id' => $caracteristica->id
+			));
+			if (!empty($caracteristica_escuela_delete)) {
+				foreach ($caracteristica_escuela_delete as $caracteristica_escuela) {
+					$trans_ok &= $this->caracteristica_escuela_model->delete(array(
+						'id' => $caracteristica_escuela->id
+						), FALSE);
+				}
+			}
+
+			$this->load->model('caracteristica_alumno_model');
+			$caracteristica_alumno_delete = $this->caracteristica_alumno_model->get(array(
+				'caracteristica_id' => $caracteristica->id
+			));
+			if (!empty($caracteristica_alumno_delete)) {
+				foreach ($caracteristica_alumno_delete as $caracteristica_alumno) {
+					$trans_ok &= $this->caracteristica_alumno_model->delete(array(
+						'id' => $caracteristica_alumno->id
+						), FALSE);
+				}
+			}
+
+			$this->load->model('caracteristica_valor_model');
+			$valores_delete = $this->caracteristica_valor_model->get(array(
+				'caracteristica_id' => $caracteristica->id
+			));
+
+			if (!empty($valores_delete)) {
+				foreach ($valores_delete as $valor) {
+					$trans_ok &= $this->caracteristica_valor_model->delete(array(
+						'id' => $valor->id
+						), FALSE);
+				}
+			}
+			if ($trans_ok) {
+				if (!empty($niveles)) {
+					foreach ($niveles as $nivel) {
+						$trans_ok &= $this->caracteristica_nivel_model->delete(array('id' => $nivel->id), FALSE);
+					}
+				}
+			}
+			if ($trans_ok) {
+				$trans_ok &= $this->caracteristica_model->delete(array(
+					'id' => $this->input->post('id')
+					), FALSE);
+			}
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->caracteristica_model->get_msg());
+				redirect("caracteristica/listar/$caracteristica->entidad/$caracteristica->caracteristica_tipo_id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar eliminar.';
+				if ($this->caracteristica_model->get_error())
+					$errors .= '<br>' . $this->caracteristica_model->get_error();
+			}
+		}
+		$data['error'] = empty($errors) ? $this->session->flashdata('error') : $errors;
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['caracteristica'] = $caracteristica;
+		$data['valores'] = $valores;
+		$data['niveles'] = $niveles;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active', 'editar_valores' => '');
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar caracteristica';
+		$this->load_template('caracteristica/caracteristica_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$caracteristica = $this->caracteristica_model->get_one($id);
+		if (empty($caracteristica)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+
+		$caracteristica_tipo = $this->caracteristica_tipo_model->get(array('id' => $caracteristica->caracteristica_tipo_id));
+		if (empty($caracteristica_tipo)) {
+			show_error('No se encontró el registro del tipo de característica', 500, 'Registro no encontrado');
+		}
+		unset($this->caracteristica_model->fields['niveles']);
+
+		$this->load->model('caracteristica_tipo_model');
+		$this->load->model('caracteristica_valor_model');
+		$this->load->model('caracteristica_nivel_model');
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+		$niveles = $this->caracteristica_nivel_model->get(array(
+			'caracteristica_id' => $id,
+			'join' => array(
+				array('table' => 'nivel', 'where' => 'caracteristica_nivel.nivel_id=nivel.id', 'columnas' => array('nivel.descripcion as nivel'))
+			)
+		));
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['caracteristica_tipo'] = $caracteristica_tipo;
+		$data['caracteristica'] = $caracteristica;
+		$data['niveles'] = $niveles;
+		$data['valores'] = $valores;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'editar_valores' => '', 'eliminar' => '');
+		$data['txt_btn'] = 'Ver';
+		$data['title'] = TITLE . ' - Ver característica';
+		$this->load_template('caracteristica/caracteristica_abm', $data);
+	}
+}
+/* End of file Caracteristica.php */
+/* Location: ./application/controllers/Caracteristica.php */

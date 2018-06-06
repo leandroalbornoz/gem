@@ -1,0 +1,84 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alertas_admin extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('servicio_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
+		$this->nav_route = 'menu/alertas';
+	}
+
+	public function servicios_sin_liquidacion() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 23, 'class' => 'text-sm'),
+				array('label' => 'Alta', 'data' => 'fecha_alta', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Liquidación', 'data' => 'liquidacion', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'S.R.', 'data' => 'situacion_revista', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'Cur', 'data' => 'curso', 'width' => 3, 'class' => 'dt-body-center'),
+				array('label' => 'Div', 'data' => 'division', 'width' => 3, 'class' => 'dt-body-center'),
+				array('label' => 'Régimen/Materia', 'data' => 'regimen_materia', 'width' => 28, 'class' => 'text-sm'),
+				array('label' => 'Hs.', 'data' => 'carga_horaria', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Baja', 'data' => 'fecha_baja', 'render' => 'short_date', 'width' => 6),
+				array('label' => '', 'data' => 'menu', 'width' => 10, 'class' => 'dt-body-center', 'sortable' => 'false', 'searchable' => 'false', 'responsive_class' => 'all')
+			),
+			'table_id' => 'servicio_table',
+			'source_url' => "alertas_admin/servicios_sin_liquidacion_data",
+			'order' => array(array(1, 'asc')),
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_servicio_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Servicios activos sin liquidación';
+		$this->load_template('alertas_admin/alertas_admin_servicios_sin_liquidacion', $data);
+	}
+
+	public function servicios_sin_liquidacion_data() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select(
+				'servicio.id, servicio.persona_id, servicio.cargo_id, servicio.fecha_alta,'
+				. 'servicio.fecha_baja, servicio.liquidacion, servicio.reemplazado_id, '
+				. 'servicio.situacion_revista_id, cargo.carga_horaria, '
+				. 'CONCAT(COALESCE(persona.cuil, \'\'), \'<br>\', COALESCE(persona.apellido, \'\'), \', \', COALESCE(persona.nombre, \'\')) as persona, situacion_revista.descripcion as situacion_revista,'
+				. 'division.division, curso.descripcion as curso, CONCAT(regimen.descripcion, \'<br>\', COALESCE(materia.descripcion, \'\')) as regimen_materia, regimen.descripcion as regimen, materia.descripcion as materia, escuela.id as escuela_id')
+			->unset_column('id')
+			->from('servicio')
+			->join('servicio_funcion', 'servicio.id = servicio_funcion.servicio_id AND servicio_funcion.fecha_hasta IS NULL', 'left')
+			->join('cargo', 'cargo.id = servicio.cargo_id', 'left')
+			->join('espacio_curricular', 'espacio_curricular.id = cargo.espacio_curricular_id', 'left')
+			->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+			->join('persona', 'persona.id = servicio.persona_id', 'left')
+			->join('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', 'left')
+			->join('escuela', 'cargo.escuela_id = escuela.id', 'left')
+			->join('division', 'cargo.division_id = division.id', 'left')
+			->join('curso', 'division.curso_id = curso.id', 'left')
+			->join('regimen', 'cargo.regimen_id = regimen.id', 'left')
+			->join('tbcabh', 'servicio.id = tbcabh.servicio_id AND tbcabh.vigente='.AMES_LIQUIDACION, 'left')
+			->where('tbcabh.id IS NULL')
+			->where("COALESCE(servicio.liquidacion, '')<>''")
+			->where('servicio.fecha_baja IS NULL')
+			->group_by('servicio.id')
+			->add_column('menu', '<a class="btn btn-xs btn-default" href="persona/liquidacion/$1"><i class="fa fa-search"></i> Ver</a>', 'persona_id')
+			->add_column('', '', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+}
+/* End of file Alertas_admin.php */
+/* Location: ./application/controllers/Alertas_admin.php */

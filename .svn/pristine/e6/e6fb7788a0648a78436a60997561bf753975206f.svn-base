@@ -1,0 +1,252 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Reportes_estaticos_model extends MY_Model {
+
+	public $tablas = array();
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'reporte_estatico';
+		$this->msg_name = 'Reportes_estaticos';
+		$this->id_name = 'id';
+		$this->columnas = array();
+		$this->fields = array(
+		);
+		$this->requeridos = array();
+		//$this->unicos = array();
+		$this->default_join = array();
+	}
+
+	public function get_reporte_asitencias_escuela($data) {
+		$desde = $data['desde'];
+		$hasta = $data['hasta'];
+		$escuela = $data['escuela'];
+		$supervision = $data['supervision'];
+
+		if (!empty($data['reporte_carrera']) && $data['reporte_carrera']) {
+			$carrera = $data['carrera'];
+			$query = "SELECT d.escuela_id,e.numero,e.nombre as escuela,car.descripcion as carrera, s.id as supervision_id, s.nombre as supervision,
+ m.ames mes,
+ COALESCE(sum(rap.alumnos), 0) alumnos,
+ COALESCE(sum(rap.alumnos_ini),0) alumnos_ini,
+ COALESCE(sum(rap.alumnos_fin),0) alumnos_fin, 
+ (COALESCE(sum(rap.alumnos*di.dias), 0) - COALESCE(sum(rap.dias_nc), 0) - COALESCE(sum(rap.dias_falta), 0))/(COALESCE(sum(rap.alumnos*di.dias), 0) - COALESCE(sum(rap.dias_nc), 0))*100 asistencia_media
+			FROM division d ";
+			if (!empty($supervision) && !empty($escuela)) {
+				$query .= "	
+								JOIN escuela e ON e.id=d.escuela_id AND e.id IN ?
+								JOIN supervision s ON e.supervision_id = s.id AND s.id IN ? ";
+			} elseif (!empty($supervision) && empty($escuela)) {
+				$query .= "	
+								JOIN escuela e ON e.id=d.escuela_id
+								JOIN supervision s ON e.supervision_id = s.id AND s.id IN ? ";
+			} elseif (empty($supervision) && !empty($escuela)) {
+				$query .= " 
+								JOIN escuela e ON e.id=d.escuela_id AND e.id IN ?
+								JOIN supervision s ON e.supervision_id = s.id";
+			} else {
+				$query .= " 
+								JOIN escuela e ON e.id=d.escuela_id
+								JOIN supervision s ON e.supervision_id = s.id ";
+			}
+			$query .= "
+								JOIN nivel n ON e.nivel_id = n.id
+								JOIN linea l ON n.linea_id = l.id ";
+			if (!empty($carrera)) {
+				$query .= " JOIN carrera car ON d.carrera_id = car.id and car.id IN ? ";
+			} else {
+				$query .= " JOIN carrera car ON d.carrera_id = car.id ";
+			}
+			$query .= "
+								JOIN calendario ca ON ca.id = d.calendario_id
+								JOIN planilla_asisnov_plazo m 
+								JOIN curso c ON c.id = d.curso_id
+								LEFT JOIN reporte_asistencia_parcial_mes rap ON rap.division_id=d.id AND m.ames=rap.mes
+								LEFT JOIN 
+								(
+									SELECT division_id, mes, sum(dias) dias FROM division_inasistencia GROUP BY division_id, mes
+								) di ON rap.division_id=di.division_id AND rap.mes=di.mes ";
+			$query .= " 
+							WHERE m.ames BETWEEN ? AND ?
+							AND car.fecha_hasta IS NULL
+							group by e.id, m.ames, car.id
+							ORDER BY e.id,s.id,car.id,m.ames ASC";
+			if (!empty($carrera)) {
+				if (!empty($supervision) && !empty($escuela))
+					return $this->db->query($query, array($escuela, $supervision, $carrera, $desde, $hasta))->result();
+				elseif (!empty($supervision) && empty($escuela))
+					return $this->db->query($query, array($supervision, $carrera, $desde, $hasta))->result();
+				elseif (empty($supervision) && !empty($escuela))
+					return $this->db->query($query, array($escuela, $carrera, $desde, $hasta))->result();
+				else
+					return $this->db->query($query, array($carrera, $desde, $hasta))->result();
+			}else {
+				if (!empty($supervision) && !empty($escuela))
+					return $this->db->query($query, array($escuela, $supervision, $desde, $hasta))->result();
+				elseif (!empty($supervision) && empty($escuela))
+					return $this->db->query($query, array($supervision, $desde, $hasta))->result();
+				elseif (empty($supervision) && !empty($escuela))
+					return $this->db->query($query, array($escuela, $desde, $hasta))->result();
+				else
+					return $this->db->query($query, array($desde, $hasta))->result();
+			}
+		} else {
+			$query = " SELECT e.numero,e.nombre as escuela,ra.mes,ra.alumnos,ra.asistencia_media,ra.calendario,ra.calendario_id as calendario_id,ra.periodo,COALESCE(s.nombre,'') as supervision FROM reporte_asistencia ra ";
+			if (!empty($supervision) && !empty($escuela)) {
+				$query .= " JOIN escuela e ON e.id = ra.escuela_id AND e.id IN ?
+								JOIN supervision s ON e.supervision_id = s.id AND s.id IN ? ";
+			} elseif (!empty($supervision) && empty($escuela)) {
+				$query .= " JOIN escuela e ON e.id = ra.escuela_id
+								JOIN supervision s ON e.supervision_id = s.id AND s.id IN ? ";
+			} elseif (empty($supervision) && !empty($escuela)) {
+				$query .= " JOIN escuela e ON e.id = ra.escuela_id AND e.id IN ?
+								JOIN supervision s ON e.supervision_id = s.id ";
+			} else {
+				$query .= " JOIN escuela e ON e.id = ra.escuela_id
+								JOIN supervision s ON e.supervision_id = s.id ";
+			}
+			$query .= " WHERE ra.mes BETWEEN ? AND ?
+							GROUP BY ra.escuela_id,ra.mes,ra.periodo
+							ORDER BY s.id,ra.periodo,ra.mes ASC";
+			if (!empty($supervision) && !empty($escuela))
+				return $this->db->query($query, array($escuela, $supervision, $desde, $hasta))->result();
+			elseif (!empty($supervision) && empty($escuela))
+				return $this->db->query($query, array($supervision, $desde, $hasta))->result();
+			elseif (empty($supervision) && !empty($escuela))
+				return $this->db->query($query, array($escuela, $desde, $hasta))->result();
+			else
+				return $this->db->query($query, array($desde, $hasta))->result();
+		}
+	}
+
+	public function get_reporte_asitencias_supervision($data) {
+		$desde = $data['desde'];
+		$hasta = $data['hasta'];
+		$supervision = $data['supervision'];
+
+		if (!empty($data['reporte_carrera']) && $data['reporte_carrera']) {
+			$carrera = $data['carrera'];
+			$query = "
+				SELECT s.id,s.nombre,car.descripcion as carrera, count( distinct e.id) as escuelas,count(distinct d.id) as divisiones,
+ m.ames mes,
+ COALESCE(sum(rap.alumnos), 0) alumnos,
+ COALESCE(sum(rap.alumnos_ini),0) alumnos_ini,
+ COALESCE(sum(rap.alumnos_fin),0) alumnos_fin, 
+ (COALESCE(sum(rap.alumnos*di.dias), 0) - COALESCE(sum(rap.dias_nc), 0) - COALESCE(sum(rap.dias_falta), 0))/(COALESCE(sum(rap.alumnos*di.dias), 0) - COALESCE(sum(rap.dias_nc), 0))*100 asistencia_media
+FROM division d 
+JOIN escuela e ON e.id=d.escuela_id ";
+			if (!empty($supervision)) {
+				$query .= " JOIN supervision s ON e.supervision_id = s.id AND s.id IN ? ";
+			} else {
+				$query .= " JOIN supervision s ON e.supervision_id = s.id  ";
+			}
+			$query .= " JOIN nivel n ON e.nivel_id = n.id 
+									JOIN linea l ON n.linea_id = l.id ";
+			if (!empty($carrera)) {
+				$query .= " JOIN carrera car ON d.carrera_id = car.id AND car.id IN ? ";
+			} else {
+				$query .= " JOIN carrera car ON d.carrera_id = car.id ";
+			}
+			$query .= "
+				JOIN calendario ca ON ca.id = d.calendario_id 
+				JOIN planilla_asisnov_plazo m 
+				JOIN curso c ON c.id = d.curso_id 
+				LEFT JOIN reporte_asistencia_parcial_mes rap ON rap.division_id=d.id AND m.ames=rap.mes 
+				LEFT JOIN 
+				(
+					SELECT division_id, mes, sum(dias) dias FROM division_inasistencia GROUP BY division_id, mes 
+				) di ON rap.division_id=di.division_id AND rap.mes=di.mes  
+				WHERE m.ames BETWEEN ? AND ? 
+				AND car.fecha_hasta IS NULL 
+				group by s.id, m.ames, car.id 
+				ORDER BY s.id,car.id,m.ames ASC ";
+
+			if (!empty($supervision) && !empty($carrera)) {
+				return $this->db->query($query, array($supervision, $carrera, $desde, $hasta))->result();
+			} elseif (!empty($supervision) && empty($carrera)) {
+				return $this->db->query($query, array($supervision, $desde, $hasta))->result();
+			} elseif (empty($supervision) && !empty($carrera)) {
+				return $this->db->query($query, array($carrera, $desde, $hasta))->result();
+			} else {
+				return $this->db->query($query, array($desde, $hasta))->result();
+			}
+		} else {
+			$query = "SELECT s.id as supervision_id,s.nombre as supervision,ra.periodo,s.nombre,ra.mes,sum(ra.alumnos)as alumnos,(sum(ra.asistencia_real)/sum(ra.asistencia_ideal))*100 asistencia_media,ra.calendario, COUNT(DISTINCT ra.escuela_id) as numero_escuelas
+			FROM supervision s
+			JOIN escuela e ON e.supervision_id = s.id
+			JOIN reporte_asistencia ra ON ra.escuela_id = e.id ";
+			if (!empty($supervision)) {
+				$query .= " WHERE s.id IN ? AND ra.mes BETWEEN ? AND ?";
+			} else {
+				$query .= " WHERE ra.mes BETWEEN ? AND ? ";
+			}
+			$query .= " GROUP BY s.id,ra.mes,ra.periodo ORDER BY s.id,ra.periodo,ra.mes ";
+			if (!empty($supervision)) {
+				return $this->db->query($query, array($supervision, $desde, $hasta))->result();
+			} else {
+				return $this->db->query($query, array($desde, $hasta))->result();
+			}
+		}
+	}
+
+	public function get_numero_escuelas($data) {
+		$supervision = $data['supervision'];
+		$escuela = $data['escuela'];
+		$query = "SELECT sum(ne.numero_escuelas) as valor
+				FROM supervision s
+				LEFT JOIN(
+					SELECT s.id, COUNT(DISTINCT e.id) as numero_escuelas
+					FROM	supervision s ";
+		if (!empty($supervision)) {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id AND s.id IN ?
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id
+					GROUP BY e.id ) ne ON ne.id = s.id";
+			return $this->db->query($query, array($supervision))->row();
+		} elseif (!empty($escuela)) {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id AND e.id IN ?
+					GROUP BY e.id ) ne ON ne.id = s.id";
+			return $this->db->query($query, array($escuela))->row();
+		} else {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id
+					GROUP BY e.id ) ne ON ne.id = s.id";
+			return $this->db->query($query)->row();
+		}
+	}
+
+	public function get_numero_supervisiones($data) {
+		$escuela = $data['escuela'];
+		$supervision = $data['supervision'];
+		$query = "
+			SELECT sum(ns.numero_supervisiones) as valor
+			FROM supervision s
+			LEFT JOIN(
+					SELECT s.id,COUNT(DISTINCT s.id) as numero_supervisiones
+					FROM	supervision s ";
+		if (!empty($escuela)) {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id AND e.id IN ?
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id
+					GROUP BY s.id) ns on ns.id = s.id";
+			return $this->db->query($query, array($escuela))->row();
+		} elseif (!empty($supervision)) {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id AND s.id IN ?
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id
+					GROUP BY s.id) ns on ns.id = s.id";
+			return $this->db->query($query, array($supervision))->row();
+		} else {
+			$query .= "
+					LEFT JOIN escuela e ON e.supervision_id = s.id
+					JOIN reporte_asistencia ra ON ra.escuela_id = e.id
+					GROUP BY s.id) ns on ns.id = s.id";
+			return $this->db->query($query)->row();
+		}
+	}
+}

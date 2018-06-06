@@ -1,0 +1,30 @@
+<html lang="es">
+	<head>
+		<base href="<?php echo base_url(); ?>" />
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+		<meta name="description" content="">
+	</head>
+	<body>
+		<header>
+			<table>
+				<tr>
+					<td>
+						<img src='img/logo_of.png' width="105px"/>
+					</td>
+					<td align="right">
+						<b>DECLARACION JURADA DE CARGOS, HORAS CATEDRA Y FUNCIONES </b>
+						<br>
+						<b>(LEY N° 6929/01 y Decreto Reglamentario N°285/02)</b>
+					</td>
+					<td>
+						<b>Resolución N° 531/14</b>
+					</td>
+				</tr>
+			</table>
+		</header>
+		<section>
+		</section>
+	</body>
+</html>

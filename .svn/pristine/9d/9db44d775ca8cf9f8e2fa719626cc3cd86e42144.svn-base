@@ -1,0 +1,79 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Abono_alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'abono_alumno';
+		$this->msg_name = 'Abono Escuelas';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'escuela_id', 'abono_tipo_id', 'abono_motivo_alta_id', 'fecha_alta', 'numero_abono', 'monto', 'ames');
+		$this->fields = array(
+			'alumno' => array('label' => 'Alumno', 'readonly' => TRUE),
+			'ames' => array('label' => 'Mes', 'required' => TRUE),
+			'abono_tipo' => array('label' => 'Tipo Abono', 'input_type' => 'combo', 'id_name' => 'abono_tipo_id', 'required' => TRUE),
+			'numero_abono' => array('label' => 'Número de Abono', 'type' => 'number', 'required' => TRUE),
+			'monto' => array('label' => 'Monto Abono', 'type' => 'numeric', 'required' => TRUE),
+			'motivo_alta' => array('label' => 'Motivo Alta', 'input_type' => 'combo', 'id_name' => 'abono_motivo_alta_id', 'required' => TRUE),
+		);
+		$this->requeridos = array('numero_abono', 'monto', 'ames');
+		$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = abono_alumno.alumno_id'),
+			array('escuela', 'escuela.id = abono_alumno.escuela_id'),
+			array('persona', 'persona.id = alumno.persona_id', '', array("CONCAT(persona.apellido, ', ', persona.nombre) as alumno")),
+			array('abono_tipo', 'abono_tipo.id = abono_alumno.abono_tipo_id', '', array('abono_tipo.descripcion as abono_tipo')),
+			array('abono_motivo_alta', 'abono_motivo_alta.id = abono_alumno.abono_motivo_alta_id', 'left', array('abono_motivo_alta.descripcion as motivo_alta')));
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+
+	public function getAbonosByAlumno($alumno_id, $escuela_id) {
+		return $this->db->select('aa.*,at.descripcion as abono_tipo_descripcion, ma.descripcion as motivo_alta')
+				->from('abono_alumno aa')
+				->join('abono_tipo at', 'at.id = aa.abono_tipo_id', 'inner')
+				->join('abono_motivo_alta ma', 'ma.id = aa.abono_motivo_alta_id', 'inner')
+				->where('aa.alumno_id', $alumno_id)
+				->where('aa.escuela_id', $escuela_id)
+				->get()->result();
+	}
+
+	public function get_abonos_ames($escuela_id, $ames) {
+		return $this->db->select('aa.*,at.descripcion as abono_tipo_descripcion')
+				->from('abono_alumno aa')
+				->join('abono_tipo at', 'at.id = aa.abono_tipo_id', 'inner')
+				->join('abono_motivo_alta ma', 'ma.id = aa.abono_motivo_alta_id', 'inner')
+				->where('aa.ames', $ames)
+				->where('aa.escuela_id', $escuela_id)
+				->get()->result();
+	}
+
+	public function valida_alumno_escuela($alumno_id, $ames) {
+		return $this->db->select('aa.id')
+				->from('abono_alumno aa')
+				->where('aa.alumno_id', $alumno_id)
+				->where('aa.ames', $ames)
+				->get()->row();
+	}
+
+	public function valida_abono($ames, $tipo_abono_id, $numero_abono) {
+		return $this->db->select('aa.id')
+				->from('abono_alumno aa')
+				->where('aa.ames', $ames)
+				->where('aa.abono_tipo_id', $tipo_abono_id)
+				->where('aa.numero_abono', $numero_abono)
+				->get()->row();
+	}
+}
+/* End of file Abono_alumno_model.php */
+/* Location: ./application/modules/abono/models/Abono_alumno_model.php */

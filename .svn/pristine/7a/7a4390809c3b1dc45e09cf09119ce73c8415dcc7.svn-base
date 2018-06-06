@@ -1,0 +1,162 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Altas extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('liquidaciones/altas_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_CONSULTA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+		if (in_array($this->rol->codigo, array(ROL_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'liquidaciones/altas';
+	}
+
+	public function escuelas($mes = NULL, $solo_diferencias = '0') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			$this->load->model('planilla_asisnov_model');
+			$mes = $this->planilla_asisnov_model->get_mes_actual();
+			redirect("liquidaciones/altas/escuelas/$mes", 'refresh');
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'N°', 'data' => 'numero', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Escuela', 'data' => 'nombre', 'width' => 30),
+				array('label' => 'Departamento', 'data' => 'departamento', 'width' => 20),
+				array('label' => 'Altas sirrhh', 'data' => 'alta_sirrhh', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Altas GEM', 'data' => 'alta_gem', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Faltantes sirrhh', 'data' => 'falta_sirrhh', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Faltantes GEM', 'data' => 'falta_gem', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Teléfono', 'data' => 'telefono', 'width' => 10, 'responsive_class' => 'none')
+			),
+			'table_id' => 'altas_table',
+			'source_url' => "liquidaciones/altas/escuelas_data/$mes/$solo_diferencias/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc')),
+			'details_format' => 'altas_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_altas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['mes_id'] = $mes;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Altas por Escuela';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('altas/altas_escuelas', $data);
+	}
+
+	public function escuelas_data($mes = NULL, $solo_diferencias = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select("escuela.id, escuela.numero, escuela.nombre, departamento.descripcion as departamento, escuela.telefono,
+	(SELECT COUNT(1) FROM altareemplazo WHERE EscId=escuela.numero AND DATE_FORMAT(ReeAltFch, '%Y%m')='$mes') alta_sirrhh,
+	(SELECT COUNT(1) FROM servicio s JOIN cargo c ON s.cargo_id=c.id JOIN escuela e ON c.escuela_id=e.id WHERE COALESCE(e.escuela_id,e.id)=escuela.id AND DATE_FORMAT(s.fecha_alta , '%Y%m')='$mes' AND s.situacion_revista_id=2 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')) alta_gem,
+	(SELECT COUNT(1)
+		FROM servicio s
+		LEFT JOIN cargo c ON s.cargo_id = c.id
+		LEFT JOIN persona p ON s.persona_id = p.id
+		LEFT JOIN regimen r ON c.regimen_id = r.id
+		LEFT JOIN escuela e ON c.escuela_id = e.id
+		LEFT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+		WHERE a.PerCuil IS NULL AND DATE_FORMAT(s.fecha_alta , '%Y%m')='$mes' AND s.situacion_revista_id=2 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A') AND e.numero=escuela.numero
+	) falta_sirrhh,
+	(SELECT COUNT(1)
+	FROM servicio s
+	LEFT JOIN cargo c ON s.cargo_id = c.id
+	LEFT JOIN persona p ON s.persona_id = p.id
+	LEFT JOIN regimen r ON c.regimen_id = r.id
+	LEFT JOIN escuela e ON c.escuela_id = e.id
+	RIGHT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+	WHERE s.id IS NULL AND DATE_FORMAT(a.ReeAltFch,'%Y%m')='$mes' AND a.EscId=escuela.numero
+) falta_gem")
+			->unset_column('id')
+			->from('escuela')
+			->join('localidad', 'escuela.localidad_id=localidad.id', 'left')
+			->join('departamento', 'localidad.departamento_id=departamento.id', 'left')
+			->where('anexo', '0')
+			->where('dependencia_id', '1')
+			->add_column('', '', 'id');
+		if ($solo_diferencias === '1') {
+			$this->datatables->where("	(SELECT COUNT(1)
+		FROM servicio s
+		LEFT JOIN cargo c ON s.cargo_id = c.id
+		LEFT JOIN persona p ON s.persona_id = p.id
+		LEFT JOIN regimen r ON c.regimen_id = r.id
+		LEFT JOIN escuela e ON c.escuela_id = e.id
+		LEFT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id='2' THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria='0' END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+		WHERE a.PerCuil IS NULL AND DATE_FORMAT(s.fecha_alta , '%Y%m')='$mes' AND s.situacion_revista_id=2 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A') AND e.numero=escuela.numero
+	) <>0 OR
+	(SELECT COUNT(1)
+	FROM servicio s
+	LEFT JOIN cargo c ON s.cargo_id = c.id
+	LEFT JOIN persona p ON s.persona_id = p.id
+	LEFT JOIN regimen r ON c.regimen_id = r.id
+	LEFT JOIN escuela e ON c.escuela_id = e.id
+	RIGHT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id='2' THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria='0' END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+	WHERE s.id IS NULL AND DATE_FORMAT(a.ReeAltFch,'%Y%m')='$mes' AND a.EscId=escuela.numero
+)<>0");
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function cambiar_mes($mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("liquidaciones/altas/escuelas/$mes", 'refresh');
+	}
+
+	public function ajax_get_altas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$escuela_numero = $this->input->get('escuela_numero');
+		$mes = $this->input->get('mes');
+		if (empty($escuela_numero) || empty($mes)) {
+			show_error('No se han recibido los parámetros necesarios', 500, 'Acción no autorizada');
+		}
+
+		$altas = array(
+			'sirrhh' => $this->altas_model->get_altas_sirrhh($escuela_numero, $mes),
+			'gem' => $this->altas_model->get_altas_gem($escuela_numero, $mes)
+		);
+
+		if (!empty($altas)) {
+			echo json_encode($altas);
+			return;
+		} else {
+			echo json_encode(array());
+		}
+	}
+}
+/* End of file Servicio.php */
+/* Location: ./application/controllers/Servicio.php */

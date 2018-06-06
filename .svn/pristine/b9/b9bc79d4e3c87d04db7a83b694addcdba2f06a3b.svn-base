@@ -1,0 +1,222 @@
+<style>
+	td.child>ul{
+		width:100%;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Títulos - Persona 
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="titulos/<?php echo $controlador; ?>">Títulos - Persona</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<div class="row">
+								<div class="col-md-12">
+									<h4><b><?php echo "$persona->apellido, $persona->nombre ($persona->documento_tipo $persona->documento)"; ?>
+										</b></h4>
+								</div>
+							</div>
+						</h3>
+					</div>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="titulos/titulo_persona/ver/<?php echo $persona->id; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="titulos/titulo_persona/editar/<?php echo $persona->id; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+						<?php endif; ?>		
+						<?php if ($txt_btn === 'Editar'): { ?>
+								<div class="row">
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento_tipo']['label']; ?>
+										<?php echo $fields['documento_tipo']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento']['label']; ?>
+										<span class="label label-danger" id="documento_existente"></span>
+										<?php echo $fields['documento']['form']; ?>
+									</div>
+									<div class="form-group col-sm-3">
+										<?php echo $fields['apellido']['label']; ?>
+										<?php echo $fields['apellido']['form']; ?>
+									</div>
+									<div class="form-group col-sm-3">
+										<?php echo $fields['nombre']['label']; ?>
+										<?php echo $fields['nombre']['form']; ?>
+									</div>
+
+									<div class="form-group col-sm-2">
+										<?php echo $fields['sexo']['label']; ?>
+										<?php echo $fields['sexo']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['fecha_nacimiento']['label']; ?>
+										<?php echo $fields['fecha_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-sm-3">
+										<?php echo $fields['nacionalidad']['label']; ?>
+										<?php echo $fields['nacionalidad']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['telefono_fijo']['label']; ?>
+										<?php echo $fields['telefono_fijo']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['telefono_movil']['label']; ?>
+										<?php echo $fields['telefono_movil']['form']; ?>
+									</div>
+									<div class="form-group col-sm-3">
+										<?php echo $fields['email']['label']; ?>
+										<?php echo $fields['email']['form']; ?>
+									</div>
+								</div>
+							<?php }else: { ?>
+								<div class="row">
+									<div class="form-group col-sm-2">
+										<?php echo $fields['sexo']['label']; ?>
+										<?php echo $fields['sexo']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['fecha_nacimiento']['label']; ?>
+										<?php echo $fields['fecha_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['nacionalidad']['label']; ?>
+										<?php echo $fields['nacionalidad']['form']; ?>
+									</div>
+
+									<div class="form-group col-sm-2">
+										<?php echo $fields['telefono_fijo']['label']; ?>
+										<?php echo $fields['telefono_fijo']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['telefono_movil']['label']; ?>
+										<?php echo $fields['telefono_movil']['form']; ?>
+									</div>
+									<div class="form-group col-sm-2">
+										<?php echo $fields['email']['label']; ?>
+										<?php echo $fields['email']['form']; ?>
+									</div>
+								</div>
+								<div role="tabpanel" class="tab-pane" id="tab_titulos">
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="11">
+													Titulos											
+													<a class="pull-left btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo/modal_buscar/<?php echo $persona->id; ?>"><i class="fa fa-plus"></i></a>									
+												</th>
+											</tr>
+											<tr>
+												<th>Orden</th>
+												<th>Número de registro</th>
+												<th>Nombre</th>
+												<th>País Origen</th>
+												<th>Provincia</th>
+												<th>Establecimiento</th>
+												<th>Carrera</th>
+												<th>Serie</th>
+												<th>Número de Título</th>
+												<th>Fecha Inscripción</th>
+												<th>Fecha Egreso</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php if (!empty($titulos)): ?>
+												<?php foreach ($titulos as $titulo): ?>
+													<tr>
+														<td width="4%"><?= $titulo->id; ?></td>
+														<td width="4%"><?= $titulo->numero; ?></td>
+														<td width="14%"><?= $titulo->nombre; ?></td>
+														<td width="10%"><?= $titulo->pais_origen; ?></td>
+														<td width="10%"><?= $titulo->provincia; ?></td>
+														<td width="10%"><?= $titulo->establecimiento; ?></td>										
+														<td width="12%"><?= $titulo->tipo; ?></td>
+														<td width="5%"><?= $titulo->serie; ?></td>
+														<td width="5%"><?= $titulo->numero_titulo; ?></td>
+														<td width="8%"><?= date("d-m-Y", strtotime($titulo->fecha_inscripcion)); ?></td>
+														<td width="8%"><?= date("d-m-Y", strtotime($titulo->fecha_egreso)); ?></td>
+														<td width="10%">
+															<a class="btn btn-xs btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/modal_editar_titulo/<?php echo $titulo->id ?>/"><i class="fa fa-edit"></i></a>
+															<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/modal_eliminar_titulo/<?php echo $titulo->id ?>/"><i class="fa fa-remove"></i></a>
+														</td>
+													</tr>
+												<?php endforeach; ?>
+											<?php else : ?>
+												<tr>
+													<td style="text-align: center;" colspan="11">
+														-- No tiene --
+													</td>
+												</tr>
+											<?php endif; ?>
+										</tbody>
+									</table>
+								</div>	
+							<?php }endif; ?>
+						<div class="box-footer">
+							<?php if ($txt_btn === 'ver' || $txt_btn === 'Editar'): ?>
+								<a class="btn btn-default" href="<?php echo ($txt_btn === 'ver') ? "titulos/titulo_persona/listar" : "titulos/titulo_persona/ver/$persona->id"; ?>" title="<?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?>"><?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?></a>
+								<?php echo ($txt_btn === 'Editar') ? '<input type="submit" value="Guardar" class="btn btn-primary pull-right" title="Guardar" id="Guardar">' : ''; ?>
+								<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $persona->id) : ''; ?>
+							<?php else: ?>
+								<a class="btn btn-default" href="titulos/titulo_persona/listar" title="Volver">Volver</a>
+							<?php endif; ?>
+						</div>
+						<?php echo form_close(); ?>
+					</div>
+				</div>
+			</div>
+	</section>
+	<div style="display:none;" id="div_buscar_titulo"></div>
+</div>
+<script>
+	$(document).ready(function() {
+		$('#servicio_table,#alumno_table,#reporte_horario_table').DataTable({
+			dom: 't',
+			autoWidth: false,
+			paging: false,
+			ordering: false
+		});
+<?php if (isset($titulo_id)): ?>
+	<?php if ($titulo_id === '-1'): ?>
+				$('#div_buscar_titulo').append('<a id="a_buscar_titulo" href="titulos/titulo/modal_agregar_titulo_nuevo/<?php echo $persona->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+				setTimeout(function() {
+					$('#a_buscar_titulo').click();
+				}, 500);
+	<?php else: ?>
+				$('#div_buscar_titulo').append('<a id="a_buscar_titulo" href="titulos/titulo/modal_agregar_titulo_existente/<?php echo "$persona->id/$titulo_id"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+				setTimeout(function() {
+					$('#a_buscar_titulo').click();
+				}, 500);
+	<?php endif; ?>
+<?php endif; ?>
+	});
+</script>

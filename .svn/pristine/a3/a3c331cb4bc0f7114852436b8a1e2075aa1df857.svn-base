@@ -1,0 +1,60 @@
+<?php if (!empty($proyecto_meses)): ?>
+	<div class="box box-primary">
+		<div class="box-header with-border">
+			<h3 class="box-title">Programa Terminalidad Educativa (TEM)</h3>
+			<div class="box-tools pull-right">
+				<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+			</div>
+		</div>
+		<div class="box-body">
+			<div class="row">
+				<div class="col-xs-4">
+					<table class="table table-bordered table-condensed table-striped table-hover">
+						<tr><th colspan="2" class="text-center"><span class="label label-primary"><?php echo $proyecto_meses[0]->horas_catedra; ?></span> Horas Cátedra permitidas</th></tr>
+						<tr>
+							<th>Mes</th>
+							<th>Semanas</th>
+						</tr>
+						<?php foreach ($proyecto_meses as $mes): ?>
+							<tr>
+								<td><?php echo $this->nombres_meses[substr($mes->mes, 4, 2)] . ' \'' . substr($mes->mes, 2, 2); ?></td>
+								<td><?php echo $mes->semanas; ?></td>
+							</tr>
+						<?php endforeach; ?>
+					</table>
+				</div>
+				<div class="col-xs-8">
+					<table class="table table-bordered table-condensed table-striped table-hover">
+						<tr>
+							<th>Persona</th>
+							<th style="width: 60px;">Alta</th>
+							<th style="width: 60px;">Horas</th>
+							<th style="width: 60px;">Baja</th>
+						</tr>
+						<?php if (!empty($personal_tem)): ?>
+							<?php foreach ($personal_tem as $persona): ?>
+								<tr>
+									<td class="text-sm"><?php echo "$persona->cuil $persona->apellido, $persona->nombre"; ?></td>
+									<td class="text-center"><?php echo (new DateTime($persona->fecha_alta))->format('d/m/Y'); ?></td>
+									<td class="text-center"><?php echo $persona->carga_horaria; ?></td>
+									<td class="text-center"><?php echo empty($persona->fecha_baja) ? '' : (new DateTime($persona->fecha_baja))->format('d/m/Y');
+					;
+								?></td>
+								</tr>
+							<?php endforeach; ?>
+						<?php else : ?>
+							<tr><td colspan="4">No hay personal cargado.</td></tr>
+	<?php endif; ?>
+					</table>
+				</div>
+			</div>
+		</div>
+	<?php if ($administrar && $this->rol->codigo != ROL_ESCUELA_ALUM): ?>
+			<div class="box-footer">
+				<a class="btn btn-primary" href="tem/personal/listar/<?php echo $escuela->id; ?>/<?php echo date('Ym'); ?>">
+					<i class="fa fa-cogs"></i> Administrar
+				</a>
+			</div>
+	<?php endif; ?>
+	</div>
+<?php endif; ?>

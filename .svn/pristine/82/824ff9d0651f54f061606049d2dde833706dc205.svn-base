@@ -1,0 +1,77 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Comedor_alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'comedor_alumno';
+		$this->msg_name = 'Comedor alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'comedor_presupuesto_id', 'alumno_division_id', 'comedor_racion_id', 'dias_albergados');
+		$this->fields = array(
+			'comedor_racion' => array('label' => 'Descripcion', 'input_type' => 'combo', 'class' => 'selectize', 'id_name' => 'comedor_racion_id'),
+			'dias_albergados' => array('label' => 'Monto', 'type' => 'number')
+		);
+		$this->requeridos = array('comedor_presupuesto_id', 'alumno_division_id', 'comedor_racion_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('comedor_racion', 'comedor_racion.id = comedor_alumno.comedor_racion_id', 'left', array('comedor_racion.descripcion as comedor_racion'))
+		);
+	}
+
+//	public function actualizar_alumnos($comedor_presupuesto_id = NULL) {
+//		return $this->db->from('comedor_presupuesto')
+//				->set("comedor_presupuesto.alumnos_media_racion", "(SELECT COUNT(1) FROM comedor_alumno WHERE comedor_alumno.comedor_presupuesto_id=comedor_presupuesto.id AND comedor_alumno.comedor_racion_id=2)")
+//				->set("comedor_presupuesto.alumnos_racion_completa", "(SELECT COUNT(1) FROM comedor_alumno WHERE comedor_alumno.comedor_presupuesto_id=comedor_presupuesto.id AND comedor_alumno.comedor_racion_id=1)")
+//				->where('comedor_presupuesto.id', $comedor_presupuesto_id)->update();
+//	}
+
+	public function actualizar_alumnos($comedor_presupuesto_id = NULL) {
+		return $this->db->query(
+				"update comedor_presupuesto
+set alumnos_media_racion = (SELECT COUNT(1) FROM comedor_alumno WHERE comedor_presupuesto_id=comedor_presupuesto.id AND comedor_racion_id=2),
+alumnos_racion_completa = (SELECT COUNT(1) FROM comedor_alumno WHERE comedor_presupuesto_id=comedor_presupuesto.id AND comedor_racion_id=1)
+where id= ?", array($comedor_presupuesto_id)
+		);
+	}
+
+	public function get_alumnos_division($division_id, $id = NULL) {
+		if (empty($id) || !ctype_digit($id)) {
+			$alumnos_db = $this->db->select('ad.id, al.persona_id, al.observaciones, ad.fecha_desde, ad.fecha_hasta, '
+						. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+						. 'p.fecha_nacimiento, s.descripcion sexo, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, ad.condicion')
+					->from('alumno al')
+					->join('persona p', 'p.id = al.persona_id', 'left')
+					->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+					->join('sexo s', 's.id = p.sexo_id', 'left')
+					->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+					->where('ad.fecha_hasta IS NULL')
+					->where('ad.division_id', $division_id)
+					->order_by('ad.ciclo_lectivo,p.apellido, p.nombre')
+					->get()->result();
+		} else {
+			$alumnos_db = $this->db->select("ad.id, al.persona_id, al.observaciones, ad.fecha_desde, ad.fecha_hasta, p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as persona, p.fecha_nacimiento, s.descripcion sexo, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, ad.condicion, ca.id as comedor_alumno_id, ca.comedor_racion_id, cr.descripcion comedor_racion")
+					->from('division d')
+					->join('alumno_division ad', 'd.id=ad.division_id')
+					->join('alumno al', 'ad.alumno_id = al.id', '')
+					->join('comedor_presupuesto cp', "d.escuela_id=cp.escuela_id AND cp.id=$id", 'left')
+					->join('comedor_alumno ca', "ad.id=ca.alumno_division_id AND ca.comedor_presupuesto_id=cp.id", 'left')
+					->join('comedor_racion cr', "ca.comedor_racion_id=cr.id", 'left')
+					->join('persona p', 'p.id = al.persona_id', 'left')
+					->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+					->join('sexo s', 's.id = p.sexo_id', 'left')
+					->where('ad.fecha_hasta IS NULL')
+					->where('ad.division_id', $division_id)
+					->order_by('ad.ciclo_lectivo,p.apellido, p.nombre')
+					->get()->result();
+		}
+		foreach ($alumnos_db as $alumno) {
+			$alumnos[$alumno->id] = $alumno;
+		}
+		if (!(empty($alumnos))) {
+			return $alumnos;
+		}
+	}
+}

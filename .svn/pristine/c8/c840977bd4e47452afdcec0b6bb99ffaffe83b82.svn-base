@@ -1,0 +1,22 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Comedor_racion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'comedor_racion';
+		$this->msg_name = 'Comedor racion';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'descripcion', 'monto');
+		$this->fields = array(
+			'descripcion' => array('label' => 'Descripcion', 'type' => 'text'),
+			'monto' => array('label' => 'Monto', 'type' => 'number')
+		);
+		$this->requeridos = array('descripcion', 'monto');
+		//$this->unicos = array();
+		$this->default_join = array(
+		);
+	}
+}

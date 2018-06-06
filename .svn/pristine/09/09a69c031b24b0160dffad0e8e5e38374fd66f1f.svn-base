@@ -1,0 +1,172 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_inasistencia_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_inasistencia';
+		$this->msg_name = 'Inasistencia de alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'division_inasistencia_dia_id', 'alumno_division_id', 'inasistencia_tipo_id', 'justificada', 'contraturno', 'inasistencia_justificacion_id', 'falta');
+		$this->fields = array(
+			'alumno_division' => array('label' => 'División de alumno', 'input_type' => 'combo', 'id_name' => 'alumno_division_id'),
+			'cursada' => array('label' => 'Cursada', 'input_type' => 'combo', 'id_name' => 'cursada_id'),
+			'fecha' => array('label' => 'Fecha', 'type' => 'date'),
+			'inasistencia_tipo' => array('label' => 'Tipo de inasistencia', 'input_type' => 'combo', 'id_name' => 'inasistencia_tipo_id', 'required' => TRUE),
+			'justificada' => array('label' => 'Justificada', 'input_type' => 'combo', 'id_name' => 'justificada', 'array' => array('Si' => 'Si', 'No' => 'No')),
+			'inasistencia_justificacion' => array('label' => 'Justificación', 'input_type' => 'combo', 'id_name' => 'inasistencia_justificacion_id'),
+			'falta' => array('label' => 'Falta', 'type' => 'decimal', 'required' => TRUE),
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id'),
+		);
+		$this->requeridos = array('inasistencia_tipo_id');
+		//$this->unicos = array();
+	}
+
+	public function get_alumnos($division_inasistencia_id, $fecha) {
+		return $this->db->select('ad.id, al.persona_id, al.observaciones, ai.id as alumno_inasistencia_id,ad.fecha_desde, ad.fecha_hasta, '
+					. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+					. 'p.fecha_nacimiento, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, '
+					. 'ai.inasistencia_tipo_id, ai.justificada, ai.falta, it.descripcion inasistencia_tipo')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('alumno_division ad', 'ad.alumno_id = al.id')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->join('division_inasistencia_dia did', "did.division_inasistencia_id=di.id AND did.fecha ='$fecha'", 'left')
+				->join('alumno_inasistencia ai', 'ai.division_inasistencia_dia_id = did.id AND ai.alumno_division_id = ad.id', 'left')
+				->join('inasistencia_tipo it', 'ai.inasistencia_tipo_id = it.id', 'left')
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes) >= di.mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),di.mes)<=di.mes")
+				->where('di.id', $division_inasistencia_id)
+				->order_by('p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	public function get_alumnos_dia($dia_id, $contraturno = 'No') {
+		return $this->db->select('ad.id, al.persona_id, al.observaciones, ai.id as alumno_inasistencia_id, ad.fecha_desde, ad.fecha_hasta, '
+					. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+					. 'p.fecha_nacimiento, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, '
+					. 'ai.inasistencia_tipo_id, ai.justificada, ai.falta, it.descripcion inasistencia_tipo, ai.contraturno')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('alumno_division ad', 'ad.alumno_id = al.id')
+				->join('curso', 'curso.id = ad.curso_id','left')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->join('division_inasistencia_dia did', 'did.division_inasistencia_id=di.id', 'left')
+				->join('alumno_inasistencia ai', "ai.division_inasistencia_dia_id = did.id AND ai.alumno_division_id = ad.id AND ai.contraturno='$contraturno'", 'left')
+				->join('inasistencia_tipo it', 'ai.inasistencia_tipo_id = it.id', 'left')
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes) >= di.mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),di.mes)<=di.mes")
+				->where('did.id', $dia_id)
+				->order_by('curso.descripcion, p.apellido, p.nombre')
+//				->order_by('curso.descripcion, s.id, p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	public function get_alumnos_resumen_diario($division_inasistencia_id) {
+		return $this->db->select('ai.id, p.id as persona_id, al.id as alumno_id, did.fecha, ad.id as alumno_division_id, ai.justificada, ai.falta, ai.inasistencia_tipo_id as inasistencia_tipo_id, p.sexo_id, ai.contraturno')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('alumno_division ad', 'ad.alumno_id = al.id')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->join('division_inasistencia_dia did', "did.division_inasistencia_id=di.id", 'left')
+				->join('alumno_inasistencia ai', 'ai.division_inasistencia_dia_id = did.id AND ai.alumno_division_id = ad.id', 'left')
+				->join('inasistencia_tipo it', 'ai.inasistencia_tipo_id = it.id', 'left')
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes) >= di.mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),di.mes)<=di.mes")
+				->where('di.id', $division_inasistencia_id)
+				->order_by('p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	public function get_alumnos_division($division_inasistencia_id, $mes) {
+		return $this->db->select('ad.id, al.persona_id, al.observaciones, ad.fecha_desde, ad.fecha_hasta, '
+					. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+					. 'p.fecha_nacimiento, p.sexo_id, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, p.nacionalidad_id, ad.causa_entrada_id, ad.causa_salida_id, curso.descripcion as curso')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+				->join('curso', 'ad.curso_id = curso.id', 'left')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),$mes) >= $mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),$mes)<=$mes")
+				->where('di.id', $division_inasistencia_id)
+				->order_by('curso.descripcion, p.apellido, p.nombre')
+//				->order_by('curso.descripcion, s.id, p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	public function get_alumnos_resumen($division_inasistencia_id) {
+		$alumnos_inasistencia = $this->db->select('ad.id, al.persona_id, al.observaciones, ad.fecha_desde, ad.fecha_hasta, '
+					. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+					. 'p.fecha_nacimiento, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, '
+					. 'ai.id as alumno_inasistencia_id, ai.inasistencia_tipo_id, ai.justificada, ai.falta, it.descripcion inasistencia_tipo,di.dias, curso.descripcion as curso')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('alumno_division ad', 'ad.alumno_id = al.id')
+				->join('curso', 'ad.curso_id = curso.id', 'left')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->join('division_inasistencia_dia did', "did.division_inasistencia_id=di.id AND did.fecha IS NULL", 'left')
+				->join('alumno_inasistencia ai', 'ai.division_inasistencia_dia_id = did.id AND ai.alumno_division_id = ad.id', 'left')
+				->join('inasistencia_tipo it', 'ai.inasistencia_tipo_id = it.id', 'left')
+				->where('di.id', $division_inasistencia_id)
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes) >= di.mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),di.mes)<=di.mes")
+				->order_by('curso.descripcion, p.apellido, p.nombre')
+//				->order_by('curso.descripcion, s.id, p.apellido, p.nombre')
+				->get()->result();
+		$alumnos = array();
+		foreach ($alumnos_inasistencia as $alumno_in) {
+			if (!isset($alumnos[$alumno_in->id])) {
+				$alumnos[$alumno_in->id] = $alumno_in;
+			}
+			if (isset($alumno_in->justificada) && $alumno_in->justificada !== 'NC') {
+				$alumnos[$alumno_in->id]->{$alumno_in->justificada} = (object) array(
+						'id' => $alumno_in->alumno_inasistencia_id,
+						'falta' => $alumno_in->falta
+				);
+			} elseif (isset($alumno_in->justificada)) {
+				$alumnos[$alumno_in->id]->{($alumno_in->inasistencia_tipo_id === '5' ? 'Prev' : 'Post')} = (object) array(
+						'id' => $alumno_in->alumno_inasistencia_id,
+						'falta' => $alumno_in->falta
+				);
+			}
+		}
+		return $alumnos;
+	}
+
+	public function get_alumnos_acumulada($division_id, $mes, $periodo) {
+		return $this->db->select('ad.id as alumno_division_id, ai.justificada, SUM(ai.falta) falta')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id')
+				->join('sexo sx', 'sx.id = p.sexo_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('alumno_division ad', 'ad.alumno_id = al.id')
+				->join('division_inasistencia di', 'di.division_id = ad.division_id AND di.ciclo_lectivo = ad.ciclo_lectivo')
+				->join('division_inasistencia_dia did', 'did.division_inasistencia_id = di.id')
+				->join('alumno_inasistencia ai', 'ai.division_inasistencia_dia_id = did.id AND ai.alumno_division_id = ad.id')
+				->join('inasistencia_tipo it', 'ai.inasistencia_tipo_id = it.id')
+				->where('(di.periodo < ' . $periodo . ' OR di.mes < ' . $mes . ')')
+				->where('di.fecha_cierre is NOT NULL')
+				->where('di.division_id', $division_id)
+				->group_by('ad.id, ai.justificada')
+				->order_by('p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Alumno_inasistencia_model.php */
+/* Location: ./application/models/Alumno_inasistencia_model.php */

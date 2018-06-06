@@ -1,0 +1,168 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Planilla_asisnov_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'planilla_asisnov';
+		$this->msg_name = 'Planilla';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'area_id', 'ames', 'planilla_tipo_id', 'fecha_creacion', 'fecha_cierre', 'rectificativa');
+		$this->requeridos = array('ames', 'fecha_creacion');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('planilla_tipo', 'planilla_tipo.id = planilla_asisnov.planilla_tipo_id', 'left', array('planilla_tipo.descripcion as planilla_tipo')),
+		);
+	}
+
+	public function get_planilla($escuela_id, $mes, $planilla_tipo_id) {
+		$planilla = $this->db->select('id, escuela_id, ames, planilla_tipo_id, fecha_cierre, rectificativa')
+			->from('planilla_asisnov')
+			->where('escuela_id', $escuela_id)
+			->where('ames', $mes)
+			->where('planilla_tipo_id', $planilla_tipo_id)
+			->order_by('rectificativa', 'desc')
+			->limit(1)
+			->get()
+			->row();
+		if (empty($planilla)) {
+			$planilla = (object) array('escuela_id' => $escuela_id, 'ames' => $mes, 'planilla_tipo_id' => $planilla_tipo_id, 'rectificativa' => -1, 'fecha_cierre' => '');
+		}
+		return $planilla;
+	}
+
+	public function get_planilla_abierta($escuela_id, $mes, $planilla_tipo_id) {
+		$planilla = $this->get_planilla($escuela_id, $mes, $planilla_tipo_id);
+		if (empty($planilla->id) || !empty($planilla->fecha_cierre)) {
+			$ok = $this->create(array(
+				'escuela_id' => $escuela_id,
+				'ames' => $mes,
+				'planilla_tipo_id' => $planilla_tipo_id,
+				'fecha_creacion' => date('Y-m-d H:i:s'),
+				'rectificativa' => empty($planilla->id) ? '0' : $planilla->rectificativa + 1
+				), FALSE);
+			return $ok ? $this->planilla_asisnov_model->get_row_id() : FALSE;
+		}
+		return $planilla->id;
+	}
+
+	public function get_planilla_area($area_id, $mes) {
+		$planilla = $this->db->select('id, area_id, ames, fecha_cierre, rectificativa')
+			->from('planilla_asisnov')
+			->where('area_id', $area_id)
+			->where('ames', $mes)
+			->order_by('rectificativa', 'desc')
+			->limit(1)
+			->get()
+			->row();
+		if (empty($planilla)) {
+			$planilla = (object) array('area_id' => $area_id, 'ames' => $mes, 'rectificativa' => -1, 'fecha_cierre' => '');
+		}
+		return $planilla;
+	}
+
+	public function get_planilla_area_abierta($area_id, $mes) {
+		$planilla = $this->get_planilla_area($area_id, $mes);
+		if (empty($planilla->id) || !empty($planilla->fecha_cierre)) {
+			$ok = $this->create(array(
+				'area_id' => $area_id,
+				'ames' => $mes,
+				'fecha_creacion' => date('Y-m-d H:i:s'),
+				'rectificativa' => empty($planilla->id) ? '0' : $planilla->rectificativa + 1
+				), FALSE);
+			return $ok ? $this->planilla_asisnov_model->get_row_id() : FALSE;
+		}
+		return $planilla->id;
+	}
+
+	public function get_novedades($planilla_id) {
+		return $this->db
+				->select('servicio_novedad.id, servicio_novedad.planilla_alta_id, servicio_novedad.planilla_baja_id, servicio_novedad.fecha_desde, servicio_novedad.fecha_hasta, servicio_novedad.dias, servicio_novedad.obligaciones, CONCAT(novedad_tipo.articulo, \'-\', novedad_tipo.inciso) as articulo, novedad_tipo.descripcion_corta as novedad_tipo, servicio.liquidacion, cargo.carga_horaria, CONCAT(COALESCE(persona.cuil,persona.documento), \'<br>\', persona.apellido, \', \', persona.nombre) as persona, division.division, curso.descripcion as curso, CONCAT(regimen.descripcion, \'<br>\', COALESCE(materia.descripcion, \'\')) as regimen_materia')
+				->from('servicio_novedad')
+				->join('novedad_tipo', 'novedad_tipo.id = servicio_novedad.novedad_tipo_id', 'left')
+				->join('servicio', 'servicio.id = servicio_novedad.servicio_id', '')
+				->join('cargo', 'cargo.id = servicio.cargo_id', '')
+				->join('espacio_curricular', 'espacio_curricular.id = cargo.espacio_curricular_id', 'left')
+				->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+				->join('persona', 'persona.id = servicio.persona_id', 'left')
+				->join('division', 'cargo.division_id = division.id', 'left')
+				->join('curso', 'division.curso_id = curso.id', 'left')
+				->join('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1', '')
+				->where('planilla_alta_id', $planilla_id)
+				->or_where('planilla_baja_id', $planilla_id)
+				->get()
+				->result();
+	}
+
+	public function get_resumen_cargos($planilla) {
+		return $this->db
+				->select('cu.id as curso_id, cu.descripcion as curso, r.id as regimen_id, r.regimen_tipo_id, r.codigo, r.descripcion as regimen, SUM(CASE WHEN COALESCE(carga_horaria,0)=0 THEN 1 ELSE 0 END) cargos, SUM(COALESCE(carga_horaria,0)) horas')
+				->from('cargo c')
+				->join('regimen r', 'c.regimen_id=r.id AND r.planilla_modalidad_id=1')
+				->join('division d', 'c.division_id=d.id', 'left')
+				->join('curso cu', 'd.curso_id=cu.id', 'left')
+				->where('c.escuela_id', $planilla->escuela_id)
+				->where('c.fecha_hasta IS NULL')
+				->group_by('cu.id, r.id')
+				->order_by('cu.descripcion, r.codigo')
+				->get()
+				->result();
+	}
+
+	public function get_mes_actual() {
+		return $this->db->select('ames')->from('planilla_asisnov_plazo')->where('now() between fecha_desde and fecha_hasta')->order_by('ames')->limit('1')->get()->row()->ames;
+	}
+
+	public function get_mes_auditoria() {
+		$mes = $this->get_mes_auditoria_habilitada();
+		if (!empty($mes)) {
+			return $mes;
+		} else {
+			return (new DateTime(date('Ym') . '01 -1 month'))->format('Ym');
+		}
+	}
+
+	public function get_mes_auditoria_habilitada() {
+		$mes_db = $this->db->select('ames')->from('planilla_asisnov_plazo')->where('now() between auditoria_desde and auditoria_hasta')->order_by('ames')->limit('1')->get()->row();
+		if (!empty($mes_db)) {
+			return $mes_db->ames;
+		} else {
+			return '';
+		}
+	}
+
+	public function get_meses() {
+		$meses_db = $this->db->select('ames')->from('planilla_asisnov_plazo')->where('now() between fecha_desde and fecha_hasta')->or_where('now() between rectificativa_desde and rectificativa_hasta')->order_by('ames')->get()->result();
+		$meses = array();
+		foreach ($meses_db as $mes_db) {
+			$meses[] = $mes_db->ames;
+		}
+		return $meses;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('planilla_alta_id', $delete_id)->count_all_results('servicio_novedad') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a novedades.');
+			return FALSE;
+		}
+		if ($this->db->where('planilla_baja_id', $delete_id)->count_all_results('servicio_novedad') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a novedades.');
+			return FALSE;
+		}
+		if ($this->db->where('planilla_id', $delete_id)->count_all_results('planilla_impresion') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga impresiones asociadas.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Planilla_asisnov_model.php */
+/* Location: ./application/models/Planilla_asisnov_model.php */

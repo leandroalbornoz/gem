@@ -1,0 +1,103 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Divisiones de Esc. <?= $escuela->nombre_corto; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id; ?>"><?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li><a href="division/listar/<?= $escuela->id; ?>">Cursos y Divisiones</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta" href="escuela/ver/<?php echo $escuela->id; ?>">
+							<i class="fa fa-search"></i> Ver escuela
+						</a>
+						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="division/listar/<?php echo $escuela->id; ?>">
+							<i class="fa fa-tasks"></i> Cursos y Divisiones
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn bg-blue btn-app btn-app-zetta" href="division/agregar/<?= $escuela->id; ?>">
+								<i class="fa fa-plus"></i> Agregar
+							</a>
+							<a class="btn bg-blue btn-app btn-app-zetta" href="division/establecer_horarios/<?= $escuela->id; ?>">
+								<i class="fa fa-clock-o"></i> Horarios masivos
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="division/mover/<?= $escuela->id; ?>">
+								<i class="fa fa-share"></i> Mover a anexo
+							</a>
+							<?php if (PORTAL): ?>
+								<a class="btn btn-app btn-app-zetta" href="division/clave_portal/<?php echo "$escuela->id"; ?>">
+									<i class="fa fa-lock" id="btn-sacar-alumnos"></i> Clave Portal
+								</a>
+							<?php endif; ?>
+						<?php endif; ?>
+						<div class="btn-group pull-right" role="group" style="margin-left: 5px;">
+							<button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown"><i class="fa fa-external-link"></i> Otros accesos <span class="caret"></span></button>
+							<ul class="dropdown-menu dropdown-menu-right">
+								<?php if ($this->rol->codigo !== ROL_ESCUELA_ALUM): ?>
+									<li><a class="dropdown-item btn-default" href="servicio/listar/<?php echo $escuela->id . '/'; ?>"><i class="fa  fa-fw fa-bookmark"></i>Servicios</a></li>
+									<li><a class="dropdown-item btn-default"  href="cargo/listar/<?php echo $escuela->id; ?>"><i class="fa  fa-fw fa-users"></i> Cargos</a></li>
+								<?php endif; ?>
+								<li><a class="dropdown-item btn-default" href="alumno/listar/<?php echo $escuela->id; ?>"><i class="fa  fa-fw fa-users"></i> Alumnos</a></li>
+
+								<li><a class="dropdown-item btn-default" href="division/listar/<?php echo $escuela->id; ?>"><i class="fa  fa-fw fa-tasks"></i> Cursos y Divisiones</a></li>
+
+							</ul>
+						</div>
+						<hr style="margin: 10px 0;">
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	var division_table;
+	function complete_division_table() {
+		$('#division_table tfoot th').each(function(i) {
+			var title = $('#division_table thead th').eq(i).text();
+			if (title !== '' && title !== 'Horario') {
+				$(this).html('<input class="form-control input-xs" style="width: 100%;" type="text" placeholder="' + title + '" value="' + division_table.column(i).search() + '"/>');
+			}
+		});
+		$('#division_table tfoot th').eq(8).html('<button class="btn btn-xs btn-default" onclick="limpiar_filtro(\'division_table\');" title="Limpiar filtros"><i class="fa fa-eraser"></i> Filtros</button>');
+		division_table.columns().every(function() {
+			var column = this;
+			$('input', division_table.table().footer().children[0].children[this[0][0]]).on('change keypress', function(e) {
+				if (e.type === 'change' || e.which === 13) {
+					if (column.search() !== this.value) {
+						column.search(this.value).draw();
+					}
+				}
+			});
+		});
+		var r = $('#division_table tfoot tr');
+		r.find('th').each(function() {
+			$(this).css('padding', 8);
+		});
+		$('#division_table thead').append(r);
+		$('#search_0').css('text-align', 'center');
+	}
+</script>

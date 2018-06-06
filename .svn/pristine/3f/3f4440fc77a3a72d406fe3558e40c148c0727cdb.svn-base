@@ -1,0 +1,146 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS, ROL_ADMIN);
+		$this->nav_route = 'juntas/escritorio';
+		$this->modulos_permitidos = array(ROL_MODULO_ADMINISTRADOR_DE_JUNTAS);
+	}
+
+	public function listar_personas() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 25),
+				array('label' => 'Email', 'data' => 'email', 'width' => 25),
+				array('label' => 'Cargos', 'data' => 'cargos', 'searchable' => 'false', 'width' => 20),
+				array('label' => 'Títulos', 'data' => 'titulos', 'searchable' => 'false', 'width' => 5),
+				array('label' => '', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'personas_table',
+			'source_url' => 'juntas/escritorio/listar_data',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_personas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Personas';
+		$this->load_template('juntas/escritorio/escritorio_juntas', $data);
+	}
+
+	public function listar_data() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select("p.id, p.cuil, p.email, CONCAT(p.apellido,', ', p.nombre) as persona, GROUP_CONCAT(DISTINCT pc.cargo ORDER BY pc.cargo SEPARATOR ' - ') cargos, COUNT(distinct pt.id) titulos")
+			->unset_column('id')
+			->from('persona p')
+			->join('persona_cargo pc', 'pc.documento_bono = p.documento and p.documento_tipo_id = 1', 'left')
+			->join('persona_titulo pt', 'pt.persona_id = p.id and pt.borrado = 0', 'left')
+			->group_by('p.id');
+		if ($this->rol->codigo == ROL_JUNTAS && $this->rol->entidad_id == '4') {
+			$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="juntas/escritorio/ver/$1"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="juntas/persona_cargo/agregar/$1"><i class="fa fa-pencil"></i> Asignar cargo</a></li>'
+				. '<li><a class="dropdown-item" href="juntas/persona_titulo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar título</a></li>'
+				. '</ul></div>', 'id');
+		} else {
+			$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="juntas/escritorio/ver/$1"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="juntas/persona_cargo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar cargo</a></li>'
+				. '<li><a class="dropdown-item" href="juntas/persona_titulo/modal_agregar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i> Asignar título</a></li>'
+				. '</ul></div>', 'id');
+		}
+		echo $this->datatables->generate();
+	}
+
+	public function ver($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$model_persona = new stdClass();
+		$model_persona->fields = array(
+			'cuil' => array('label' => 'CUIL'),
+			'apellido' => array('label' => 'Apellido'),
+			'nombre' => array('label' => 'Nombre'),
+			'email' => array('label' => 'Email'),
+		);
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/persona_bono_model');
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->load->model('bono_secundario/persona_titulo_model');
+		$this->load->model('juntas/persona_cargo_model');
+		$this->persona_bono_model->set_database($DB1);
+		$this->persona_titulo_model->set_database($DB1);
+		$this->inscripcion_model->set_database($DB1);
+		$this->persona_cargo_model->set_database($DB1);
+		$persona = $this->persona_bono_model->get_one($id);
+		$inscripcion = $this->inscripcion_model->get(array('persona_id' => $persona->id));
+		if (isset($inscripcion) && !empty($inscripcion)) {
+			$inscripcion = $inscripcion[0];
+			$data['inscripcion'] = $inscripcion;
+		}
+		if (empty($persona)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+			$persona_titulos = $this->persona_titulo_model->get(array('persona_id' => $persona->id,
+				'join' => array(
+					array('table' => 'titulo', 'where' => 'persona_titulo.titulo_id=titulo.id', 'type' => 'left', 'columnas' => array("titulo.NomTitLon")),
+					array('table' => 'entidad_emisora', 'where' => 'persona_titulo.entidad_emisora_id=entidad_emisora.id', 'type' => 'left', 'columnas' => array("entidad_emisora.entidad as entidad_emisora"))
+			)));
+
+		$persona_cargos = $this->persona_cargo_model->get(array('documento_bono' => $persona->documento));
+		$data['fields'] = $this->build_fields($model_persona->fields, $persona, TRUE);
+		$data['persona'] = $persona;
+		$data['persona_titulos'] = $persona_titulos;
+		$data['persona_cargos'] = $persona_cargos;
+		$data['txt_btn'] = NULL;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Ver persona';
+		$this->load_template('juntas/escritorio/persona_ver', $data);
+	}
+
+	public function administrador() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/persona_bono_model');
+		$this->persona_bono_model->set_database($DB1);
+
+		$indices = $this->persona_bono_model->get_indices();
+		$alertas = $this->persona_bono_model->get_alertas_bono();
+
+		$data['alertas'] = $alertas;
+		$data['indices'] = $indices;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Administrador de Juntas';
+		$this->load_template('juntas/escritorio/escritorio_administrador', $data);
+	}
+}
+/* End of file Escritorio.php */
+	/* Location: ./application/modules/juntas/controllers/Escritorio.php */	

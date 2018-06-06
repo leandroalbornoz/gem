@@ -1,0 +1,26 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Llamados_model extends CI_Model {
+
+	public function get_llamados($environment) {
+
+		if ($environment == 'prod') {
+			$db_prod = $this->load->database('prod', TRUE);
+			$db_prod->trans_begin();
+			$db_prod->select("fecha_carga, regimen, lugar_trabajo, direccion, localidad, departamento, zona, fecha_llamado_1, fecha_llamado_2, fecha_llamado_3, fecha_llamado_4, articulo, fin_estimado, division, materia, turno, horario, presentarse_en, movilidad, prioridad, condiciones_adicionales, observaciones_adicionales");
+			$db_prod->from('llamado');
+			$db_prod->where('publicar', 'Si');
+			$db_prod->where('estado', 'Pendiente');
+			$datos = $db_prod->get()->result();
+		} else {
+			$datos = $this->db->select("fecha_carga, regimen, lugar_trabajo, direccion, localidad, departamento, zona, fecha_llamado_1, fecha_llamado_2, fecha_llamado_3, fecha_llamado_4, articulo, fin_estimado, division, materia, turno, horario, presentarse_en, movilidad, prioridad, condiciones_adicionales, observaciones_adicionales")
+					->from('llamado')
+					->where('publicar', 'Si')
+					->where('estado', 'Pendiente')
+					->get()->result();
+		}
+		return $datos;
+	}
+}

@@ -1,0 +1,231 @@
+<link rel="stylesheet" href="plugins/datepicker/css/bootstrap-datepicker3.min.css" />
+<link rel="stylesheet" href="plugins/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css" />
+<script src="plugins/datepicker/js/bootstrap-datepicker.min.js" type="text/javascript"></script>
+<script src="plugins/datepicker/locales/bootstrap-datepicker.es.min.js" type="text/javascript"></script>
+<script src="plugins/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js" type="text/javascript"></script>
+<script src="plugins/bootstrap-datetimepicker/js/locales/bootstrap-datetimepicker.es.js" type="text/javascript"></script>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Llamados Esc. <?= $escuela->nombre_corto; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $llamado->escuela_id; ?>"> <?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li><a href="llamados/llamado/listar/<?= $llamado->escuela_id; ?>">Llamados</a></li>
+			<li class="active"><?php echo $metodo === 'agregar_novedad' ? 'Agregar llamado por Novedad' : str_replace('_', ' ', ucfirst($metodo)); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php $data_submit = array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn); ?>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+							<a class="btn disabled btn-app btn-app-zetta <?php echo $class['agregar']; ?>" href="llamados/llamado/agregar">
+								<i class="fa fa-plus"></i> Agregar
+							</a>
+						<div class="row">
+							<div class="form-group col-xs-3">
+								<?php echo $fields['fecha_carga']['label']; ?>
+								<?php echo $fields['fecha_carga']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['regimen']['label']; ?>
+								<?php echo $fields['regimen']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['lugar_trabajo']['label']; ?>
+								<?php echo $fields['lugar_trabajo']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['direccion']['label']; ?>
+								<?php echo $fields['direccion']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['localidad']['label']; ?>
+								<?php echo $fields['localidad']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['departamento']['label']; ?>
+								<?php echo $fields['departamento']['form']; ?>
+							</div>
+							<div class="form-group col-xs-2">
+								<?php echo $fields['articulo']['label']; ?>
+								<?php echo $fields['articulo']['form']; ?>
+							</div>
+							<div class="form-group col-xs-2">
+								<?php echo $fields['fin_estimado']['label']; ?>
+								<?php echo $fields['fin_estimado']['form']; ?>
+							</div>
+							<div class="form-group col-xs-2">
+								<?php echo $fields['division']['label']; ?>
+								<?php echo $fields['division']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['materia']['label']; ?>
+								<?php echo $fields['materia']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['turno']['label']; ?>
+								<?php echo $fields['turno']['form']; ?>
+							</div>
+								<div class="form-group col-xs-3">
+								<?php echo $fields['condicion_cargo']['label']; ?>
+								<?php echo $fields['condicion_cargo']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['tipo_llamado']['label']; ?>
+								<?php echo $fields['tipo_llamado']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-xs-3">
+								<?php echo $fields['fecha_llamado_1']['label']; ?>
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-clock-o"></i></span>
+									<?php echo $fields['fecha_llamado_1']['form']; ?>
+								</div>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['fecha_llamado_2']['label']; ?>
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-clock-o"></i></span>
+									<?php echo $fields['fecha_llamado_2']['form']; ?>
+								</div>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['fecha_llamado_3']['label']; ?>
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-clock-o"></i></span>
+									<?php echo $fields['fecha_llamado_3']['form']; ?>
+								</div>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['fecha_llamado_4']['label']; ?>
+								<div class="input-group">
+									<span class="input-group-addon"><i class="fa fa-clock-o"></i></span>
+									<?php echo $fields['fecha_llamado_4']['form']; ?>
+								</div>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-xs-12">
+								<?php echo $fields['horario']['label']; ?>
+								<?php echo $fields['horario']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['zona']['label']; ?>
+								<?php echo $fields['zona']['form']; ?>
+							</div>
+							<div class="form-group col-xs-4">
+								<?php echo $fields['movilidad']['label']; ?>
+								<?php echo $fields['movilidad']['form']; ?>
+							</div>
+							<div class="form-group col-xs-5">
+								<?php echo $fields['presentarse_en']['label']; ?>
+								<?php echo $fields['presentarse_en']['form']; ?>
+							</div>
+							<div class="form-group col-xs-12">
+								<?php echo $fields['prioridad']['label']; ?>
+								<?php echo $fields['prioridad']['form']; ?>
+							</div>
+							<div class="form-group col-xs-12">
+								<?php echo $fields['condiciones_adicionales']['label']; ?>
+								<?php echo $fields['condiciones_adicionales']['form']; ?>
+							</div>
+							<div class="form-group col-xs-12">
+								<?php echo $fields['observaciones_adicionales']['label']; ?>
+								<?php echo $fields['observaciones_adicionales']['form']; ?>
+							</div>
+							<div class="form-group col-xs-3">
+								<?php echo $fields['estado']['label']; ?>
+								<?php echo $fields['estado']['form']; ?>
+							</div>
+							<div class="form-group col-xs-12">
+								<?php echo $fields['texto_plano']['label']; ?>
+								<?php echo $fields['texto_plano']['form']; ?>
+							</div>
+						</div>
+					</div>
+					<div class="box-footer">
+						<button class="btn btn-primary pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" name="publica" title="Publica">Publica</button>
+						<span class="pull-right">&nbsp;</span>
+						<button class="btn btn-warning pull-right" name="estado" type="submit" value="Pendiente" title="Pendiente">Actualizar Vista Previa</button>
+						<span class="pull-right">&nbsp;</span>
+						<a class="btn btn-primary pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="llamados/llamado/llamado_modal_no_publica/<?php echo $llamado->id ?>" name="no_publica" title="No publica">No publica</a>
+						<input type="hidden" name="id" value="<?php echo $llamado->id; ?>" id="id"/>
+						<input type="hidden" name="publicar" value="<?php echo $llamado->publicar; ?>"/>
+						<input type="hidden" name="escuela_id" value="<?php echo $escuela->id; ?>"/>
+						<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $llamado->id) : ''; ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	$(document).ready(function() {
+		$('.dateTimeFormat').each(function(index, element) {
+			$(element).datetimepicker({
+				todayHighlight: true,
+				format: 'dd/mm/yyyy hh:ii',
+				autoclose: true,
+				todayBtn: false,
+				startDate: new Date(),
+				maxView: 3,
+				pickerPosition: 'top-right',
+				language: 'es'
+			});
+		});
+		$('#horario').selectize({
+			create: true,
+			createOnBlur: true,
+			render: {
+				option_create: function(data, escape) {
+					return '<div class="create">Agregar <strong>' + escape(data.input) + '</strong>&hellip;</div>';
+				}
+			}
+		});
+		var select_publicar, $select_publicar;
+		var select_motivo, $select_motivo;
+
+		$select_publicar = $('select#publicar').selectize({
+			onChange: publicar_actualizado
+		});
+
+		$select_motivo = $('select#motivo_no_publica').selectize();
+
+		select_publicar = $select_publicar[0].selectize;
+		select_motivo = $select_motivo[0].selectize;
+		if (select_publicar.getValue() !== '') {
+			publicar_actualizado(select_publicar.getValue());
+		}
+		function publicar_actualizado(value) {
+			if (value === 'Si') {
+				select_motivo.enable();
+				select_motivo.setValue('');
+				select_motivo.disable();
+			} else {
+				select_motivo.enable();
+				select_motivo.focus();
+			}
+		}
+	});
+</script>

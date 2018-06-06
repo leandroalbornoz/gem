@@ -1,0 +1,171 @@
+<script>
+	$(document).ready(function() {
+		$('#cuil').inputmask("99-99999999-9");
+		$('#form_buscar').validator({
+			custom: {
+				validacuil: function(input) {
+					return validaCuil(input.val()) ? '' : 'Cuil no válido';
+				}},
+			errors: {
+				validacuil: 'Cuil no válido'
+			}
+		});
+	});
+</script>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Acuerdos Zona - Recepción
+		</h1>
+		<ol class="breadcrumb">
+			<li class="active"><i class="fa fa-home"></i> Inicio</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">Remito Activo Esc. <?= "$escuela->nombre_corto: $remito_activo->numero"; ?></h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<form class="form-horizontal" method="post" id="form_buscar">
+						<div class="box-body ">
+							<div class="col-sm-12">
+								<p>Ingrese el CUIL del acuerdo recibido para registrar el mismo en GEM.</p>
+							</div>
+							<div class="form-group">
+								<label class="col-sm-4 control-label" for="cuil">CUIL<div style="float:left;" class="help-block with-errors"></div></label>
+								<div class="col-sm-6">
+									<input class="form-control" type="text" name="cuil" value="<?= $this->form_validation->set_value('cuil'); ?>" placeholder="__-_________-_" id="cuil" required data-validacuil="1">
+								</div>
+								<div class="col-sm-2">
+									<button class="btn btn-primary">Buscar</button>
+								</div>
+							</div>
+							<?php if (!empty($persona)): ?>
+								<hr>
+								<div class="row">
+									<div class="col-xs-6">
+										<b>Nombre:</b> <?= trim($persona->nombre); ?><br/>
+										<b>CUIL:</b> <?= $this->input->post('cuil'); ?><br/>
+										<b>DNI:</b> <?= substr($persona->persona, 2, 8); ?><br/>
+									</div>
+									<div col-xs-6>
+										<div class="text-center">
+											<a class="btn btn-lg btn-success" data-toggle="modal" data-target="#aceptar_modal"><i class="fa fa-check"></i> CONFORME</a>
+											<a class="btn btn-lg btn-danger" data-toggle="modal" data-target="#rechazar_modal"><i class="fa fa-remove"></i> DISCONFORME</a>
+										</div>
+									</div>
+								</div>
+							<?php elseif (!empty($_POST)): ?>
+								<h4 style="color:red;">No se encontraron acuerdos con el CUIL ingresado.</h4>
+							<?php endif; ?>
+						</div>
+					</form>
+				</div>
+			</div>
+			<?php if (!empty($persona)): ?>
+				<div class="modal fade" id="aceptar_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<?= form_open("acuerdo_zona/escuela/recibir/$escuela->id"); ?>
+							<div class="modal-header text-green">
+								<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+								<h4 class="modal-title">CONFORME Acuerdo de Pago</h4>
+							</div>
+							<div class="modal-body">
+								<input type="hidden" name="cuil" value="<?= $this->input->post('cuil'); ?>">
+								<div style="float:left;" class="help-block with-errors"></div>
+								<label style="font-weight: normal;"><input required type="radio" name="jubilado" value="Si">Declara <b>Sí</b> estar percibiendo jubilación o asignación universal.</label>
+								<label style="font-weight: normal;"><input required type="radio" name="jubilado" value="No">Declara <b>No</b> estar percibiendo jubilación ni asignación universal.</label>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+								<button type="submit" name="estado" value="Conforme" class="btn btn-success pull-right" title="Recibir Acuerdo CONFORME">Recibir Acuerdo CONFORME</button>
+							</div>
+							<?= form_close(); ?>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="rechazar_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<?= form_open("acuerdo_zona/escuela/recibir/$escuela->id"); ?>
+							<div class="modal-header text-red">
+								<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+								<h4 class="modal-title" >DISCONFORMIDAD</h4>
+							</div>
+							<div class="modal-body">
+								<input type="hidden" name="cuil" value="<?= $this->input->post('cuil'); ?>">
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+								<button type="submit" name="estado" value="Disconforme" class="btn btn-danger pull-right" title="Recibir Acuerdo DISCONFORME">Recibir Acuerdo DISCONFORME</button>
+							</div>
+							<?= form_close(); ?>
+						</div>
+					</div>
+				</div>
+			<?php endif; ?>
+			<?php foreach ($remitos as $remito): ?>
+				<div class="col-xs-12">
+					<?php if ($remito->id === $remito_activo->id): ?>
+						<?php $activo = TRUE; ?>
+					<?php else: ?>
+						<?php $activo = FALSE; ?>
+					<?php endif; ?>
+					<div class="box box-primary <?= $activo ? '' : 'collapsed-box'; ?>">
+						<div class="box-header with-border">
+							<h3 style="width:100%; padding-right: 30px;" class="box-title"><?= "Remito Esc. $escuela->nombre_corto: <b>$remito->numero</b> - Inicio: " . (new DateTime($remito->fecha_inicio))->format('d/m/Y') . (empty($remito->fecha_fin) ? '' : " - Fin: " . (new DateTime($remito->fecha_fin))->format('d/m/Y')); ?></h3>
+							<div class="box-tools pull-right">
+								<?= empty($remito->fecha_fin) ? '<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="acuerdo_zona/escuela/modal_cerrar_remito/' . $remito->id . '" title="Cerrar Remito"><i class="fa fa-lock"></i> Cerrar Remito</a>' : '<a href="acuerdo_zona/escuela/imprimir_remito/' . $remito->id . '" class="btn btn-xs btn-success" target="_blank" title="Imprimir Remito"><i class="fa fa-print"></i> Imprimir Remito</a>' ?>
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa <?= $activo ? ' fa-minus' : ' fa-plus'; ?>"></i></button>
+							</div>
+						</div>
+						<div class="box-body ">
+							<table class="table table-condensed table-bordered">
+								<thead>
+									<tr>
+										<th>Fecha</th>
+										<th>CUIL</th>
+										<th>Persona</th>
+										<th>Conformidad</th>
+										<th>Jubilado/<br/>Asignación universal</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($remito->recepcion as $recepcion): ?>
+										<tr>
+											<td><?= (new DateTime($recepcion->fecha))->format('d/m/Y H:i'); ?></td>
+											<td><?= $recepcion->cuil; ?></td>
+											<td><?= $recepcion->nombre; ?></td>
+											<td><?= $recepcion->estado; ?></td>
+											<td><?= $recepcion->jubilado; ?></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			<?php endforeach; ?>
+		</div>
+	</section>
+</div>

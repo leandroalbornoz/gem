@@ -1,0 +1,162 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_division_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_division';
+		$this->msg_name = 'División de alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'division_id', 'curso_id', 'legajo', 'fecha_desde', 'fecha_hasta', 'causa_entrada_id', 'causa_salida_id', 'estado_id', 'condicion', 'ciclo_lectivo');
+		$this->fields_alumno = array(
+			'documento_tipo' => array('label' => 'Tipo', 'readonly' => TRUE),
+			'documento' => array('label' => 'Documento', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'readonly' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'readonly' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date', 'readonly' => TRUE),
+			'division' => array('label' => 'División', 'readonly' => TRUE)
+		);
+		$this->fields = array(
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id', 'required' => TRUE),
+			'legajo' => array('label' => 'Legajo', 'maxlength' => '10'),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date', 'required' => TRUE),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date'),
+			'causa_entrada' => array('label' => 'Causa de entrada', 'input_type' => 'combo', 'id_name' => 'causa_entrada_id', 'required' => TRUE),
+			'causa_salida' => array('label' => 'Causa de salida', 'input_type' => 'combo', 'id_name' => 'causa_salida_id'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado_id'),
+			'condicion' => array('label' => 'Condición', 'input_type' => 'combo', 'array' => array('Regular' => 'Regular', 'Recursante' => 'Recursante', 'Escolaridad protegida' => 'Escolaridad protegida', 'Libre' => 'Libre', 'Egreso no efectivo' => 'Egreso no efectivo'), 'id_name' => 'condicion'),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'type' => 'integer', 'maxlength' => '11', 'required' => TRUE)
+		);
+		$this->requeridos = array('alumno_id', 'division_id', 'ciclo_lectivo');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = alumno_division.alumno_id', 'left', array('alumno.persona_id as alumno')),
+			array('causa_entrada', 'causa_entrada.id = alumno_division.causa_entrada_id', 'left', array('causa_entrada.descripcion as causa_entrada')),
+			array('causa_salida', 'causa_salida.id = alumno_division.causa_salida_id', 'left', array('causa_salida.descripcion as causa_salida')),
+			array('division', 'division.id = alumno_division.division_id', 'left', array('division.division as division', 'division.escuela_id')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso', 'curso.nivel_id as nivel_id')),
+			array('estado_alumno', 'estado_alumno.id = alumno_division.estado_id', 'left', array('estado_alumno.descripcion as estado'))
+		);
+	}
+
+	//Trae los datos de la trayectoria del alumno ingresando el alumno id
+	public function get_trayectoria_alumno($id) {
+		return $this->db->select('ad.id, e.numero as numero_escuela, ad.condicion, CONCAT(e.numero, CASE WHEN e.anexo = 0 THEN \' - \' ELSE CONCAT(\'/\',e.anexo,\' - \') END, e.nombre) as nombre_escuela, c.descripcion as curso, d.division, d.calendario_id, ad.division_id, ad.legajo, ad.fecha_desde, ad.fecha_hasta, ce.descripcion as causa_entrada, cs.descripcion as causa_salida, ea.descripcion as estado, ad.ciclo_lectivo, c.grado_multiple, c_gm.descripcion as curso_grado_multiple, SUM(CASE WHEN ai.justificada<>\'NC\' THEN ai.falta ELSE 0 END) as falta')
+				->from('alumno_division ad')
+				->join('division d', 'ad.division_id=d.id', 'left')
+				->join('causa_entrada ce', 'ad.causa_entrada_id=ce.id', 'left')
+				->join('estado_alumno ea', 'ad.estado_id=ea.id', 'left')
+				->join('causa_salida cs', 'ad.causa_salida_id=cs.id', 'left')
+				->join('curso c', 'd.curso_id=c.id')
+				->join('escuela e', 'd.escuela_id=e.id')
+				->join('curso c_gm', 'ad.curso_id=c_gm.id', 'left')
+				->join('alumno_inasistencia ai', 'ai.alumno_division_id=ad.id', 'left')
+				->where('ad.alumno_id', $id)
+				->group_by('ad.id')
+				->order_by('ad.estado_id, ad.fecha_desde DESC')
+				->get()->result();
+	}
+
+	public function get_escuela_formal($escuela_id) {
+		return $this->db->select('n.formal')
+				->from('escuela es')
+				->join('nivel n', 'es.nivel_id = n.id', 'left')
+				//->where('n.formal', 'SI')
+				->where('es.id', $escuela_id)
+				->get()->row();
+	}
+
+	public function get_alumno_egreso($alumno_id) {
+		return $this->db->select('ad.id, dt.descripcion_corta as documento_tipo, p.documento, p.apellido, p.nombre, CONCAT(es.numero, CASE WHEN es.anexo = 0 THEN \' - \' ELSE CONCAT(\'/\',es.anexo,\' - \') END, es.nombre) as escuela, ad.fecha_desde, ad.fecha_hasta, CONCAT(COALESCE(c.descripcion, \'\'), \' \', COALESCE(d.division, \'\')) as division')
+				->from('alumno al')
+				->join('alumno_division ad', 'ad.alumno_id=al.id', 'left')
+				->join('division d', 'ad.division_id=d.id', 'left')
+				->join('escuela es', 'd.escuela_id=es.id', 'left')
+				->join('persona p', 'al.persona_id=p.id', 'left')
+				->join('documento_tipo dt', 'p.documento_tipo_id=dt.id', 'left')
+				->join('curso c', 'd.curso_id=c.id')
+				->where('al.id', $alumno_id)
+				->get()->row();
+	}
+
+	public function get_alumno_pase($alumno_pase_id) {
+		return $this->db->select('ap.id, dt.descripcion_corta as documento_tipo, p.documento, p.apellido, p.nombre, CONCAT(es.numero, CASE WHEN es.anexo=0 THEN \' - \' ELSE CONCAT(\'/\',es.anexo,\' - \') END, es.nombre) as escuela_origen, ap.escuela_destino_id, ap.fecha_pase, ap.alumno_id')
+				->from('alumno al')
+				->join('alumno_pase ap', 'ap.alumno_id=al.id', 'left')
+				->join('escuela es', 'ap.escuela_origen_id=es.id', 'left')
+				->join('persona p', 'al.persona_id=p.id', 'left')
+				->join('documento_tipo dt', 'p.documento_tipo_id=dt.id', 'left')
+				->where('ap.id', $alumno_pase_id)
+				->get()->row();
+	}
+
+	public function get_alumno_inasistencia($alumno_division_id) {
+		$alumno_inasistencias_db = $this->db->select("di.id, SUM(CASE WHEN ai.justificada='Si' THEN ai.falta ELSE 0 END) falta_j, SUM(CASE WHEN ai.justificada='No' THEN ai.falta ELSE 0 END) falta_i, di.dias-SUM(COALESCE(ai.falta,0)) asistencia, di.periodo, di.mes, di.fecha_cierre")
+				->from('alumno_division ad')
+				->join('division d', 'ad.division_id=d.id')
+				->join('calendario_periodo cp', 'd.calendario_id=cp.calendario_id AND cp.inicio <= COALESCE(ad.fecha_hasta, cp.inicio) AND cp.fin >= ad.fecha_desde')
+				->join('division_inasistencia di', "di.division_id = ad.division_id AND di.periodo=cp.periodo AND ad.ciclo_lectivo=di.ciclo_lectivo AND di.mes >= DATE_FORMAT(ad.fecha_desde,'%Y%m') AND `di`.`mes` <= COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'), di.mes)")
+				->join('division_inasistencia_dia did', 'did.division_inasistencia_id = di.id', 'left')
+				->join('alumno_inasistencia ai', 'did.id = ai.division_inasistencia_dia_id AND ai.alumno_division_id=ad.id', 'left')
+				->join('inasistencia_tipo it', 'it.id = ai.inasistencia_tipo_id', 'left')
+				->where('ad.id', $alumno_division_id)
+				->group_by('di.id')
+				->order_by('di.ciclo_lectivo, di.periodo, di.mes')
+				->get()->result();
+		$alumno_inasistencias = array();
+		foreach ($alumno_inasistencias_db as $alumno_inasistencia) {
+			$alumno_inasistencias[$alumno_inasistencia->periodo][$alumno_inasistencia->mes] = $alumno_inasistencia;
+		}
+		return $alumno_inasistencias;
+	}
+
+	public function get_alumno_tipo_inasistencia($alumno_division_id, $mes = '', $solo_cerrado = FALSE) {
+		$this->db->select("ai.id as id, di.periodo, di.mes, did.fecha, ai.justificada, did.contraturno as contraturno_dia, ct.contraturno, ai.falta, ai.inasistencia_tipo_id")
+			->from('alumno_division ad')
+			->join('division_inasistencia di', 'di.division_id = ad.division_id AND ad.ciclo_lectivo=di.ciclo_lectivo')
+			->join('division_inasistencia_dia did', 'did.division_inasistencia_id = di.id')
+			->join("(SELECT DISTINCT contraturno FROM division_inasistencia_dia WHERE contraturno != 'Parcial') ct", 'ct.contraturno=(CASE WHEN did.contraturno=\'No\' THEN did.contraturno ELSE ct.contraturno END)', '', false)
+			->join('alumno_inasistencia ai', 'did.id = ai.division_inasistencia_dia_id AND ai.alumno_division_id=ad.id AND ai.contraturno=ct.contraturno', 'left')
+			->join('inasistencia_tipo it', 'it.id = ai.inasistencia_tipo_id', 'left')
+			->where('di.resumen_mensual', 'No')
+			->where('ad.id', $alumno_division_id);
+
+		if (!empty($mes)) {
+			$this->db->where('di.mes', $mes);
+		}
+		if ($solo_cerrado) {
+			$this->db->where('di.fecha_cierre IS NOT NULL');
+		}
+
+
+		$this->db->group_by('did.id, ct.contraturno')
+			->order_by('di.ciclo_lectivo, di.periodo, di.mes, did.fecha, ct.contraturno');
+		return $this->db->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('alumno_division_id', $delete_id)->count_all_results('alumno_inasistencia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de inasistencia.');
+			return FALSE;
+		}
+		if ($this->db->where('alumno_division_id', $delete_id)->count_all_results('alumno_cursada') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de cursada.');
+			return FALSE;
+		}
+		if ($this->db->where('alumno_division_id', $delete_id)->count_all_results('alumno_movimiento_detalle') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno movimiento detalle.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Alumno_division_model.php */
+/* Location: ./application/models/Alumno_division_model.php */

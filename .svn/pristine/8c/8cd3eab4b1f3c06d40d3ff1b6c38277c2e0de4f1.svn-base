@@ -1,0 +1,235 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = explode(',', ROLES);
+	}
+
+	public function index() {
+		$data = array();
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['anuncios'] = $this->db->select('a.id, a.fecha, a.texto, a.titulo')
+				->from('anuncio a')
+				->join('anuncio_usuario au', "au.anuncio_id=a.id AND au.usuario_id=$this->usuario", 'left')
+				->where('au.id IS NULL')
+				->order_by('a.fecha', 'DESC')
+				->get()->result();
+		switch ($this->rol->codigo) {
+			case ROL_ADMIN:
+				$data['accesos_usuario'] = load_permisos_escritorio_usuario($this->rol);
+				$data['accesos_administracion'] = load_permisos_escritorio_administracion($this->rol);
+				$this->load_template('escritorio/escritorio_administracion', $data);
+				break;
+			case ROL_USI:
+				$data['accesos_usuario'] = load_permisos_escritorio_usuario($this->rol);
+				$this->load_template('escritorio/escritorio_usi', $data);
+				break;
+			case ROL_JEFE_LIQUIDACION:
+			case ROL_LIQUIDACION:
+				$data['accesos'] = load_permisos_escritorio_usuario($this->rol);
+				$this->load_template('escritorio/escritorio_liquidacion', $data);
+				break;
+			case ROL_ESCUELA_ALUM:
+			case ROL_ESCUELA_CAR:
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$this->load->model('escuela_model');
+				$escuela = $this->escuela_model->get_one($this->rol->entidad_id);
+				$this->load->model('caracteristica_escuela_model');
+				$fields_tipos = $this->caracteristica_escuela_model->get_fields($escuela->nivel_id, $escuela->id, TRUE);
+				foreach ($fields_tipos as $tipo => $fields) {
+					$data['fields_tipos'][$tipo] = $this->build_fields($fields);
+				}
+				$data['escuela'] = $escuela;
+				$data['administrar'] = TRUE;
+				if ($escuela->nivel_id === '2' && $escuela->dependencia_id === '1'/* && ENVIRONMENT !== 'production' */) {
+					$this->load->model('preinscripciones/preinscripcion_calendario_model');
+					$data['preinscripcion_instancias'] = $this->preinscripcion_calendario_model->get_instancias(FALSE);
+					$this->load->model('preinscripciones/preinscripcion_model');
+					$preinscripcion = $this->preinscripcion_model->get_by_escuela($escuela->id, 2018);
+					$data['preinscripcion'] = $preinscripcion;
+				}
+				if ($escuela->anexo === '0') {
+					$data['anexos'] = $this->escuela_model->get_anexos($escuela->id);
+				}
+				$this->load->model('escuela_carrera_model');
+				$data['carreras'] = $this->escuela_carrera_model->get_by_escuela($escuela->id);
+				$this->load->model('cargo_model');
+				$data['cargos'] = $this->cargo_model->get_by_escuela($escuela->id);
+				$this->load->model('division_model');
+				$data['divisiones'] = $this->division_model->get_by_escuela($escuela->id);
+				$data['indices'] = $this->escuela_model->get_indices($escuela->id);
+				$this->load->model('usuarios_model');
+				$data['usuarios'] = $this->usuarios_model->usuarios_escuela($this->rol->entidad_id);
+//				$data['css'][] = 'plugins/c3/c3.min.css';
+//				$data['js'][] = 'plugins/d3/d3.min.js';
+//				$data['js'][] = 'plugins/c3/c3.min.js';
+				$this->load_template('escritorio/escritorio_escuela', $data);
+				break;
+			case ROL_LINEA:
+			case ROL_CONSULTA_LINEA:
+				$this->load->model('linea_model');
+				$linea = $this->linea_model->get_one($this->rol->entidad_id);
+				$data['linea'] = $linea;
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get(array('linea_id' => $linea->id));
+				$this->load->model('supervision_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				if (!empty($niveles)) {
+					foreach ($niveles as $nivel) {
+						$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+						$nivel->supervisiones = $this->supervision_model->get_by_nivel($nivel->id, 1);
+						$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 1);
+						$nivel->indices = $this->nivel_model->get_indices($nivel->id);
+						if ($nivel->id === '2'/* && ENVIRONMENT !== 'production' */) {
+							$this->load->model('preinscripciones/preinscripcion_model');
+							$escuelas_p = $this->preinscripcion_model->get_by_nivel('2');
+							$data['escuelas_p'] = $escuelas_p;
+							$this->load->model('preinscripciones/preinscripcion_calendario_model');
+							$data['preinscripcion_instancias'] = $this->instancias = $this->preinscripcion_calendario_model->get_instancias(FALSE);
+						}
+					}
+				}
+				if ($linea->id === '13') {
+					$data['alumnos_hosp_dom'] = TRUE;
+					$this->load->model('cargo_model');
+					$this->load->model('alumno_derivacion_model');
+					$data['cant_escuelas_d_h'] = $this->cargo_model->get_cant_escuelas_d_h();
+					$data['cant_cargos_d_h'] = $this->cargo_model->get_cant_cargos_d_h();
+					$data['cant_alumnos'] = $this->alumno_derivacion_model->get_cant_alumnos();
+					$data['cant_alumnos_baja'] = $this->alumno_derivacion_model->get_cant_alumnos_baja();
+					$data['cant_alumnos_alta'] = $this->alumno_derivacion_model->get_cant_alumnos_alta();
+				}
+				$data['niveles'] = $niveles;
+				$data['message'] = $this->session->flashdata('message');
+				$data['error'] = $this->session->flashdata('error');
+				$this->load_template('escritorio/escritorio_linea', $data);
+				break;
+			case ROL_PRIVADA:
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('supervision_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->supervisiones = $this->supervision_model->get_by_nivel($nivel->id, 2);
+					if (!empty($nivel->supervisiones)) {
+						$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+						$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 2);
+						$nivel->indices = $this->nivel_model->get_indices($nivel->id, 2);
+					}
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_privada', $data);
+				break;
+			case ROL_SEOS:
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('escuela_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id, 3);
+					if (!empty($nivel->escuelas)) {
+						$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+						$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 3);
+						$nivel->indices = $this->nivel_model->get_indices($nivel->id, 3);
+					}
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_seos', $data);
+				break;
+			case ROL_SUPERVISION:
+				$this->load->model('supervision_model');
+				$supervision = $this->supervision_model->get_one($this->rol->entidad_id);
+				$data['supervision'] = $supervision;
+				$this->load->model('nivel_model');
+				$nivel = $this->nivel_model->get(array('id' => $supervision->nivel_id));
+				$this->load->model('escuela_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				$this->load->model('elecciones/eleccion_desinfeccion_model');
+				$this->load->model('elecciones/eleccion_desinfeccion_persona_model');
+				$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+				$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id, 1, $supervision->id);
+				$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 1, $supervision->id);
+				$nivel->indices = $this->nivel_model->get_indices($nivel->id, 1, $supervision->id);
+				if ($supervision->nivel_id === '2' && $supervision->dependencia_id === '1'/* && ENVIRONMENT !== 'production' */) {
+					$this->load->model('preinscripciones/preinscripcion_model');
+					$escuelas_p = $this->preinscripcion_model->get_by_supervision($supervision->id);
+					$data['escuelas_p'] = $escuelas_p;
+					$this->load->model('preinscripciones/preinscripcion_calendario_model');
+					$data['preinscripcion_instancias'] = $this->instancias = $this->preinscripcion_calendario_model->get_instancias(FALSE);
+				}
+				$data['escuelas_desinfeccion'] = $this->eleccion_desinfeccion_model->get_by_supervision($supervision->id);
+				$data['niveles'] = array($nivel);
+				$this->load_template('escritorio/escritorio_supervision', $data);
+				break;
+			case ROL_CONSULTA:
+				redirect('escuela/listar');
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('escuela_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id);
+					$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id);
+					$nivel->indices = $this->nivel_model->get_indices($nivel->id);
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_consulta', $data);
+				break;
+			case ROL_AREA:
+				$this->load->model('areas/area_model');
+				$area = $this->area_model->get_one($this->rol->entidad_id);
+				$this->load->model('cargo_model');
+				$cargos = $this->cargo_model->get(array('area_id' => $this->rol->entidad_id));
+				$data['area'] = $area;
+				$data['cargos'] = $cargos;
+
+				$tableData = array(
+					'columns' => array(
+						array('label' => 'Código', 'data' => 'codigo', 'width' => 10),
+						array('label' => 'Descripción', 'data' => 'descripcion', 'width' => 20),
+						array('label' => 'Juri/Repa', 'data' => 'jurirepa', 'width' => 10),
+						array('label' => 'Repartición', 'data' => 'reparticion', 'width' => 30),
+						array('label' => 'Área Padre', 'data' => 'area_padre', 'width' => 20),
+						array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+					),
+					'table_id' => 'area_table',
+					'source_url' => "areas/area/listar_data/{$this->rol->codigo}/{$this->rol->entidad_id}"
+				);
+				$data['html_table'] = buildHTML($tableData);
+				$data['js_table'] = buildJS($tableData);
+
+				$this->load_template('escritorio/escritorio_area', $data);
+				break;
+			case ROL_REGIONAL:
+				$this->load->model('regional_model');
+				$regional = $this->regional_model->get_one($this->rol->entidad_id);
+				$data['regional'] = $regional;
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get_by_regional($regional->id);
+				$this->load->model('escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id, 1, 0, $regional->id);
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_regional', $data);
+				break;
+			default:
+				break;
+		}
+	}
+}
+/* End of file Escritorio.php */
+/* Location: ./application/controllers/Escritorio.php */

@@ -1,0 +1,223 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+	}
+
+	public function index() {
+		$data = array();
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['anuncios'] = $this->db->select('a.id, a.fecha, a.texto, a.titulo')
+				->from('anuncio a')
+				->join('anuncio_usuario au', "au.anuncio_id=a.id AND au.usuario_id=$this->usuario", 'left')
+				->where('au.id IS NULL')
+				->order_by('a.fecha', 'DESC')
+				->get()->result();
+		switch ($this->rol->codigo) {
+			case ROL_ADMIN:
+				$data['accesos_usuario'] = load_permisos_escritorio_usuario($this->rol);
+				$data['accesos_administracion'] = load_permisos_escritorio_administracion($this->rol);
+				$this->load_template('escritorio/escritorio_administracion', $data);
+				break;
+			case ROL_USI:
+				$data['accesos_usuario'] = load_permisos_escritorio_usuario($this->rol);
+				$this->load_template('escritorio/escritorio_usi', $data);
+				break;
+			case ROL_JEFE_LIQUIDACION:
+			case ROL_LIQUIDACION:
+				redirect('liquidaciones/escritorio');
+				break;
+			case ROL_ESCUELA_ALUM:
+			case ROL_ESCUELA_CAR:
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$this->session->keep_flashdata('error');
+				redirect("escuela/escritorio/{$this->rol->entidad_id}");
+				break;
+			case ROL_ASISTENCIA_DIVISION:
+			case ROL_DOCENTE:
+				redirect("division/escritorio/{$this->rol->entidad_id}");
+				break;
+			case ROL_DOCENTE_CURSADA:
+				redirect("cursada/escritorio/{$this->rol->entidad_id}");
+				break;
+			case ROL_GRUPO_ESCUELA:
+			case ROL_GRUPO_ESCUELA_CONSULTA:
+				$this->load->model('escuela_grupo_model');
+				$escuela_grupo = $this->escuela_grupo_model->get_one($this->rol->entidad_id);
+				$data['escuela_grupo'] = $escuela_grupo;
+				$this->load->model('escuela_grupo_escuela_model');
+				$escuela_grupo_escuela = $this->escuela_grupo_escuela_model->get(array('escuela_grupo_id' => $escuela_grupo->id));
+				$this->load->model('carrera_model');
+				$data['carreras'] = $this->carrera_model->get_by_escuela_grupo($escuela_grupo->id);
+				$data['escuela_grupo_escuela'] = $escuela_grupo_escuela;
+				$data['escuelas'] = $this->escuela_grupo_escuela_model->get_escuelas($escuela_grupo->id);
+				$data['message'] = $this->session->flashdata('message');
+				$data['error'] = $this->session->flashdata('error');
+				$this->load_template('escritorio/escritorio_grupo_escuela', $data);
+				break;
+			case ROL_LINEA:
+			case ROL_CONSULTA_LINEA:
+				$this->session->keep_flashdata('error');
+				redirect("linea/escritorio/{$this->rol->entidad_id}");
+				break;
+			case ROL_PRIVADA:
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('supervision_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->supervisiones = $this->supervision_model->get_by_nivel($nivel->id, 2);
+					if (!empty($nivel->supervisiones)) {
+						$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+						$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 2);
+						$nivel->indices = $this->nivel_model->get_indices($nivel->id, 2);
+					}
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_privada', $data);
+				break;
+			case ROL_SEOS:
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('escuela_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id, 3);
+					if (!empty($nivel->escuelas)) {
+						$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+						$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id, 3);
+						$nivel->indices = $this->nivel_model->get_indices($nivel->id, 3);
+					}
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_seos', $data);
+				break;
+			case ROL_SUPERVISION:
+				redirect("supervision/escritorio/{$this->rol->entidad_id}");
+				break;
+			case ROL_CONSULTA:
+				redirect('escuela/listar');
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get();
+				$this->load->model('escuela_model');
+				$this->load->model('carrera_model');
+				$this->load->model('caracteristica_escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->caracteristicas = $this->caracteristica_escuela_model->get_by_nivel($nivel->id);
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id);
+					$nivel->carreras = $this->carrera_model->get_by_nivel($nivel->id);
+					$nivel->indices = $this->nivel_model->get_indices($nivel->id);
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_consulta', $data);
+				break;
+			case ROL_AREA:
+				$this->load->model('areas/area_model');
+				$area = $this->area_model->get_one($this->rol->entidad_id);
+				$this->load->model('cargo_model');
+				$cargos = $this->cargo_model->get(array('area_id' => $this->rol->entidad_id, 'join' => array(
+						array('regimen', 'regimen.id = cargo.regimen_id AND regimen.planilla_modalidad_id=1', '')
+				)));
+				$data['area'] = $area;
+				$data['cargos'] = $cargos;
+
+				$tableData = array(
+					'columns' => array(
+						array('label' => 'Código', 'data' => 'codigo', 'width' => 10),
+						array('label' => 'Descripción', 'data' => 'descripcion', 'width' => 20),
+						array('label' => 'Juri/Repa', 'data' => 'jurirepa', 'width' => 10),
+						array('label' => 'Repartición', 'data' => 'reparticion', 'width' => 30),
+						array('label' => 'Área Padre', 'data' => 'area_padre', 'width' => 20),
+						array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+					),
+					'table_id' => 'area_table',
+					'source_url' => "areas/area/listar_data/{$this->rol->codigo}/{$this->rol->entidad_id}"
+				);
+				$data['html_table'] = buildHTML($tableData);
+				$data['js_table'] = buildJS($tableData);
+
+				$this->load_template('escritorio/escritorio_area', $data);
+				break;
+			case ROL_REGIONAL:
+				$this->load->model('regional_model');
+				$regional = $this->regional_model->get_one($this->rol->entidad_id);
+				$data['regional'] = $regional;
+				$this->load->model('nivel_model');
+				$niveles = $this->nivel_model->get_by_regional($regional->id);
+				$this->load->model('escuela_model');
+				foreach ($niveles as $nivel) {
+					$nivel->escuelas = $this->escuela_model->get_by_nivel($nivel->id, 1, 0, $regional->id);
+				}
+				$data['niveles'] = $niveles;
+				$this->load_template('escritorio/escritorio_regional', $data);
+				break;
+			case ROL_BONO_SECUNDARIO:
+				$DB1 = $this->load->database('bono_secundario', TRUE);
+				$this->load->model('bono_secundario/escuela_model');
+				$this->escuela_model->set_database($DB1);
+				$escuela = $this->escuela_model->get(array('gem_id' => $this->rol->entidad_id));
+				if (empty($escuela)) {
+					show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+				}
+
+				$this->load->model('bono_secundario/recepcion_model');
+				$this->recepcion_model->set_database($DB1);
+				$escuela[0]->pendientes = $this->recepcion_model->get_precepcion($escuela[0]->id);
+				$escuela[0]->recibidos = $this->recepcion_model->get_recibidos($escuela[0]->id);
+				$escuela[0]->reclamos = $this->recepcion_model->get_reclamos($escuela[0]->id);
+
+				$this->escuela_model->fields['recibidos'] = array('label' => 'Recibidos', 'readonly' => TRUE);
+				$this->escuela_model->fields['pendientes'] = array('label' => 'Pendientes', 'readonly' => TRUE);
+
+				$data['error'] = $this->session->flashdata('error');
+
+				$data['fields'] = $this->build_fields($this->escuela_model->fields, $escuela[0], TRUE);
+
+				$data['escuela'] = $escuela[0];
+				$data['txt_btn'] = NULL;
+				$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'pendientes' => '', 'recibidos' => '', 'reclamos' => '');
+				$data['title'] = 'Bono Secundario - Ver escuela';
+				$this->load_template('bono_secundario/escuela/escritorio_escuela_bono', $data);
+				break;
+			case ROL_TITULO:
+				redirect("titulos/titulo_persona/listar");
+			case ROL_MODULO:
+				switch ($this->rol->entidad_id) {
+					case ROL_MODULO_LEER_ESCRIBIR:
+						redirect("operativo_evaluar/evaluar_operativo/listar_escuelas");
+					case ROL_MODULO_ADMINISTRADOR_DE_JUNTAS:
+						redirect("juntas/escritorio/administrador");
+					case ROL_MODULO_OPERATIVO_APRENDER:
+						redirect("aprender/escritorio/buscar_escuela");
+					case ROL_MODULO_CONSULTA_TRAYECTORIA:
+						redirect("trayectoria/escritorio/buscar_alumno");
+					case ROL_MODULO_REFERENTES_TRIBUNAL_CUENTAS:
+						redirect("tribunal/escritorio/listar");
+					case ROL_MODULO_COMEDOR:
+						redirect("comedor/administrar/listar_escuelas/201803");
+					case ROL_MODULO_TRANSPORTE:
+						redirect("abono/abono_escuela_monto/listar");
+				}
+				break;
+			case ROL_JUNTAS:
+				redirect("juntas/escritorio/listar_personas");
+			case ROL_PORTAL:
+				$this->session->userdata('usuario')->cuil;
+				redirect("portal/escritorio/");
+			default:
+				break;
+		}
+	}
+}
+/* End of file Escritorio.php */
+/* Location: ./application/controllers/Escritorio.php */

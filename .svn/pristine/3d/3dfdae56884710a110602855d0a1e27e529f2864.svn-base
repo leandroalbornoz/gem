@@ -1,0 +1,153 @@
+<style>
+	.info-box-icon {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 5px;
+    display: block;
+    float: left;
+    height: 55px;
+    width: 70px;
+    text-align: center;
+    font-size: 45px;
+    line-height: 52px;
+		color: white;
+    background: rgb(60, 141, 188);
+	}
+	.info-box-icon i{
+		font-size: 80%;
+	}
+	.info-box {
+    display: block;
+		min-height: 0px; 
+    background: #fff;
+    width: 240px;
+    height: 55px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    border-radius: 6px;
+    margin-bottom: 15px;
+	}
+
+</style>
+<div class="content-wrapper" style="min-height: 700px;" >
+	<section class="content-header">
+		<h1 class="box-title">Escuela Comedor  
+			<label class="label label-default"><?php echo $mes_nombre; ?></label> 
+			<a class="btn btn-sm btn-primary" data-toggle="modal" data-target="#datepicker_modal"> 
+				<i class="fa fa-refresh"> </i> Cambiar</a> </h1>
+
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li class="active">Listar escuelas</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<?php if ($this->edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['administrar']; ?>" href="comedor/administrar/listar_escuelas/<?php echo $mes; ?>">
+								<i class="fa fa-building"></i> Escuelas
+							</a>
+
+							<a class="btn bg-blue btn-app btn-app-zetta" href="comedor/administrar/modal_importar_escuela/<?php echo $mes ?> "data-remote="false" data-toggle="modal" data-target="#remote_modal" ><i class="fa fa-sign-in" id="btn-agregar"></i> Importar Esc.
+							</a>
+							<a class="btn bg-blue btn-app btn-app-zetta" href="comedor/administrar/modal_agregar_escuela/<?php echo $mes ?> "data-remote="false" data-toggle="modal" data-target="#remote_modal" ><i class="fa fa-plus" id="btn-agregar"></i> Agregar Esc.
+							</a>
+							<a class="btn btn-app bg-default btn-app-zetta" href="comedor/administrar/reporte_excel_comedor/<?php echo $mes ?>">
+								<i class="fa fa-file-excel-o text-green" id="btn-reporte"></i> Reporte
+							</a>
+							<?php if (!empty($comedor_racion['1']->monto) || !empty($comedor_racion['1']->monto)): ?>
+								<a class="btn bg-yellow btn-app btn-app-zetta pull-right" href="comedor/administrar/modal_editar_racion/<?php echo $mes ?>"data-remote="false" data-toggle="modal" data-target="#remote_modal" ><i class="fa fa-edit" id="btn-agregar"></i> Editar racion
+								</a>
+							<?php endif; ?>
+							<?php if ($fecha_cierre != 'No cargada'): ?>
+								<a class="btn bg-yellow btn-app btn-app-zetta pull-right" href="comedor/administrar/modal_editar_fecha_cierre/<?php echo $mes ?>"data-remote="false" data-toggle="modal" data-target="#remote_modal" ><i class="fa fa-edit" id="btn-agregar"></i> Editar Fecha 
+								</a>
+							<?php endif; ?>
+							<?php if (!empty($comedor_racion['1']->monto) || !empty($comedor_racion['1']->monto)): ?>
+								<div class="info-box" style="float: right;">
+									<span class="info-box-icon"><i class="fa fa-coffee"></i></span>
+									<div class="info-box-content" style="margin-left: 65px; padding: 2px 10px;">
+										<span class="info-box-text" style="font-size: 12px"> <b>Fecha de Cierre</b>: <?php echo $fecha_cierre; ?></span>
+										<span class="info-box-text" style="font-size: 12px"> <b>Racion Completa</b>: $<?= $comedor_racion['1']->monto ?> </span>				
+										<span class="info-box-text" style="font-size: 12px"> <b>Media Racion</b>: $<?= $comedor_racion['2']->monto ?> </span>				
+									</div>
+								</div>
+							<?php endif; ?>
+
+							<hr style="margin: 10px 0;">
+						<?php endif; ?>
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+		<div class="modal-dialog modal-sm">
+			<div class="modal-content">
+				<?php echo form_open("comedor/administrar/cambiar_mes_lista/$mes"); ?>
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+					<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+				</div>
+				<div style="display:none;" id="div_servicio_baja"></div>
+				<div class="modal-body">
+					<div class="row">
+						<div class="form-group col-md-12" style="text-align:center;">
+							<div id="datepicker" data-date="<?php echo $fecha; ?>"></div>
+							<input type="hidden" name="mes" id="mes" />
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+					<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+				</div>
+				<?php echo form_close(); ?>
+			</div>
+		</div>
+	</div>
+
+
+</div>
+<script type="text/javascript">
+	var escuela_table;
+	function complete_escuela_table() {
+		agregar_filtros('escuela_table', escuela_table, 6);
+	}
+</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false,
+			startDate: '01/03/2018',
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

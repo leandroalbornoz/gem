@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project id="8fde3c40-7d43-42db-9578-6ea424d4accc" activeEnvironment="Default" name="SIGNOS" resourceRoot="" soapui-version="5.3.0" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:interface xsi:type="con:WsdlInterface" id="b770bc0f-dff9-4fe5-b9e3-5e087b134ede" wsaVersion="NONE" name="WSLMConsultaLegajoEPSoapBinding" type="wsdl" bindingName="{GENRH_Mza}WSLMConsultaLegajoEPSoapBinding" soapVersion="1_1" anonymous="optional" definition="file:/d:/Users/scardello/Downloads/wslmconsultalegajoep_test.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:settings/><con:definitionCache type="TEXT" rootPart="file:/d:/Users/scardello/Downloads/wslmconsultalegajoep_test.xml"><con:part><con:url>file:/d:/Users/scardello/Downloads/wslmconsultalegajoep_test.xml</con:url><con:content><![CDATA[<definitions name="WSLMConsultaLegajoEP" targetNamespace="GENRH_Mza" xmlns:wsdlns="GENRH_Mza" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:tns2="Genexus" xmlns:tns="GENRH_Mza" xmlns:tns1="ACPServices">
+  <types>
+    <schema targetNamespace="Genexus" elementFormDefault="qualified" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+      <import namespace="GENRH_Mza"/>
+      <import namespace="ACPServices"/>
+      <complexType name="Messages">
+        <sequence>
+          <element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message"></element>
+        </sequence>
+      </complexType>
+      <complexType name="Messages.Message">
+        <sequence>
+          <element name="Id" type="xsd:string"></element>
+          <element name="Type" type="xsd:byte"></element>
+          <element name="Description" type="xsd:string"></element>
+        </sequence>
+      </complexType>
+    </schema>
+    <schema targetNamespace="GENRH_Mza" elementFormDefault="qualified" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+      <import namespace="Genexus"/>
+      <import namespace="ACPServices"/>
+      <complexType name="WSLMConsultaLegajoParmIn">
+        <sequence>
+          <element name="ApiKey" type="xsd:string"></element>
+          <element name="Legajos" type="tns:ArrayOfWSLMLegajo"></element>
+        </sequence>
+      </complexType>
+      <complexType name="ArrayOfWSLMLegajo">
+        <sequence>
+          <element minOccurs="0" maxOccurs="unbounded" name="WSLMLegajo" type="tns:WSLMLegajo"></element>
+        </sequence>
+      </complexType>
+      <complexType name="WSLMLegajo">
+        <sequence>
+          <element name="PersonaCUIL" type="xsd:long"></element>
+          <element name="PersonaApeYNom" type="xsd:string"></element>
+          <element name="LegajoId" type="xsd:long"></element>
+          <element name="LegajoExterno" type="xsd:long"></element>
+        </sequence>
+      </complexType>
+      <complexType name="WSLMConsultaLegajoParmOut">
+        <sequence>
+          <element name="Resultados">
+            <complexType>
+              <sequence>
+                <element minOccurs="0" maxOccurs="unbounded" name="Item" type="tns:WSLMConsultaLegajoParmOut.Item"></element>
+              </sequence>
+            </complexType>
+          </element>
+        </sequence>
+      </complexType>
+      <complexType name="ArrayOfWSLMConsultaLegajoParmOut.Item">
+        <sequence>
+          <element minOccurs="0" maxOccurs="unbounded" name="WSLMConsultaLegajoParmOut.Item" type="tns:WSLMConsultaLegajoParmOut.Item"></element>
+        </sequence>
+      </complexType>
+      <complexType name="WSLMConsultaLegajoParmOut.Item">
+        <sequence>
+          <element name="Legajos" type="tns:ArrayOfWSLMLegajo"></element>
+          <element name="Mensajes" type="tns1:Messages"></element>
+        </sequence>
+      </complexType>
+      <complexType name="Messages">
+        <sequence>
+          <element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message"></element>
+        </sequence>
+      </complexType>
+      <complexType name="Status">
+        <sequence>
+          <element name="Flag" type="xsd:string"></element>
+          <element name="Messages" type="tns1:Messages"></element>
+        </sequence>
+      </complexType>
+      <element name="WSLMConsultaLegajoEP.Execute">
+        <complexType>
+          <sequence>
+            <element minOccurs="1" maxOccurs="1" name="Parmin" type="tns:WSLMConsultaLegajoParmIn"/>
+          </sequence>
+        </complexType>
+      </element>
+      <element name="WSLMConsultaLegajoEP.ExecuteResponse">
+        <complexType>
+          <sequence>
+            <element minOccurs="1" maxOccurs="1" name="Parmout" type="tns:WSLMConsultaLegajoParmOut"/>
+            <element minOccurs="1" maxOccurs="1" name="Status" type="tns:Status"/>
+          </sequence>
+        </complexType>
+      </element>
+    </schema>
+    <schema targetNamespace="ACPServices" elementFormDefault="qualified" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+      <import namespace="Genexus"/>
+      <import namespace="GENRH_Mza"/>
+      <complexType name="Messages">
+        <sequence>
+          <element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message"></element>
+        </sequence>
+      </complexType>
+    </schema>
+  </types>
+  <message name="WSLMConsultaLegajoEP.ExecuteSoapIn">
+    <part name="parameters" element="tns:WSLMConsultaLegajoEP.Execute"/>
+  </message>
+  <message name="WSLMConsultaLegajoEP.ExecuteSoapOut">
+    <part name="parameters" element="tns:WSLMConsultaLegajoEP.ExecuteResponse"/>
+  </message>
+  <portType name="WSLMConsultaLegajoEPSoapPort">
+    <operation name="Execute">
+      <input message="wsdlns:WSLMConsultaLegajoEP.ExecuteSoapIn"/>
+      <output message="wsdlns:WSLMConsultaLegajoEP.ExecuteSoapOut"/>
+    </operation>
+  </portType>
+  <binding name="WSLMConsultaLegajoEPSoapBinding" type="wsdlns:WSLMConsultaLegajoEPSoapPort">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="Execute">
+      <soap:operation soapAction="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+  <service name="WSLMConsultaLegajoEP">
+    <port name="WSLMConsultaLegajoEPSoapPort" binding="wsdlns:WSLMConsultaLegajoEPSoapBinding">
+      <soap:address location="https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep"/>
+    </port>
+  </service>
+</definitions>]]></con:content><con:type>http://schemas.xmlsoap.org/wsdl/</con:type></con:part></con:definitionCache><con:endpoints><con:endpoint>https://signos.mendoza.gov.ar/LiqMza/servlet/wslmconsultalegajoep</con:endpoint><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint></con:endpoints><con:operation id="15096c2d-fad0-472b-b860-6f7b6badf40f" isOneWay="false" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute" name="Execute" bindingOperationName="Execute" type="Request-Response" inputName="" receivesAttachments="false" sendsAttachments="false" anonymous="optional"><con:settings/><con:call id="6a9e265a-e4d8-4a9f-b626-e7a36d8cdd3b" name="TEST UNICO - Exitoso"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="abff5359-aa75-4235-bdc8-51ef9cc07e5b" name="TEST MULTIPLE - Parcial (1 no encontrado)"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+               <gen:WSLMLegajo>
+                  <gen:PersonaCUIL></gen:PersonaCUIL>
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>
+                  <gen:LegajoId></gen:LegajoId>
+                  <gen:LegajoExterno>2702507917001</gen:LegajoExterno>
+               </gen:WSLMLegajo>
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="025f1e61-149c-48af-b201-216ad30e4f96" name="TEST UNICO - Fallido"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2704414152003</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="d7e8dcdb-5fa2-449c-95bc-0ecb3a6652ed" name="TEST MULTIPLE - Exitoso"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+               <gen:WSLMLegajo>
+                  <gen:PersonaCUIL></gen:PersonaCUIL>
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>
+                  <gen:LegajoId></gen:LegajoId>
+                  <gen:LegajoExterno>2704460988048</gen:LegajoExterno>
+               </gen:WSLMLegajo>
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="61d0d15f-76c4-4349-882a-153a641b9e24" name="Request Explicado (GENERICO)"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signos.mendoza.gov.ar/LiqMza/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+	       <!--Api Key. Indicar el de test o el de producción-->
+            <gen:ApiKey>?</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <!--
+               Se pueden realizar más de una búsqueda por petición, por esto es una
+               colección. Se puede realizar búsquedas por cualquiera de los 4 parámetros
+               de entrada. Entiendo que van a usar el de LegajoExterno (idem legajo migrado).               
+               La estructura de retono es idéntica con los datos completados.             
+               -->\r
+               <gen:WSLMLegajo>\r
+                  <!-- Cuil. Filtro por igual -->
+                  <gen:PersonaCUIL>?</gen:PersonaCUIL>\r
+                  <!-- Apellido y nombre. Filtro por "like" de subcadena -->
+                  <gen:PersonaApeYNom>?</gen:PersonaApeYNom>\r
+                  <!-- Legajo Signos. Filtro por igual -->
+                  <gen:LegajoId>?</gen:LegajoId>\r
+                  <!-- Legajo Externo. Filtro por igual -->
+                  <gen:LegajoExterno>?</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="e8e044f0-1a56-4ccc-ad2a-49cc65168d1a" name="Response Explicado para TEST MULTIPLE - Exitoso (con otros filtros)"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signos.mendoza.gov.ar/LiqMza/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <SOAP-ENV:Body>
+      <WSLMConsultaLegajoEP.ExecuteResponse xmlns="GENRH_Mza">
+         <Parmout>
+            <Resultados>
+            	<!-- 
+            	La colección resultados posee las respuestas para cada una de las búsquedas 
+            	Cada Item es un resultado de cada búsqueda realizada
+            	-->
+               <Item>
+               	<!-- 
+               	Un item contiene una colección de legajos que satisface la búsqueda realizada
+               	-->             	
+                  <Legajos>
+                     <!-- Para la primer búsqueda se realizó por legajo externo y se obtuvo un solo resultado -->
+                     <Legajo>
+                        <PersonaCUIL>27017401861</PersonaCUIL>
+                        <PersonaApeYNom>HEREDIA MARIA  ELSA</PersonaApeYNom>
+                        <LegajoId>1740186001</LegajoId>
+                        <LegajoExterno>2701740186042</LegajoExterno>
+                     </Legajo>
+                  </Legajos>
+               </Item>
+               <Item>
+                  <Legajos>
+                     <!-- Para la segunda búsqueda se realizó por el apellido PAROLA y se retornaron múltiples legajos para esa búsqueda -->
+                     <Legajo>
+                        <PersonaCUIL>27144052442</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA MARTHA</PersonaApeYNom>
+                        <LegajoId>14405244001</LegajoId>
+                        <LegajoExterno>2714405244001</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27147366367</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA SILVANA</PersonaApeYNom>
+                        <LegajoId>14736636001</LegajoId>
+                        <LegajoExterno>2714736636041</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066001</LegajoId>
+                        <LegajoExterno>2018116066041</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066002</LegajoId>
+                        <LegajoExterno>2018116066042</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066003</LegajoId>
+                        <LegajoExterno>2018116066044</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066004</LegajoId>
+                        <LegajoExterno>2018116066045</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066005</LegajoId>
+                        <LegajoExterno>2018116066054</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066006</LegajoId>
+                        <LegajoExterno>2018116066055</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066007</LegajoId>
+                        <LegajoExterno>2018116066056</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066008</LegajoId>
+                        <LegajoExterno>2018116066059</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066009</LegajoId>
+                        <LegajoExterno>2018116066003</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066010</LegajoId>
+                        <LegajoExterno>2018116066060</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20181160668</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA ALBERTO F</PersonaApeYNom>
+                        <LegajoId>18116066011</LegajoId>
+                        <LegajoExterno>2018116066005</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27186161497</PersonaCUIL>
+                        <PersonaApeYNom>BOMPAROLA MARCELA A</PersonaApeYNom>
+                        <LegajoId>18616149001</LegajoId>
+                        <LegajoExterno>2718616149041</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27219114600</PersonaCUIL>
+                        <PersonaApeYNom>BOMPAROLA ANDREA C</PersonaApeYNom>
+                        <LegajoId>21911460001</LegajoId>
+                        <LegajoExterno>2721911460041</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27241922737</PersonaCUIL>
+                        <PersonaApeYNom>BOMPAROLA LAURA N</PersonaApeYNom>
+                        <LegajoId>24192273001</LegajoId>
+                        <LegajoExterno>2724192273041</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27241922737</PersonaCUIL>
+                        <PersonaApeYNom>BOMPAROLA LAURA N</PersonaApeYNom>
+                        <LegajoId>24192273002</LegajoId>
+                        <LegajoExterno>2724192273012</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>20249287211</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA PABLO NORBERTO</PersonaApeYNom>
+                        <LegajoId>24928721001</LegajoId>
+                        <LegajoExterno>2024928721042</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27251585631</PersonaCUIL>
+                        <PersonaApeYNom>BOMPAROLA NOELIA</PersonaApeYNom>
+                        <LegajoId>25158563001</LegajoId>
+                        <LegajoExterno>2725158563066</LegajoExterno>
+                     </Legajo>
+                     <Legajo>
+                        <PersonaCUIL>27341271032</PersonaCUIL>
+                        <PersonaApeYNom>PAROLA CECILIA B</PersonaApeYNom>
+                        <LegajoId>34127103001</LegajoId>
+                        <LegajoExterno>2734127103008</LegajoExterno>
+                     </Legajo>
+                  </Legajos>
+               </Item>
+               <Item>
+                <!-- Para la Tercera búsqueda no se encontró legajo alguno. se devuelve legajo en blanco y una colección de mensajes-->
+                  <Legajos></Legajos>
+                  <Mensajes>
+                     <Messages.Message xmlns="Genexus">
+                     	<!-- Id del mensaje. Un código que identifica unívocamente a un mensaje del servicio -->
+                        <Id>RecordNotFound</Id>
+                        <!--Tipo de mensaje. 0 = Warning / 1= Error -->
+                        <Type>1</Type>
+                        <!-- Descripción del mensaje -->
+                        <Description>No se encontró información con los filtros dados</Description>
+                     </Messages.Message>
+                  </Mensajes>
+               </Item>
+            </Resultados>
+         </Parmout>
+         <Status>
+         	  <!-- Estado global de la petición.
+         	  	- Flag: Resultado global de la operación:
+         	  		S = Todo correcto. Todas las búsquedas fueron correctas
+         	  		W = Se realizó una búsqueda múltiple y alguna tuvo inconvenientes
+         	  		N = Error. La búsqueda falló o hubo otro inconveniente
+         	  	- Messages: Se retorna una colección de "Messages.Message" con los errores
+         	  	 generales. Ver "TEST UNICO - API Key Erronea" para más info.
+         	  -->
+            <Flag xmlns="ACPServices">W</Flag>
+         </Status>
+      </WSLMConsultaLegajoEP.ExecuteResponse>
+   </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="7dc0ba1a-27fc-40ed-9c16-8581a416f7e6" name="TEST MULTIPLE - Exitoso (con otros filtros)"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+               <gen:WSLMLegajo>
+                  <gen:PersonaCUIL></gen:PersonaCUIL>
+                  <gen:PersonaApeYNom>PAROLA</gen:PersonaApeYNom>
+                  <gen:LegajoId></gen:LegajoId>
+                  <gen:LegajoExterno></gen:LegajoExterno>
+               </gen:WSLMLegajo>
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="19dd23f4-9e41-48d9-a46f-96585f88dd4b" name="TEST MULTIPLE - Parcial (múltiples filtros y no encontrados)"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a203c0f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+               <gen:WSLMLegajo>
+                  <gen:PersonaCUIL></gen:PersonaCUIL>
+                  <gen:PersonaApeYNom>PAROLA</gen:PersonaApeYNom>
+                  <gen:LegajoId></gen:LegajoId>
+                  <gen:LegajoExterno></gen:LegajoExterno>
+               </gen:WSLMLegajo>
+               <gen:WSLMLegajo>
+                  <gen:PersonaCUIL></gen:PersonaCUIL>
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>
+                  <gen:LegajoId></gen:LegajoId>
+                  <gen:LegajoExterno>2702507917001</gen:LegajoExterno>
+               </gen:WSLMLegajo>                   
+            </gen:Legajos>\r    
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call><con:call id="87ef8d9f-7b50-455d-a7bc-cf6e764c743a" name="TEST UNICO - API Key Erronea"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:encoding>UTF-8</con:encoding><con:endpoint>https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep</con:endpoint><con:request><![CDATA[<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:gen="GENRH_Mza">\r
+   <soapenv:Header/>\r
+   <soapenv:Body>\r
+      <gen:WSLMConsultaLegajoEP.Execute>\r
+         <gen:Parmin>\r
+            <gen:ApiKey>ba8abb35-4b25-4942-a296-21151a2540f</gen:ApiKey>\r
+            <gen:Legajos>\r
+               <gen:WSLMLegajo>\r
+                  <gen:PersonaCUIL></gen:PersonaCUIL>\r
+                  <gen:PersonaApeYNom></gen:PersonaApeYNom>\r
+                  <gen:LegajoId></gen:LegajoId>\r
+                  <gen:LegajoExterno>2701740186042</gen:LegajoExterno>\r
+               </gen:WSLMLegajo>\r
+            </gen:Legajos>\r
+         </gen:Parmin>\r
+      </gen:WSLMConsultaLegajoEP.Execute>\r
+   </soapenv:Body>\r
+</soapenv:Envelope>]]></con:request><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:wsaConfig mustUnderstand="NONE" version="200508" action="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/><con:wsrmConfig version="1.2"/></con:call></con:operation></con:interface><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/><con:oAuth1ProfileContainer/><con:sensitiveInformation/></con:soapui-project>

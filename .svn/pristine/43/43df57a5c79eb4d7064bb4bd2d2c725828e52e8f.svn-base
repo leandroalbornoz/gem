@@ -1,0 +1,311 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cursada_nota extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('cursada_nota_model');
+		$this->load->model('cursada_model');
+		$this->load->model('alumno_cursada_model');
+		$this->load->model('evaluacion_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
+		$this->nav_route = 'alumnos/cursada_nota';
+	}
+
+	public function editar_notas($evaluacion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $evaluacion_id == NULL || !ctype_digit($evaluacion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+		}
+		$evaluacion = $this->evaluacion_model->get_one($evaluacion_id);
+		if (empty($evaluacion)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($evaluacion->cursada_id);
+		if (empty($cursada)) {
+			show_error('No se encontró el registro de la cursada', 500, 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('evaluacion_tipo_model');
+		$this->array_evaluacion_tipo_control = $array_evaluacion_tipo = $this->get_array('evaluacion_tipo', 'descripcion');
+		$alumnos_notas = $this->cursada_nota_model->get_alumnos_evaluacion($cursada->id, $evaluacion, $ciclo_lectivo);
+
+		$this->array_asistencia_control = $this->cursada_nota_model->fields['asistencia']['array'];
+		$this->form_validation->set_rules("asistencia[]", 'Asistencia', 'callback_control_combo[asistencia]');
+		$this->form_validation->set_rules('nota[]', 'Nota', 'numeric');
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if ($evaluacion_id !== $this->input->post('evaluacion_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$url = $this->input->post('url_redireccion');
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$asistencias = $this->input->post('asistencia');
+				$notas = $this->input->post('nota');
+				$cursada_nota_ids = $this->input->post('cursada_nota_ids');
+				$trans_ok = TRUE;
+				$trans_ok &= $this->evaluacion_model->update(array(
+					'id' => $evaluacion->id,
+					'evaluacion_tipo_id' => $this->input->post('evaluacion_tipo'),
+					'fecha' => $this->get_date_sql('fecha'),
+					'cursada_id' => $cursada->id,
+					'tema' => $this->input->post('tema')
+					), FALSE);
+				foreach ($notas as $key => $nota) {
+					if (!empty($nota) || $asistencias[$key] === 'Ausente') {
+						if (!empty($cursada_nota_ids[$key])) {
+							$trans_ok &= $this->cursada_nota_model->update(array(
+								'id' => $cursada_nota_ids[$key],
+								'evaluacion_id' => $evaluacion->id,
+								'alumno_cursada_id' => $key,
+								'nota' => $notas[$key],
+								'asistencia' => $asistencias[$key]
+								), FALSE);
+						} else {
+							$trans_ok &= $this->cursada_nota_model->create(array(
+								'evaluacion_id' => $evaluacion->id,
+								'alumno_cursada_id' => $key,
+								'nota' => $notas[$key],
+								'asistencia' => $asistencias[$key]
+								), FALSE);
+						}
+					} elseif (empty($nota) && $asistencias[$key] === 'Presente' && $cursada_nota_ids[$key] !== '') {
+						$trans_ok &= $this->cursada_nota_model->delete(array(
+							'id' => $cursada_nota_ids[$key]
+						));
+					}
+				}
+				if ($trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->cursada_nota_model->get_msg());
+					if ($url == FALSE) {
+						redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+					} else {
+						redirect($url, 'refresh');
+					}
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar actualizar.';
+					if ($this->cursada_nota_model->get_error()) {
+						$errors .= '<br>' . $this->cursada_nota_model->get_error();
+					}
+					if ($this->evaluacion_model->get_error()) {
+						$errors .= '<br>' . $this->evaluacion_model->get_error();
+					}
+					$this->session->set_flashdata('error', $errors);
+					if ($url == FALSE) {
+						redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+					} else {
+						redirect($url, 'refresh');
+					}
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				if ($url == FALSE) {
+					redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+				} else {
+					redirect($url, 'refresh');
+				}
+			}
+		}
+		if (!empty($_GET['redirect_url'])) {
+			$data['url_redireccion'] = urldecode($_GET['redirect_url']);
+		} else {
+			$data['url_redireccion'] = FALSE;
+		}
+		$this->evaluacion_model->fields['evaluacion_tipo']['array'] = $array_evaluacion_tipo;
+		$data['fields'] = $this->build_fields($this->evaluacion_model->fields, $evaluacion);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['escuela'] = $escuela;
+		$data['alumnos_notas'] = $alumnos_notas;
+		$data['division'] = $division;
+		$data['evaluacion'] = $evaluacion;
+		$data['cursada'] = $cursada;
+		$data['class'] = array('ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar evaluación';
+		$this->load_template('cursada_nota/cursada_nota_editar_notas', $data);
+	}
+
+	public function ver_notas($evaluacion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $evaluacion_id == NULL || !ctype_digit($evaluacion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+		}
+		$evaluacion = $this->evaluacion_model->get_one($evaluacion_id);
+		if (empty($evaluacion)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($evaluacion->cursada_id);
+		if (empty($cursada)) {
+			show_error('No se encontró el registro de la cursada', 500, 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('evaluacion_tipo_model');
+		$this->array_evaluacion_tipo_control = $array_evaluacion_tipo = $this->get_array('evaluacion_tipo', 'descripcion');
+		$alumnos_notas = $this->cursada_nota_model->get_alumnos_evaluacion($cursada->id, $evaluacion, $ciclo_lectivo);
+		$this->evaluacion_model->fields['evaluacion_tipo']['array'] = $array_evaluacion_tipo;
+		$data['fields'] = $this->build_fields($this->evaluacion_model->fields, $evaluacion, TRUE);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['escuela'] = $escuela;
+		$data['alumnos_notas'] = $alumnos_notas;
+		$data['division'] = $division;
+		$data['evaluacion'] = $evaluacion;
+		$data['cursada'] = $cursada;
+		$data['class'] = array('ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['txt_btn'] = 'Ver';
+		$data['title'] = 'Ver evaluación';
+		$this->load_template('cursada_nota/cursada_nota_editar_notas', $data);
+	}
+
+	public function eliminar_notas($evaluacion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $evaluacion_id == NULL || !ctype_digit($evaluacion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+		}
+		$evaluacion = $this->evaluacion_model->get_one($evaluacion_id);
+		if (empty($evaluacion)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($evaluacion->cursada_id);
+		if (empty($cursada)) {
+			show_error('No se encontró el registro de la cursada', 500, 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('evaluacion_tipo_model');
+		$this->array_evaluacion_tipo_control = $array_evaluacion_tipo = $this->get_array('evaluacion_tipo', 'descripcion');
+		$alumnos_notas = $this->cursada_nota_model->get_alumnos_evaluacion($cursada->id, $evaluacion, $ciclo_lectivo);
+
+		$this->array_asistencia_control = $this->cursada_nota_model->fields['asistencia']['array'];
+		$this->form_validation->set_rules('nota[]', 'Nota', 'numeric');
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if ($evaluacion_id !== $this->input->post('evaluacion_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$url = $this->input->post('url_redireccion');
+			if ($this->form_validation->run() === TRUE) {
+				$notas_evaluacion = $this->evaluacion_model->get_notas_evalaucion($evaluacion->id);
+				$url = $this->input->post('url_redireccion');
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				foreach ($notas_evaluacion as $nota_evaluacion) {
+					$trans_ok &= $this->cursada_nota_model->delete(array(
+						'id' => $nota_evaluacion->id
+						), FALSE);
+				}
+				$trans_ok &= $this->evaluacion_model->delete(array(
+					'id' => $evaluacion->id
+					), FALSE);
+				if ($trans_ok) {
+					$this->db->trans_commit();
+					$message = '';
+					if ($this->evaluacion_model->get_msg()) {
+						$message .= $this->evaluacion_model->get_msg();
+					}
+					if ($this->cursada_nota_model->get_msg()) {
+						$message .= '<br>' . $this->cursada_nota_model->get_msg();
+					}
+					$this->session->set_flashdata('message', $message);
+					if ($url == FALSE) {
+						redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+					} else {
+						redirect($url, 'refresh');
+					}
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar actualizar.';
+					if ($this->cursada_nota_model->get_error()) {
+						$errors .= '<br>' . $this->cursada_nota_model->get_error();
+					}
+					if ($this->evaluacion_model->get_error()) {
+						$errors .= '<br>' . $this->evaluacion_model->get_error();
+					}
+					$this->session->set_flashdata('error', $errors);
+					if ($url == FALSE) {
+						redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+					} else {
+						redirect($url, 'refresh');
+					}
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				if ($url == FALSE) {
+					redirect('cursada/escritorio/' . $cursada->id, 'refresh');
+				} else {
+					redirect($url, 'refresh');
+				}
+			}
+		}
+		if (!empty($_GET['redirect_url'])) {
+			$data['url_redireccion'] = urldecode($_GET['redirect_url']);
+		} else {
+			$data['url_redireccion'] = FALSE;
+		}
+		$this->evaluacion_model->fields['evaluacion_tipo']['array'] = $array_evaluacion_tipo;
+		$data['fields'] = $this->build_fields($this->evaluacion_model->fields, $evaluacion, TRUE);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['escuela'] = $escuela;
+		$data['alumnos_notas'] = $alumnos_notas;
+		$data['division'] = $division;
+		$data['evaluacion'] = $evaluacion;
+		$data['cursada'] = $cursada;
+		$data['class'] = array('ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar evaluación';
+		$this->load_template('cursada_nota/cursada_nota_editar_notas', $data);
+	}
+}
+/* End of file Cursada_nota.php */
+/* Location: ./application/controllers/Cursada_nota.php */

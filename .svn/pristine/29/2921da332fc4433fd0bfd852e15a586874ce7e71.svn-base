@@ -1,0 +1,267 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_funcion_horario extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('servicio_funcion_horario_model');
+		$this->load->model('servicio_funcion_model');
+		$this->load->model('servicio_model');
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_GRUPO_ESCUELA_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/servicio_funcion_horario';
+	}
+
+	public function modal_agregar($servicio_funcion_id, $dia_id, $es_funcion = '1') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('dia_model');
+
+		$servicio_funcion = $this->servicio_funcion_model->get(array('id' => $servicio_funcion_id));
+		$dia = $this->dia_model->get(array('id' => $dia_id));
+		if (empty($servicio_funcion) || empty($dia)) {
+			$this->modal_error('No se encontró el registro a agregar', 'Registro no encontrado');
+			return;
+		}
+
+		if ($es_funcion === '1') {
+			$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		} else {
+			$servicio = $this->servicio_model->get_one($servicio_funcion->servicio_id, array('cargo'));
+			$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		}
+		$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		unset($this->servicio_funcion_horario_model->fields['dia']['input_type']);
+
+		$this->servicio_funcion_horario_model->fields['dia']['readonly'] = TRUE;
+		$this->servicio_funcion_horario_model->fields['dia']['value'] = $dia->nombre;
+
+		$this->set_model_validation_rules($this->servicio_funcion_horario_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->servicio_funcion_horario_model->create(array(
+					'servicio_funcion_id' => $servicio_funcion->id,
+					'dia_id' => $dia->id,
+					'obligaciones' => 1,
+					'hora_desde' => $this->input->post('hora_desde'),
+					'hora_hasta' => $this->input->post('hora_hasta')));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->servicio_funcion_horario_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->servicio_funcion_horario_model->get_error());
+				}
+				redirect("servicio_funcion/horarios/$servicio_funcion->id/$es_funcion", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("servicio_funcion/horarios/$servicio_funcion->id/$es_funcion", 'refresh');
+			}
+		}
+		$data['fields'] = $this->build_fields($this->servicio_funcion_horario_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar horarios de función de servicio';
+		$this->load->view('servicio_funcion_horario/servicio_funcion_horario_modal_abm', $data);
+	}
+
+	public function modal_editar($id, $es_funcion = '1') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$servicio_funcion_horario = $this->servicio_funcion_horario_model->get_one($id);
+		if (empty($servicio_funcion_horario)) {
+			$this->modal_error('No se encontró el registro a agregar', 'Registro no encontrado');
+			return;
+		}
+
+		$servicio_funcion = $this->servicio_funcion_model->get(array('id' => $servicio_funcion_horario->servicio_funcion_id));
+		if ($es_funcion === '1') {
+			$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		} else {
+			$servicio = $this->servicio_model->get_one($servicio_funcion->servicio_id, array('cargo'));
+			$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		unset($this->servicio_funcion_horario_model->fields['dia']['input_type']);
+
+		$this->servicio_funcion_horario_model->fields['dia']['readonly'] = TRUE;
+
+		$this->set_model_validation_rules($this->servicio_funcion_horario_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($servicio_funcion_horario->id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->servicio_funcion_horario_model->update(array(
+					'id' => $this->input->post('id'),
+					'hora_desde' => $this->input->post('hora_desde'),
+					'hora_hasta' => $this->input->post('hora_hasta')));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->servicio_funcion_horario_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->servicio_funcion_horario_model->get_error());
+				}
+				redirect("servicio_funcion/horarios/$servicio_funcion_horario->servicio_funcion_id/$es_funcion", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("servicio_funcion/horarios/$servicio_funcion_horario->servicio_funcion_id/$es_funcion", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->servicio_funcion_horario_model->fields, $servicio_funcion_horario);
+		$data['servicio_funcion_horario'] = $servicio_funcion_horario;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar horarios de función de servicio';
+		$this->load->view('servicio_funcion_horario/servicio_funcion_horario_modal_abm', $data);
+	}
+
+	public function modal_eliminar($id, $es_funcion = '1') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$servicio_funcion_horario = $this->servicio_funcion_horario_model->get_one($id);
+		if (empty($servicio_funcion_horario)) {
+			$this->modal_error('No se encontró el registro a agregar', 'Registro no encontrado');
+			return;
+		}
+
+		$servicio_funcion = $this->servicio_funcion_model->get(array('id' => $servicio_funcion_horario->servicio_funcion_id));
+		if ($es_funcion === '1') {
+			$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		} else {
+			$servicio = $this->servicio_model->get_one($servicio_funcion->servicio_id, array('cargo'));
+			$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		unset($this->servicio_funcion_horario_model->fields['dia']['input_type']);
+
+		$this->servicio_funcion_horario_model->fields['dia']['readonly'] = TRUE;
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($servicio_funcion_horario->id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->servicio_funcion_horario_model->delete(array('id' => $this->input->post('id')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->servicio_funcion_horario_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', $this->servicio_funcion_horario_model->get_error());
+			}
+			redirect("servicio_funcion/horarios/$servicio_funcion_horario->servicio_funcion_id/$es_funcion", 'refresh');
+		}
+
+		$data['fields'] = $this->build_fields($this->servicio_funcion_horario_model->fields, $servicio_funcion_horario, TRUE);
+		$data['servicio_funcion_horario'] = $servicio_funcion_horario;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar horarios de función de servicio';
+		$this->load->view('servicio_funcion_horario/servicio_funcion_horario_modal_abm', $data);
+	}
+
+	public function modal_carga_masiva($servicio_funcion_id = NULL, $es_funcion = '1') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $servicio_funcion_id == NULL || !ctype_digit($servicio_funcion_id) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('dia_model');
+		$servicio_funcion = $this->servicio_funcion_model->get(array('id' => $servicio_funcion_id));
+		if (empty($servicio_funcion)) {
+			$this->modal_error('No se encontró el registro', 'Registro no encontrado');
+			return;
+		}
+
+		if ($es_funcion === '1') {
+			$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		} else {
+			$servicio = $this->servicio_model->get_one($servicio_funcion->servicio_id, array('cargo'));
+			$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($servicio_funcion_id !== $this->input->post('servicio_funcion_id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			$this->form_validation->set_rules("hora_desde", 'Hora desde', 'trim|required|exact_length[5]|validate_time');
+			$this->form_validation->set_rules("hora_hasta", 'Hora hasta', 'trim|required|exact_length[5]|validate_time');
+			$this->form_validation->set_rules("dias[]", 'Días', 'required');
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				foreach ($this->input->post('dias') as $dia) {
+					$servicio_funcion_horario = $this->servicio_funcion_horario_model->get(array(
+						'dia_id' => $dia,
+						'servicio_funcion_id' => $servicio_funcion->id
+					));
+
+					if (!empty($servicio_funcion_horario)) {
+						$trans_ok &= $this->servicio_funcion_horario_model->update(array(
+							'id' => $servicio_funcion_horario[0]->id,
+							'hora_desde' => $this->input->post('hora_desde'),
+							'hora_hasta' => $this->input->post('hora_hasta')
+							), FALSE);
+					} else {
+						$trans_ok &= $this->servicio_funcion_horario_model->create(array(
+							'servicio_funcion_id' => $servicio_funcion->id,
+							'dia_id' => $dia,
+							'obligaciones' => 1,
+							'hora_desde' => $this->input->post('hora_desde'),
+							'hora_hasta' => $this->input->post('hora_hasta')
+							), FALSE);
+					}
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_funcion_horario_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_funcion_horario_model->get_error());
+				}
+				redirect("servicio_funcion/horarios/$servicio_funcion->id/$es_funcion", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("servicio_funcion/horarios/$servicio_funcion->id/$es_funcion", 'refresh');
+			}
+		}
+		$data['servicio_funcion'] = $servicio_funcion;
+		$data['dias'] = $this->dia_model->get();
+		$data['title'] = "Carga masiva de horarios";
+		$this->load->view('servicio_funcion_horario/servicio_funcion_horario_modal_carga_masiva', $data);
+	}
+}
+/* End of file Servicio_funcion_horario.php */
+/* Location: ./application/controllers/Servicio_funcion_horario.php */

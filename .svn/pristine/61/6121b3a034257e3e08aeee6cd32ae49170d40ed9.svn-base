@@ -1,0 +1,37 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cursada_nota_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'cursada_nota';
+		$this->msg_name = 'Nota de cursada';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'evaluacion_id', 'alumno_cursada_id', 'nota');
+		$this->fields = array(
+			'evaluacion' => array('label' => 'Evaluación', 'input_type' => 'combo', 'id_name' => 'evaluacion_id', 'required' => TRUE),
+			'cursada' => array('label' => 'Cursada', 'input_type' => 'combo', 'id_name' => 'cursada_id', 'required' => TRUE),
+			'nota' => array('label' => 'Nota')
+		);
+		$this->requeridos = array('evaluacion_id', 'cursada_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno_cursada', 'alumno_cursada.id = cursada_nota.alumno_cursada_id', 'left', array('')),
+			array('evaluacion', 'evaluacion.id = cursada_nota.evaluacion_id', 'left', array('evaluacion.tipo_evaluacion_id as evaluacion'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Cursada_nota_model.php */
+/* Location: ./application/models/Cursada_nota_model.php */

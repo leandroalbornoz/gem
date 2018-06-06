@@ -1,0 +1,142 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Títulos - Persona 
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="titulos/<?php echo $controlador; ?>">Títulos - Persona</a></li>
+			<li class="active"><?php echo "Ver Títulos" ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<div class="row">
+								<div class="col-md-12">
+										<h4><?php echo "$persona->apellido, $persona->nombre ($persona->documento_tipo $persona->documento - CUIL: $persona->cuil)"; ?>	</h4>
+								</div>
+							</div>
+						</h3>
+					</div>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="titulos/titulo_persona/ver/<?php echo $persona->id; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="titulos/titulo_persona/editar/<?php echo $persona->id; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['titulo']; ?>" href="titulos/titulo_persona/ver_titulo/<?php echo $persona->id; ?>">
+							<i class="fa fa-book"></i>  Títulos
+						</a>	
+						<a class="btn btn-app btn-app-zetta pull-right <?php echo $class['establecimiento']; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/cargar_establecimiento_modal/<?php echo $persona->id; ?>">
+							<i class="fa fa-building-o"></i>  Establecimientos
+						</a>	
+						<a class="btn btn-app btn-app-zetta pull-right <?php echo $class['tipo']; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/cargar_tipo_titulo_modal/<?php echo $persona->id; ?>">
+							<i class="fa fa-bookmark"></i>  Carreras
+						</a>	
+						<hr style="margin: 10px 0;">
+						<div role="tabpanel" class="tab-pane" id="tab_familiares">
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr style="background-color: #f4f4f4" >
+										<th style="text-align: center;" colspan="11">
+											Titulos											
+											<a class="pull-left btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo/modal_buscar/<?php echo $persona->id; ?>"><i class="fa fa-plus"></i></a>									
+										</th>
+									</tr>
+									<tr>
+										<th>Orden</th>
+										<th>Nombre</th>
+										<th>País Origen</th>
+										<th>Establecimiento</th>
+										<th>Carrera</th>
+										<th>Serie</th>
+										<th>Número de registro</th>
+										<th>Fecha Inscripción</th>
+										<th>Fecha Egreso</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($titulos)): ?>
+										<?php foreach ($titulos as $titulo): ?>
+											<tr>
+												<td><?= $titulo->id; ?></td>
+												<td><?= $titulo->nombre; ?></td>
+												<td><?= $titulo->pais_origen; ?></td>
+												<td><?= $titulo->establecimiento; ?></td>										
+												<td><?= $titulo->tipo; ?></td>
+												<td><?= $titulo->serie; ?></td>
+												<td><?= $titulo->numero; ?></td>
+												<td><?= $titulo->fecha_inscripcion; ?></td>
+												<td><?= $titulo->fecha_egreso; ?></td>
+												<td width="60">
+													<a class="btn btn-xs btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/modal_editar_titulo/<?php echo $titulo->id ?>/"><i class="fa fa-edit"></i></a>
+													<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="titulos/titulo_persona/modal_eliminar_titulo/<?php echo $titulo->id ?>/"><i class="fa fa-remove"></i></a>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									<?php else : ?>
+										<tr>
+											<td style="text-align: center;" colspan="11">
+												-- No tiene --
+											</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+	<div style="display:none;" id="div_buscar_titulo"></div>
+</div>
+<!--<div class="modal fade" id="remote_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+    </div>
+  </div>
+</div>-->
+
+
+<script>
+	$(document).ready(function() {
+		var url = document.location.toString();
+<?php if (isset($titulo_id)): ?>
+	<?php if ($titulo_id === '-1'): ?>
+				$('#div_buscar_titulo').append('<a id="a_buscar_titulo" href="titulos/titulo/modal_agregar_titulo_nuevo/<?php echo $persona->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+				setTimeout(function() {
+					$('#a_buscar_titulo').click();
+				}, 500);
+	<?php else: ?>
+				$('#div_buscar_titulo').append('<a id="a_buscar_titulo" href="titulos/titulo/modal_agregar_titulo_existente/<?php echo "$persona->id/$titulo_id"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+				setTimeout(function() {
+					$('#a_buscar_titulo').click();
+				}, 500);
+	<?php endif; ?>
+<?php endif; ?>
+	});
+</script>
+

@@ -1,0 +1,117 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Nivel_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'nivel';
+		$this->msg_name = 'Nivel';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'descripcion', 'linea_id');
+		$this->fields = array(
+			'descripcion' => array('label' => 'Descripción', 'maxlength' => '50', 'required' => TRUE),
+			'linea' => array('label' => 'Linea', 'input_type' => 'combo', 'id_name' => 'linea_id', 'required' => TRUE),
+		);
+		$this->requeridos = array('descripcion', 'linea_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('linea', 'linea.id = nivel.linea_id', 'left', array('linea.nombre as linea'))
+		);
+	}
+
+	public function get_by_linea($linea_id) {
+		$options['linea_id'] = $linea_id;
+		$options['join'] = array(
+			array('escuela', 'escuela.nivel_id = nivel.id', 'left', array('COUNT(DISTINCT escuela.numero) as escuelas'))
+		);
+		$options['group_by'] = 'nivel.id';
+		$options['sort_by'] = 'nivel.id';
+		return $this->get($options);
+	}
+
+	public function get_indices($nivel_id, $dependencia = 0, $supervision = 0) {
+		$indices = array();
+		$query_divisiones_carreras = $this->db->select('COUNT(1) total, SUM(CASE WHEN carrera_id IS NULL THEN 0 ELSE 1 END) cantidad')
+			->from('division')
+			->join('escuela', 'division.escuela_id=escuela.id')
+			->where('nivel_id', $nivel_id);
+		if ($dependencia) {
+			$query_divisiones_carreras->where('dependencia_id', $dependencia);
+		}
+		if ($supervision) {
+			$query_divisiones_carreras->where('supervision_id', $supervision);
+		}
+		$indices['Divisiones con carreras'] = $query_divisiones_carreras->get()->row();
+
+		$query_cargos_horarios = $this->db->select('COUNT(DISTINCT cargo.id) total, COUNT(DISTINCT horario.cargo_id) cantidad')
+			->from('cargo')
+			->join('horario', 'cargo.id=horario.cargo_id', 'left')
+			->join('escuela', 'cargo.escuela_id=escuela.id')
+			->where('nivel_id', $nivel_id);
+
+		if ($dependencia) {
+			$query_cargos_horarios->where('dependencia_id', $dependencia);
+		}
+		if ($supervision) {
+			$query_cargos_horarios->where('supervision_id', $supervision);
+		}
+		$indices['Cargos con horarios'] = $query_cargos_horarios->get()->row();
+		return $indices;
+	}
+
+	public function get_indices_by_escuela($nivel_id, $dependencia = 0, $supervision = 0) {
+		$escuelas = array();
+		$query_escuelas = $this->db->select('escuela.id as escuela_id, escuela.numero as esc_numero, escuela.nombre as esc_nombre, COUNT(1) total, SUM(CASE WHEN carrera_id IS NULL THEN 0 ELSE 1 END) cantidad')
+			->from('division')
+			->join('escuela', 'division.escuela_id=escuela.id')
+			->where('nivel_id', $nivel_id)
+			->group_by('escuela.id')
+			->order_by('escuela.numero, escuela.nombre');
+		if ($dependencia) {
+			$query_escuelas->where('dependencia_id', $dependencia);
+		}
+		if ($supervision) {
+			$query_escuelas->where('supervision_id', $supervision);
+		}
+		return $escuelas = $query_escuelas->get()->result();
+	}
+
+	public function get_by_regional($regional_id) {
+		$query = $this->db->select('distinct(n.descripcion), n.id')
+			->from('escuela e')
+			->join('nivel n', 'n.id = e.nivel_id', 'inner')
+			->where('e.regional_id', $regional_id)
+			->order_by('n.descripcion');
+		return $query->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('nivel_id', $delete_id)->count_all_results('caracteristica_nivel') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a caracteristica de nivel.');
+			return FALSE;
+		}
+		if ($this->db->where('nivel_id', $delete_id)->count_all_results('carrera') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a carrera.');
+			return FALSE;
+		}
+		if ($this->db->where('nivel_id', $delete_id)->count_all_results('curso') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a curso.');
+			return FALSE;
+		}
+		if ($this->db->where('nivel_id', $delete_id)->count_all_results('escuela') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a escuela.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Nivel_model.php */
+/* Location: ./application/models/Nivel_model.php */

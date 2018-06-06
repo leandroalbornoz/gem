@@ -1,0 +1,309 @@
+<style>
+	.table>tbody+tbody {
+    border-top: 1px solid #ddd;
+	}
+	.dia_0,.dia_6{
+		background-color: lightgray;
+	}
+	.mes_asistencia{
+		width: 50px;
+		height: 50px;
+		border: darkgray thin solid;
+		border-radius: 5px;
+		margin-right: 5px;
+		text-align: center;
+		font-weight: bold;
+	}
+	.mes_asistencia.active{
+		background-color: #00c0ef;
+		border-color: #0044cc;
+	}
+	.info-box-icon{
+		float: left;
+    height: 40px;
+    width: 40px;
+    text-align: center;
+    font-size: 32px;
+    line-height: 40px;
+	}
+	.badge{
+		width:40px;
+	}
+	.cchild {
+		display: none;
+	}
+	.open .cchild {
+		display: table-row;
+	}
+	.parent {
+		cursor: pointer;
+	}
+	.parent > *:last-child {
+		width: 30px;
+	}
+	.parent i {
+		transform: rotate(0deg);
+		transition: transform .3s cubic-bezier(.4,0,.2,1);
+		margin: -.5rem;
+		padding: .5rem;
+	}
+	.open .parent i {
+		transform: rotate(180deg);
+	}
+	.open .fa-minus{
+		display: block !important;
+	}
+	.open .fa-plus{
+		display: none;
+	}
+</style>
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_editar_alumno_division')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?>: <?php echo "$alumno->apellido, $alumno->nombre"; ?></h4>
+	<h4 class="modal-title" id="myModalLabel"><?php echo "Escuela: $alumno_division->escuela"; ?></h4>
+	<h4 class="modal-title" id="myModalLabel"><?php echo "Curso y division: $alumno_division->curso $alumno_division->division"; ?></h4>
+	<h4 class="modal-title" id="myModalLabel"><?php echo "Desde: $alumno_division->fecha_desde Hasta: $alumno_division->fecha_hasta"; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<?php foreach ($periodos as $periodo): ?>
+			<div class="col-sm-12">
+				<?php $fecha_ini = new DateTime(substr($periodo->inicio, 0, 8) . '01'); ?>
+				<?php $fecha_fin = new DateTime($periodo->fin); ?>
+				<?php $dia = DateInterval::createFromDateString('1 month'); ?>
+				<?php $fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin); ?>
+				<table class="table table-hover table-bordered table-condensed table-striped" role="grid">
+					<thead>
+						<tr style="background-color:#337ab7; color:white;">
+							<th style="width: 340px;" colspan="13" class="text-center"><?php echo "{$periodo->periodo}° $periodo->nombre_periodo"; ?> - <?php echo (new DateTime($periodo->inicio))->format('d/m/Y') . ' al ' . $fecha_fin->format('d/m/Y'); ?>
+							</th>
+						</tr>
+						<tr>
+							<th style="width: 15px;" rowspan="2">Mes</th>
+							<th style="text-align: center; width: 50px;" colspan="2">Resumen Mensual</th>
+							<th style="width: 50px;" rowspan="2">Total del mes</th>
+							<th style="width: 50px;" rowspan="2">Asistencia</th>
+							<th style="width: 50px;" rowspan="2">% de Asistencia</th>
+							<th style="width: 30px;" rowspan="2"></th>
+						</tr>
+						<tr>
+							<th style="text-align: center; width: 25px;" title="Justificadas">J</th>
+							<th style="text-align: center; width: 25px;" title="Injustificadas">I</th>
+						</tr>
+					</thead>
+					<?php foreach ($fechas as $fecha): ?>
+						<tbody>
+							<tr class="parent">
+								<td>
+									<?php echo substr($this->nombres_meses[$fecha->format('m')], 0, 3); ?>
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]) && !empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->fecha_cierre)): ?>
+										<span class="label bg-green pull-right" style="font-size: 100%;" ><i class="fa fa-lock" style="transform: none;"></i></span>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php echo number_format($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_j, 1, ',', ''); ?>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php echo number_format($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_i, 1, ',', ''); ?>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php echo number_format(($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_i + $alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_j), 1, ',', ''); ?>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php if (empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->fecha_cierre)): ?>
+											-Mes no cerrado-
+										<?php else: ?>
+											<?php echo number_format($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia, 1, ',', ''); ?>
+										<?php endif; ?>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php if (empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->fecha_cierre)): ?>
+											-Mes no cerrado-
+										<?php else: ?>
+											<?php echo (empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_i) && empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_j)) ? "100%" : (empty($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia) ? '0%' : (empty(($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia + $alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_i + $alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_j)) ? number_format(($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia * 100 ), 0, ',', '') . "%" : (number_format(($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia * 100 / ($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->asistencia + $alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_i + $alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')]->falta_j)), 0, ',', '') . "%"))); ?>
+										<?php endif; ?>
+									<?php endif; ?>
+								</td>
+								<td style="text-align: center;">
+									<?php if (isset($alumno_inasistencia[$periodo->periodo][$fecha->format('Ym')])): ?>
+										<?php if (isset($inasistencias[$periodo->periodo][$fecha->format('Ym')]) && $inasistencias[$periodo->periodo][$fecha->format('Ym')]->resumen_mensual === 'No'): ?>
+											<span class="label bg-blue pull-right" style="font-size: 100%; padding: 10%;"><i class="fa fa-plus"></i><i style="display:none;" class="fa fa-minus"></i></span>
+										<?php endif; ?>
+									<?php endif; ?>
+								</td>
+							</tr>
+							<?php if (isset($inasistencias[$periodo->periodo][$fecha->format('Ym')]) && $inasistencias[$periodo->periodo][$fecha->format('Ym')]->resumen_mensual === 'No'): ?>
+								<?php $dias_semana = array('Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'); ?>
+								<?php $fecha_ini_m = new DateTime($fecha->format('Ym') . '01'); ?>
+								<?php $fecha_ini_m = max(array(new DateTime($periodo->inicio), $fecha_ini_m)); ?>
+								<?php $fecha_fin_m = new DateTime($fecha->format('Ym') . '01 +1 month -1 day'); ?>
+								<?php $fecha_fin_m = min(array(new DateTime($periodo->fin), $fecha_fin_m)); ?>
+								<?php $dia_m_interval = DateInterval::createFromDateString('1 day'); ?>
+								<tr class="cchild">
+									<td colspan="7">
+										<div class="row">
+											<div class="col-sm-12">
+												<table class="table table-hover table-bordered table-condensed table-striped" role="grid">
+													<thead>
+														<tr>
+															<?php foreach ($dias_semana as $dia_semana): ?>
+																<th style="width: 80px;"><?php echo $dia_semana; ?></th>
+															<?php endforeach; ?>
+														</tr>
+													</thead>
+													<tbody>
+														<?php $primer_dia_semana_m = $fecha_ini_m->format('w'); ?>
+														<?php $fecha_dia_semana = new DateTime($fecha_ini_m->format('Y-m-d')); ?>
+														<tr>
+															<?php foreach ($dias_semana as $dia_semana_id => $dia_semana): ?>
+																<td>
+																	<?php if ($dia_semana_id >= $primer_dia_semana_m): ?>
+																		<?php echo $fecha_dia_semana->format('d'); ?>
+																		<?php foreach ($alumno_tipo_inasistencia_diaria as $alumno_inasistencia_tipo): ?>
+																			<?php if ($alumno_inasistencia_tipo->fecha === $fecha_dia_semana->format('Y-m-d')): ?>
+																				<?php if ($alumno_inasistencia_tipo->inasistencia_tipo_id === "2"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">A</span>
+																					<?php else: ?>
+																						<span class="label bg-red">A</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "3"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">T</span>
+																					<?php else: ?>
+																						<span class="label bg-red">T</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "4"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">R</span>
+																					<?php else: ?>
+																						<span class="label bg-red">R</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "5"): ?>
+																					<span class="fa fa-fw fa-minus" style="display: inline !important;"></span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "6"): ?>
+																					<span class="fa fa-fw fa-minus" style="display: inline !important;"></span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "7"): ?>
+																					<span class="label bg-blue">A</span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "8"): ?>
+																					<span class="label bg-red">P</span>
+																				<?php elseif (empty($alumno_inasistencia_tipo->inasistencia_tipo_id)): ?>
+																					<?php if ($alumno_inasistencia_tipo->contraturno_dia === 'No'): ?>
+																						<span class="label text-green" style="border: #000 solid thin; padding: .1em .5em 0.2em">P</span>
+																					<?php else: ?>
+																						<?php if ($alumno_inasistencia_tipo->contraturno !== "Parcial"): ?>
+																							<span class="label text-green" style="border: #000 solid thin; padding: .1em .5em 0.2em">P</span>
+																						<?php endif; ?>
+																					<?php endif; ?>
+																				<?php endif; ?>
+																			<?php endif; ?>
+																		<?php endforeach; ?>
+																		<?php $fecha_dia_semana->add($dia_m_interval); ?>
+																	<?php endif; ?>
+																</td>
+															<?php endforeach; ?>
+														</tr>
+														<tr>
+															<?php while ($fecha_dia_semana <= $fecha_fin_m): ?>
+																<td>
+																	<span class="text-sn"><?php echo $fecha_dia_semana->format('d'); ?>
+																		<?php foreach ($alumno_tipo_inasistencia_diaria as $alumno_inasistencia_tipo): ?>
+																			<?php if ($alumno_inasistencia_tipo->fecha === $fecha_dia_semana->format('Y-m-d')): ?>
+																				<?php if ($alumno_inasistencia_tipo->inasistencia_tipo_id === "2"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">A</span>
+																					<?php else: ?>
+																						<span class="label bg-red">A</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "3"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">T</span>
+																					<?php else: ?>
+																						<span class="label bg-red">T</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "4"): ?>
+																					<?php if ($alumno_inasistencia_tipo->justificada === "Si"): ?>
+																						<span class="label bg-green">R</span>
+																					<?php else: ?>
+																						<span class="label bg-red">R</span>
+																					<?php endif; ?>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "5"): ?>
+																					<span class="fa fa-fw fa-minus" style="display: inline !important;"></span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "6"): ?>
+																					<span class="fa fa-fw fa-minus" style="display: inline !important;"></span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "7"): ?>
+																					<span class="label bg-blue">A</span>
+																				<?php elseif ($alumno_inasistencia_tipo->inasistencia_tipo_id === "8"): ?>
+																					<span class="label bg-red">P</span>
+																				<?php elseif (empty($alumno_inasistencia_tipo->inasistencia_tipo_id)): ?>
+																					<?php if ($alumno_inasistencia_tipo->contraturno_dia === 'No'): ?>
+																						<span class="label text-green" style="border: #000 solid thin; padding: .1em .5em 0.2em">P</span>
+																					<?php else: ?>
+																						<?php if ($alumno_inasistencia_tipo->contraturno !== "Parcial"): ?>
+																							<span class="label text-green" style="border: #000 solid thin; padding: .1em .5em 0.2em">P</span>
+																						<?php endif; ?>
+																					<?php endif; ?>
+																				<?php endif; ?>
+																			<?php endif; ?>
+																		<?php endforeach; ?>
+																	</span>
+																	<?php $fecha_dia_semana->add($dia_m_interval); ?>
+																</td>
+																<?php if ($fecha_dia_semana->format('w') === '0'): ?>
+																</tr>
+																<tr>
+																<?php endif; ?>
+															<?php endwhile; ?>
+														</tr>
+													</tbody>
+												</table>
+											</div>
+											<div class="col-sm-6">
+												<ul class="chart-legend">
+													<li><span class="label bg-green">A</span> Ausente, Justificado</li>
+													<li><span class="label bg-red">A</span> Ausente, No justificado</li>
+													<li><span class="label bg-blue">A</span> Ausente, No computable</li>
+													<li><span class="label bg-red">P</span> Ausente por tardanza</li>
+													<li><span class="label text-green" style="border: #000 solid thin; padding: .1em .5em 0.2em">P</span> Presente</li>
+												</ul>
+											</div>
+											<div class="col-sm-6">
+												<ul class="chart-legend">
+													<li><span class="label bg-green">T</span> Tardanza, Justificada</li>
+													<li><span class="label bg-red">T</span> Tardanza, No justificada</li>
+													<li><span class="label bg-green">R</span> Retira antes, Justificado</li>
+													<li><span class="label bg-red">R</span> Retira antes, No justificado</li>
+													<li><span class="fa	fa-minus" style="display: inline !important;"></span> No pertenece al curso el día de la fecha</li>
+												</ul>
+											</div>
+										</div>
+									</td>
+								</tr>
+							<?php endif; ?>
+						</tbody>
+					<?php endforeach; ?>
+				</table>
+			</div>
+		<?php endforeach; ?>
+	</div>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+</div>
+<script>
+	$(document).ready(function() {
+		$('table').on('click', 'tr.parent .fa-plus,tr.parent .fa-minus', function() {
+			$(this).closest('tbody').toggleClass('open');
+		});
+	});
+</script>

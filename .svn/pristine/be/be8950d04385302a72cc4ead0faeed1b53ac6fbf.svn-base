@@ -1,0 +1,56 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Abono Escuela
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+				<li><a href="escuela/ver/<?php echo $escuela->id; ?>"> <?php echo "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li><a href="alumno/listar/<?php echo $escuela->id . '/' . date('Y'); ?>">Alumnos</a></li>
+			<li><a href="abono/abono_alumno/listar/<?php echo $escuela->id; ?>">Abono Escuela</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn bg-blue btn-app btn-app-zetta" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="abono/abono_alumno/modal_buscar/<?php echo $escuela->id; ?>">
+							<i class="fa fa-plus" id="btn-agregar"></i> Agregar
+						</a>
+						<hr style="margin: 10px 0;">
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+	<div style="display:none;" id="div_buscar_alumno"></div>
+<script>
+	$(document).ready(function() {
+<?php if (isset($alumno_id)):?>
+		
+				$('#div_buscar_alumno').append('<a id="a_buscar_alumno" href="abono/abono_alumno/modal_agregar_abono_alumno/<?php echo "$alumno_id/$escuela->id"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
+				setTimeout(function() {
+					$('#a_buscar_alumno').click();
+				}, 500);
+<?php endif; ?>
+	});
+</script>

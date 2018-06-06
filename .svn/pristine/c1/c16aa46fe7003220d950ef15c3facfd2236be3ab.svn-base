@@ -1,0 +1,239 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escuela extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		$this->roles_agregar = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_GRUPO_ESCUELA_CONSULTA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/escuela';
+			if (ENVIRONMENT !== 'development') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+	}
+
+	public function ver($id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($id);
+		$data['escuela'] = $escuela;
+		$data['administrar'] = TRUE;
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			if (in_array($this->rol->codigo, array(ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_CONSULTA_LINEA)) && !empty($escuela->escuela_id)) {
+				$escuela_sede = $this->escuela_model->get_one($escuela->escuela_id);
+				if ($this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela_sede)) {
+					$data['administrar'] = FALSE;
+				} else {
+					show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+				}
+			} else {
+				show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+			}
+		}
+
+		if (empty($mes)) {
+			$mes = date('Ym');
+		}
+
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('comedor/comedor_model');
+		$escuela_comedor = $this->comedor_model->get_escuela_comedor($id);
+		if (!empty($escuela_comedor->escuela_id)) {
+			$this->load->model('comedor/comedor_presupuesto_model');
+			$ultimo_mes = $this->comedor_presupuesto_model->ultimo_mes($escuela->id);
+			$primer_mes = $this->comedor_presupuesto_model->primer_mes($escuela->id);
+			$data['ultimo_mes'] = DateTime::createFromFormat('Ymd', ((!empty($ultimo_mes->mes)) ? $ultimo_mes->mes : $mes) . '01')->format('d/m/Y');
+			$data['primer_mes'] = DateTime::createFromFormat('Ymd', ((!empty($primer_mes->mes)) ? $primer_mes->mes : $mes) . '01')->format('d/m/Y');
+			$data['comedor_mes'] = $mes;
+			$data['comedor_mes_nombre'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+			$data['modulos']['comedor'] = $this->load->view('comedor/escritorio_escuela_modulo_comedor', $this->comedor_model->get_vista_administrar($escuela->id, $data, TRUE), TRUE);
+		}
+		$this->load->model('escuela_carrera_model');
+		$data['carreras'] = $this->escuela_carrera_model->get_by_escuela($escuela->id);
+		$this->load->model('cargo_model');
+		$data['cargos'] = $this->cargo_model->get_by_escuela($escuela->id);
+		$this->load->model('division_model');
+		$divisiones = $this->division_model->get_by_escuela($escuela->id);
+		$division_cl = array();
+		foreach ($divisiones as $division) {
+			$division_cl[$division->id][$division->ciclo_lectivo] = $division->alumnos;
+		}
+		$data['division_cl'] = $division_cl;
+		$data['divisiones'] = $divisiones;
+		$data['escuela_comedor'] = $escuela_comedor;
+
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$data['mes'] = $mes;
+		$fecha = DateTime::createFromFormat('Ymd', $mes . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
+
+		$data['indices'] = $this->escuela_model->get_indices($escuela->id);
+		$this->load->model('usuarios_model');
+		$data['usuarios'] = $this->usuarios_model->usuarios_escuela($escuela->id);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('escritorio' => '', 'administrar' => 'active btn-app-zetta-active', 'ver' => '', 'editar' => '');
+		$data['title'] = TITLE . ' - Comedor';
+		$this->load_template('comedor/escuela_comedor_administrar', $data);
+	}
+
+	public function cambiar_mes($escuela_id = NULL, $mes = NULL) {
+
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("comedor/escuela/ver/$escuela_id/$mes", 'refresh');
+	}
+
+	public function listar_escuela($mes = NULL, $nivel_id = '0') {
+		if(empty($mes)){
+			$mes = date('Ym');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Número', 'data' => 'numero', 'width' => 5),
+				array('label' => 'Nombre', 'data' => 'nombre', 'width' => 20),
+				array('label' => 'Direccion', 'data' => 'calle', 'width' => 20),
+				array('label' => 'Teléfono', 'data' => 'telefono', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Email', 'data' => 'email', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Delegacion', 'data' => 'descripcion', 'width' => 5),
+				array('label' => 'Periodo', 'data' => 'periodo', 'width' => 15),
+				array('label' => 'Estado', 'data' => 'estado', 'width' => 10),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'escuela_table',
+			'source_url' => "comedor/escuela/listar_data/$mes",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_escuela_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		
+		$data['mes'] = $mes;
+		$data['mes_nombre'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+		$fecha = DateTime::createFromFormat('Ymd', $mes . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
+		
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		if (empty($nivel_id)) {
+			$data['title'] = TITLE . ' - Escuelas';
+		} else {
+			$this->load->model('nivel_model');
+			$nivel = $this->nivel_model->get(array('id' => $nivel_id));
+			$data['nivel'] = $nivel;
+			$data['title'] = TITLE . ' - Escuelas Nivel ' . $nivel->descripcion;
+		}
+		$this->load_template('comedor/lista_escuela_comedor', $data);
+	}
+
+	public function listar_data($mes = NULL) {
+		$this->load->helper('datatables_functions_helper');
+		$this->datatables
+			->select("escuela.id ,numero, nombre, calle, telefono, email, delegacion.descripcion, comedor_escuela.mes_hasta as estado, comedor_escuela.mes_desde as periodo")
+			->unset_column('escuela.id')
+			->from('escuela')
+			->join('comedor_escuela', 'escuela.id= comedor_escuela.escuela_id', 'left')
+			->join('delegacion', 'escuela.delegacion_id = delegacion.id', 'left')
+			->where('comedor_escuela.mes_desde <=', $mes)
+			->where("coalesce(comedor_escuela.mes_hasta,$mes) >=",$mes)
+			->add_column('periodo','$1','dt_column_comedor_escuela_periodo(periodo, estado)')
+			->add_column('estado', '$1', 'dt_column_comedor_escuela_mes_hasta(estado, '.$mes.')');
+		if ($this->edicion) {
+			$this->datatables->add_column('edit', '<div>'
+				. '<a class="btn btn-xs btn-default" href="comedor/escuela/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '</div>', 'id');
+		} else {
+			$this->datatables->add_column('edit', '<a class="btn btn-xs btn-default" href="comedor/escuela/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function escuela_comedor_modal_agregar( $mes = NULL) {
+		$this->load->model('escuela_model');
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'escuela_numero' => array('label' => 'Numero', 'maxlength' => '10'),
+			'escuela_nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'minlength' => '3'),
+		);
+		$this->load->model('comedor/comedor_escuela_model');
+
+		if (isset($_POST) && !empty($_POST)) {
+			if(empty($this->input->post('escuela_id'))){
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$escuela_id = $this->input->post('escuela_id');
+			$trans_ok &= $this->comedor_escuela_model->create(array(
+				'escuela_id' => $escuela_id, 
+				'mes_desde' => $mes) , FALSE);
+			
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->comedor_escuela_model->get_msg());
+				redirect("comedor/escuela/listar_escuela/", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$this->session->set_flashdata('error', $this->comedor_escuela_model->get_error());
+				redirect("comedor/escuela/listar_escuela/$mes", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['txt_btn'] = "Agregar";
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = 'Agregar Escuela';
+		$this->load->view('comedor/escuela_comedor_modal_agregar', $data);
+	}
+	
+		public function cambiar_mes_lista($mes = NULL) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("comedor/escuela/listar_escuela/$mes", 'refresh');
+	}
+	
+}

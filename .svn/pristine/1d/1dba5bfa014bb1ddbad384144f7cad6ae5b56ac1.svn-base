@@ -1,0 +1,182 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'servicio';
+		$this->msg_name = 'Servicio';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'persona_id', 'cargo_id', 'fecha_alta', 'fecha_baja', 'motivo_baja', 'liquidacion', 'reemplazado_id', 'situacion_revista_id', 'articulo_reemplazo_id', 'celador_concepto_id', 'pof_id', 'liquidacion_regimen_id', 'liquidacion_carga_horaria', 'liquidacion_reparticion_id', 'liquidacion_situacion_revista_id', 'liquidacion_ames', 'observaciones');
+		$this->fields = array(
+			'cuil' => array('label' => 'CUIL', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'readonly' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'readonly' => TRUE),
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'regimen' => array('label' => 'Régimen', 'readonly' => TRUE),
+			'carga_horaria' => array('label' => 'Hs.', 'readonly' => TRUE),
+			'division' => array('label' => 'División', 'readonly' => TRUE),
+			'espacio_curricular' => array('label' => 'Materia', 'readonly' => TRUE),
+			'fecha_alta' => array('label' => 'Fecha Alta', 'type' => 'date', 'required' => TRUE),
+			'fecha_baja' => array('label' => 'Fecha Baja', 'type' => 'date'),
+			'motivo_baja' => array('label' => 'Motivo Baja', 'maxlength' => '50'),
+			'liquidacion' => array('label' => 'Liquidación', 'maxlength' => '13', 'readonly' => TRUE),
+			'situacion_revista' => array('label' => 'Situación de revista', 'input_type' => 'combo', 'required' => TRUE),
+			'articulo_reemplazo' => array('label' => 'Artículo reemplazo', 'readonly' => TRUE),
+			'reemplazado' => array('label' => 'Reemplaza a', 'readonly' => TRUE),
+			'celador_concepto' => array('label' => 'Concepto celador', 'input_type' => 'combo'),
+			'observaciones' => array('label' => 'Observaciones', 'maxlength' => '100'),
+		);
+		$this->requeridos = array('persona_id', 'fecha_alta');
+//$this->unicos = array();
+		$this->default_join = array(
+			array('servicio_funcion', 'servicio_funcion.servicio_id = servicio.id AND servicio_funcion.fecha_hasta IS NULL', 'left', array('servicio_funcion.destino as funcion_destino', 'servicio_funcion.norma as funcion_norma', 'servicio_funcion.tarea as funcion_tarea', 'servicio_funcion.carga_horaria as funcion_cargahoraria', 'servicio_funcion.fecha_desde as funcion_desde')),
+			array('novedad_tipo', 'novedad_tipo.id = servicio.articulo_reemplazo_id', 'left', array('novedad_tipo.articulo', 'novedad_tipo.inciso', 'CONCAT(novedad_tipo.articulo, \'-\', novedad_tipo.inciso, \' \', novedad_tipo.descripcion_corta) as articulo_reemplazo')),
+			array('servicio r', 'r.id = servicio.reemplazado_id', 'left'),
+			array('persona pr', 'pr.id = r.persona_id', 'left', array('CONCAT(COALESCE(r.liquidacion, \'\'), \' \', pr.apellido, \' \', pr.nombre) as reemplazado')),
+			array('funcion', 'funcion.id = servicio_funcion.funcion_id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion_detalle')),
+			array('persona', 'persona.id = servicio.persona_id', 'left', array('persona.cuil', 'persona.apellido', 'persona.nombre', 'persona.fecha_nacimiento')),
+			array('cargo', 'cargo.id = servicio.cargo_id', 'left', array('cargo.escuela_id', 'cargo.area_id', 'cargo.carga_horaria', 'cargo.regimen_id')),
+			array('celador_concepto', 'celador_concepto.id = servicio.celador_concepto_id', 'left', array('celador_concepto.descripcion as celador_concepto')),
+			array('regimen', 'cargo.regimen_id = regimen.id', 'left', array('regimen.codigo as regimen_codigo', 'CONCAT(regimen.codigo, \' \',regimen.descripcion) as regimen', 'regimen.regimen_tipo_id')),
+			array('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', 'left', array('situacion_revista.descripcion as situacion_revista', 'situacion_revista.planilla_tipo_id')),
+			array('area', 'area.id = cargo.area_id', 'left', array('area.descripcion as area', 'area.codigo as area_codigo')),
+			array('division', 'cargo.division_id = division.id', 'left', array('CONCAT(curso.descripcion, \' \', division.division) as division')),
+			array('turno', 'turno.id = division.turno_id', 'left', array('turno.descripcion as turno')),
+			array('curso', 'curso.id = division.curso_id', 'left'),
+			array('nivel', 'nivel.id = curso.nivel_id', 'left'),
+			array('escuela', 'escuela.id = cargo.escuela_id', 'left', array("CONCAT(escuela.numero, CASE WHEN escuela.anexo=0 THEN ' ' ELSE CONCAT('/',escuela.anexo,' ') END, escuela.nombre) as escuela")),
+			array('espacio_curricular', 'cargo.espacio_curricular_id = espacio_curricular.id', 'left', array('materia.descripcion as espacio_curricular')),
+			array('materia', 'espacio_curricular.materia_id = materia.id', 'left', array()),
+			array('carrera', 'espacio_curricular.carrera_id = carrera.id', 'left', array('carrera.descripcion as carrera'))
+		);
+	}
+
+//Devuelve los servicios de la persona ingresando el id.
+	public function get_servicios_persona($persona_id, $escuela_id = NULL) {
+		$query = $this->db->select('s.id, s.liquidacion, c.carga_horaria, r.codigo as regimen_codigo, r.descripcion as regimen, '
+				. 'CONCAT(cu.descripcion, " ", d.division) as division, ec.id as espacio_curricular_id, '
+				. 'CONCAT(es.numero, CASE WHEN es.anexo=0 THEN "" ELSE CONCAT("/", anexo) END, " - ", es.nombre) as escuela, es.dependencia_id, '
+				. 'sr.descripcion as situacion_revista, m.descripcion as materia, ar.descripcion as area, '
+				. 'ar.codigo as area_codigo, c.carga_horaria, s.fecha_alta, s.fecha_baja, s.motivo_baja, s.observaciones, '
+				. 'COALESCE(f.descripcion, sf.detalle) as f_detalle, sf.destino as f_destino, sf.norma as f_norma, sf.tarea as f_tarea, sf.carga_horaria as f_carga_horaria, sf.fecha_desde as f_fecha_desde, t.id as tbcabh_id, t.vigente as tbcabh_vigente, c.escuela_id, c.area_id')
+			->from('servicio s')
+			->join('persona p', 'p.id = s.persona_id', 'left')
+			->join('cargo c', 'c.id = s.cargo_id', '')
+			->join('escuela es', 'es.id = c.escuela_id', 'left')
+			->join('area ar', 'ar.id = c.area_id', 'left')
+			->join('situacion_revista sr', 'sr.id = s.situacion_revista_id')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+			->join('division d', 'd.id = c.division_id', 'left')
+			->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+			->join('materia m', 'm.id = ec.materia_id', 'left')
+			->join('curso cu', 'cu.id = d.curso_id', 'left')
+			->join('servicio_funcion sf', 'sf.servicio_id = s.id AND sf.fecha_hasta IS NULL', 'left')
+			->join('funcion f', 'sf.funcion_id = f.id', 'left')
+			->join('tbcabh t', 't.servicio_id = s.id AND t.vigente=' . AMES_LIQUIDACION, 'left')
+			->where('p.id', $persona_id)
+			->order_by('(CASE WHEN s.fecha_baja IS NULL THEN 0 ELSE 1 END), s.fecha_baja DESC, s.fecha_alta DESC');
+		if (!empty($escuela_id)) {
+			$query->where('es.id', $escuela_id);
+		}
+		return $query->get()->result();
+	}
+
+	public function get_servicios_persona_by_regimen($persona_id, $escuela_id = NULL) {
+		$query = $this->db->select('COALESCE(d.descripcion, "Estatal") dependencia,CASE WHEN regimen_tipo_id=2 THEN "HORAS" ELSE  CONCAT(r.codigo, \' \', r.descripcion) END as regimen_descripcion, '
+				. 'CASE WHEN r.regimen_tipo_id=2 THEN \'\' ELSE r.puntos END clase, sum(CASE WHEN regimen_tipo_id = 2 THEN c.carga_horaria ELSE 1 END) as cantidad_horas')
+			->from('servicio s')
+			->join('persona p', 'p.id = s.persona_id')
+			->join('cargo c', 'c.id = s.cargo_id')
+			->join('escuela es', 'es.id = c.escuela_id', 'left')
+			->join('dependencia d', 'd.id = es.dependencia_id', 'left')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+			->join('tbcabh t', 't.servicio_id = s.id AND t.vigente=' . AMES_LIQUIDACION, 'left')
+			->where('p.id', $persona_id)
+			->where('s.fecha_baja IS NULL')
+			->group_by('(CASE WHEN regimen_tipo_id = 2 THEN 0 ELSE r.codigo END), d.id, (CASE WHEN r.regimen_tipo_id=2 THEN \'\' ELSE r.puntos END)')
+			->order_by('d.id,(CASE WHEN regimen_tipo_id=2 THEN 0 ELSE r.codigo END)');
+		if (!empty($escuela_id)) {
+			$query->where('es.id', $escuela_id);
+		}
+		return $query->get()->result();
+	}
+
+	public function get_horario_by_persona($persona_id = NULL) {
+		if ($persona_id === NULL) {
+			return FALSE;
+		}
+		$query = $this->db->select('p.id persona_id, s.id servicio_id, dia.id dia_id, dia.nombre dia, r.codigo regimen_codigo, '
+				. 'r.descripcion regimen_descripcion, r.regimen_tipo_id, c.carga_horaria, m.descripcion materia, sf.funcion_id, COALESCE(f.descripcion, sf.detalle) sf_detalle, '
+				. 'COALESCE(h.hora_desde, sfh.hora_desde) hora_desde, COALESCE(h.hora_hasta, sfh.hora_hasta) hora_hasta, '
+				. 'h.obligaciones hora_obligaciones, CONCAT(cu.descripcion, " ", d.division) as division, e.id escuela_id, '
+				. 'CONCAT(e.numero, (CASE WHEN (e.anexo = 0) THEN "" ELSE CONCAT(\'/\', e.anexo) END), \' - \', e.nombre) escuela, '
+				. 'ar.id area_id, CONCAT(ar.codigo, " ", ar.descripcion) area, sfh.id servicio_funcion_horario_id, ch.id cargo_horario_id, h.id horario_id')
+			->from('servicio s')
+			->join('persona p', 'p.id = s.persona_id')
+			->join('cargo c', 'c.id = s.cargo_id', '')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+			->join('servicio_funcion sf', 's.id = sf.servicio_id AND sf.fecha_hasta IS NULL', 'left')
+			->join('funcion f', 'f.id = sf.funcion_id', 'left')
+			->join('servicio_funcion_horario sfh', 'sf.id = sfh.servicio_funcion_id', 'left')
+			->join('cargo_horario ch', 'ch.cargo_id = s.cargo_id AND sfh.id IS NULL', 'left')
+			->join('horario h', '(h.cargo_id = s.cargo_id OR h.id = ch.horario_id) AND sfh.id IS NULL', 'left')
+			->join('dia', 'dia.id = h.dia_id OR dia.id = sfh.dia_id', 'left')
+			->join('division d', 'd.id = c.division_id', 'left')
+			->join('curso cu', 'cu.id = d.curso_id', 'left')
+			->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+			->join('materia m', 'm.id = ec.materia_id', 'left')
+			->join('area ar', 'ar.id = c.area_id', 'left')
+			->join('escuela e', 'e.id = c.escuela_id', 'left')
+			->where('p.id', $persona_id)
+			->order_by('(CASE WHEN s.fecha_baja IS NULL THEN 0 ELSE 1 END), s.fecha_baja DESC, s.fecha_alta DESC, dia.id, s.id ASC');
+		return $query->get()->result();
+	}
+
+	public function get_otros_servicios_cargo($cargo_id, $servicio_id) {
+		return $this->db->select("s.id, s.persona_id, p.cuil, CONCAT(p.apellido, ', ', p.nombre) as persona, s.fecha_alta, s.liquidacion, CONCAT(rp.apellido, ', ', rp.nombre) as reemplazado, CONCAT(ra.articulo, '-', ra.inciso, ' ', ra.descripcion_corta) as articulo_reemplazo, sr.descripcion as situacion_revista")
+				->from('servicio s')
+				->join('persona p', 'p.id = s.persona_id')
+				->join('novedad_tipo ra', 'ra.id = s.articulo_reemplazo_id', 'left')
+				->join('servicio rs', 'rs.id = s.reemplazado_id', 'left')
+				->join('persona rp', 'rp.id = rs.persona_id', 'left')
+				->join('situacion_revista sr', 'sr.id = s.situacion_revista_id', 'left')
+				->join('cargo c', 'c.id = s.cargo_id')
+				->join('escuela e', 'c.escuela_id = e.id')
+				->where('s.id != ', $servicio_id)
+				->where('c.id', $cargo_id)
+				->where('s.fecha_baja IS NULL')
+				->order_by('s.fecha_alta DESC')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('reemplazado_id', $delete_id)->count_all_results('servicio') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga reemplazos asociados.');
+			return FALSE;
+		}
+		if ($this->db->where('servicio_id', $delete_id)->count_all_results('servicio_funcion') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a servicio de funcion.');
+			return FALSE;
+		}
+		if ($this->db->where('servicio_id', $delete_id)->count_all_results('servicio_novedad') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga novedades asociadas.');
+			return FALSE;
+		}
+		if ($this->db->where('servicio_id', $delete_id)->count_all_results('servicio_tolerancia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a servicio de tolerancia.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Servicio_model.php */
+/* Location: ./application/models/Servicio_model.php */

@@ -1,0 +1,124 @@
+<?php
+
+class TestSoap extends CI_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->library("Nusoap");
+		$this->load->library('encryption');
+	}
+
+	private function testServiceAlumnos() {
+		$datos = array(
+			array(
+				'dni' => '50956873',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '39236965',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '34917552',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '36712349',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '45965028',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+		));
+
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'alumnos' => $datos,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+//		lm($params);
+		$result2 = $client->call('get_alumnos', $params);
+		print_r("Alumnos: ");
+		print_r($result2);
+	}
+
+	private function testServiceAlumno($dni) {
+
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'dni' => $dni,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+//		lm($params);
+		$result2 = $client->call('get_alumno', $params);
+		print_r("Alumno: ");
+		print_r($result2);
+	}
+
+	private function testServiceDocente($dni) {
+
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'dni' => $dni,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+//		lm($params);
+		$result2 = $client->call('get_docente', $params);
+		print_r("Docente: ");
+		print_r($result2);
+	}
+
+	private function testServiceDocentes() {
+		$datos = array(
+			array(
+				'dni' => '24506105',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '32194086',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '24506360',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '18169693',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+			),
+			array(
+				'dni' => '35145460',
+				'apellido' => '',
+				'nombre' => '',
+				'escuela' => ''
+		));
+
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'docentes' => $datos,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+//		lm($params);
+		$result2 = $client->call('get_docentes', $params);
+		print_r("Docentes: ");
+		print_r($result2);
+	}
+}

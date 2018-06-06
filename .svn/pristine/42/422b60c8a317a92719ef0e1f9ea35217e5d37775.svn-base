@@ -1,0 +1,54 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Recepcion_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'inscripcion';
+		$this->msg_name = 'Inscripcion';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'persona_id', 'fecha_cierre', 'fecha_recepcion', 'observaciones_recepcion');
+		$this->fields = array(
+			'PerCuil' => array('label' => 'Cuil', 'maxlength' => '13', 'readonly' => TRUE),
+			'PerApe' => array('label' => 'Apellido', 'maxlength' => '25', 'readonly' => TRUE),
+			'PerNom' => array('label' => 'Nombre', 'maxlength' => '25', 'readonly' => TRUE),
+			'PerFecNac' => array('label' => 'Fecha Nac.', 'type' => 'date', 'placeholder' => 'dd/mm/aaaa', 'readonly' => TRUE),
+			'PerDomClle' => array('label' => 'Calle', 'maxlength' => '60', 'readonly' => TRUE),
+			'PerDomNro' => array('label' => 'Número', 'maxlength' => '5', 'readonly' => TRUE),
+			'PerDomPiso' => array('label' => 'Piso', 'maxlength' => '2', 'readonly' => TRUE),
+			'PerDomDpto' => array('label' => 'Dpto', 'maxlength' => '5', 'readonly' => TRUE),
+			'PerDomTel' => array('label' => 'Teléfono', 'maxlength' => '20', 'readonly' => TRUE),
+			'PerDomTel2' => array('label' => 'Teléfono alternativo', 'maxlength' => '20', 'readonly' => TRUE),
+			'PerDomDepl' => array('label' => 'Departamento', 'id_name' => 'PerDomDepl', 'readonly' => TRUE),
+			'PerDomDisl' => array('label' => 'Distrito', 'id_name' => 'PerDomDisl', 'readonly' => TRUE),
+			'PerCodPos' => array('label' => 'Código Postal', 'maxlength' => '4', 'readonly' => TRUE),
+			'PerDomEmai' => array('label' => 'Email', 'maxlength' => '100', 'tabindex' => '-1', 'readonly' => TRUE),
+			'NroDocumen' => array('label' => 'N° Documento', 'maxlength' => '8', 'readonly' => TRUE),
+			'observaciones_recepcion' => array('label' => 'Observaciones', 'form_type' => 'textarea', 'rows' => '3')
+		);
+		$this->requeridos = array('');
+		$this->unicos = array('');
+	}
+
+	function get_precepcion($escuela_id) {
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$DB1->select('COUNT(bono_secundario.inscripcion.escuela_id) AS precepcion')
+			->from('bono_secundario.inscripcion')
+			->where("inscripcion.fecha_recepcion IS NULL AND fecha_cierre IS NOT NULL AND inscripcion.escuela_id = $escuela_id");
+		$query = $DB1->get();
+
+		return $query->row(0)->precepcion;
+	}
+
+	function get_recibidos($escuela_id) {
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$DB1->select('COUNT(bono_secundario.inscripcion.escuela_id) AS precepcion')
+			->from('bono_secundario.inscripcion')
+			->where("inscripcion.fecha_recepcion IS NOT NULL AND inscripcion.escuela_id = $escuela_id");
+		$query = $DB1->get();
+
+		return $query->row(0)->precepcion;
+	}
+}

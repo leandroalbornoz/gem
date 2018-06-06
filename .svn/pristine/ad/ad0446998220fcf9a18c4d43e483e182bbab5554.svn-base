@@ -1,0 +1,169 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Personal de <?= $area->codigo; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="areas/area/ver/<?php echo $area->id; ?>"><?php echo "$area->codigo $area->descripcion"; ?></a></li>
+			<li><a href="areas/personal/listar/<?php echo $area->id; ?>">Personal</a></li>
+			<li class="active">Función</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<?php if ($metodo !== 'ver_funcion'): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="areas/personal/ver/<?php echo $servicio->id; ?>">
+								<i class="fa fa-search" id="btn-ver"></i> Ver
+							</a>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="areas/personal/editar/<?php echo $servicio->id; ?>">
+								<i class="fa fa-edit" id="btn-editar"></i> Editar
+							</a>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['eliminar']; ?>" href="areas/personal/eliminar/<?php echo $servicio->id; ?>">
+								<i class="fa fa-ban" id="btn-eliminar"></i> Eliminar
+							</a>
+						<?php else: ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="areas/personal/ver_funcion/<?php echo $servicio_funcion->id; ?>">
+								<i class="fa fa-search" id="btn-ver"></i> Ver
+							</a>
+						<?php endif; ?>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['cuil']['label']; ?>
+								<?php echo $fields['cuil']['form']; ?>
+							</div>
+							<div class="form-group col-md-6">
+								<?php echo $fields['nombre']['label']; ?>
+								<?php echo $fields['nombre']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['liquidacion']['label']; ?>
+								<?php if ($txt_btn === 'Editar' && empty($servicio->liquidacion) && FALSE): //@TODO habilitar para mostrar buscador liquidacion; ?>
+									<div class="input-group">
+										<?php echo $fields['liquidacion']['form']; ?>
+										<span class="input-group-btn">
+											<a class="btn btn-primary" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="liquidacion/modal_buscar_servicio_area/<?= $servicio->id ?>"><i class="fa fa-search"></i></a>
+										</span>
+									</div>
+								<?php else: ?>
+									<?php echo $fields['liquidacion']['form']; ?>
+								<?php endif; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-6">
+								<?php echo $fields['regimen']['label']; ?>
+								<?php echo $fields['regimen']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['carga_horaria']['label']; ?>
+								<?php echo $fields['carga_horaria']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['condicion_cargo']['label']; ?>
+								<?php echo $fields['condicion_cargo']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['situacion_revista']['label']; ?>
+								<?php echo $fields['situacion_revista']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['fecha_alta']['label']; ?>
+								<?php if ($servicio->fecha_alta): ?>
+									<?php echo $fields['fecha_alta']['form']; ?>
+								<?php else: ?>
+									<input type="text" name="fecha_alta" value="" id="fecha_alta" class="form-control dateFormat">
+								<?php endif; ?>
+							</div>
+							<?php if ($txt_btn !== 'Agregar'): ?>
+								<div class="form-group col-md-3">
+									<?php echo $fields['fecha_baja']['label']; ?>
+									<?php echo $fields['fecha_baja']['form']; ?>
+								</div>
+								<div class="form-group col-md-3">
+									<?php echo $fields['motivo_baja']['label']; ?>
+									<?php echo $fields['motivo_baja']['form']; ?>
+								</div>
+							<?php endif; ?>
+						</div>
+						<div style="margin-top: 3%">
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr style="background-color: #f4f4f4" >
+										<th style="text-align: center;" colspan="7">Funciones</th>
+										<?php if ($txt_btn === 'Editar') : ?>
+											<th></th>
+										<?php endif; ?>
+									</tr>
+									<tr>
+										<th>Detalle</th>
+										<th>Destino</th>
+										<th>Norma</th>
+										<th>Tarea</th>
+										<th>Carga horaria</th>
+										<th>Desde</th>
+										<th>Hasta</th>
+										<?php if ($txt_btn === 'Editar') : ?>
+											<th></th>
+										<?php endif; ?>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($servicio_funciones)): ?>
+										<?php foreach ($servicio_funciones as $funcion): ?>
+											<tr>
+												<td><?php echo $funcion->funcion; ?></td>
+												<td><?php echo $funcion->destino; ?></td>
+												<td><?php echo $funcion->norma; ?></td>
+												<td><?php echo $funcion->tarea; ?></td>
+												<td><?php echo $funcion->carga_horaria; ?></td>
+												<td><?php echo empty($funcion->fecha_desde) ? '' : date_format(new DateTime($funcion->fecha_desde), 'd/m/Y'); ?></td>
+												<td><?php echo empty($funcion->fecha_hasta) ? '' : date_format(new DateTime($funcion->fecha_hasta), 'd/m/Y'); ?></td>
+												<?php if ($txt_btn === 'Editar') : ?>
+													<td>
+														<a class="btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="servicio_funcion/modal_agregar/<?= $servicio->id ?>"><i class="fa fa-plus"></i> Cambiar a nueva función</a>
+														<a class="btn btn-xs btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="servicio_funcion/modal_editar/<?= $funcion->id ?>"><i class="fa fa-edit"></i> Editar actual</a>
+													</td>
+												<?php endif; ?>
+											</tr>
+										<?php endforeach; ?>
+									<?php else : ?>
+										<tr>
+											<td>-- No tiene --</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="areas/personal/listar/<?php echo $area->id; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+						<?php echo zetta_form_submit($txt_btn); ?>
+						<?php echo form_hidden('id', $cargo->id); ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>

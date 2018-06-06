@@ -1,0 +1,213 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Diagnostico extends MY_Controller {
+
+	function __construct()
+	{
+		parent::__construct();
+		$this->load->model('diagnostico_model');
+		$this->roles_permitidos = array(ROL_ADMIN);
+		$this->nav_route = 'par/diagnostico';
+	}
+
+	public function listar()
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos))
+		{
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Detalle', 'data' => 'detalle', 'width' => 88),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'diagnostico_table',
+			'source_url' => 'diagnostico/listar_data'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Diagnósticos';
+		$this->load_template('diagnostico/diagnostico_listar', $data);
+	}
+
+	public function listar_data()
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos))
+		{
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('diagnostico.id, diagnostico.detalle')
+			->unset_column('id')
+			->from('diagnostico')
+			->add_column('edit', '<a href="diagnostico/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default"><i class="fa fa-search"></i></a> <a href="diagnostico/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning"><i class="fa fa-pencil"></i></a> <a href="diagnostico/modal_eliminar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger"><i class="fa fa-remove"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_agregar()
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos))
+		{
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->set_model_validation_rules($this->diagnostico_model);
+		if (isset($_POST) && !empty($_POST))
+		{
+			if ($this->form_validation->run() === TRUE)
+			{
+				$trans_ok = TRUE;
+				$trans_ok&= $this->diagnostico_model->create(array(
+					'detalle' => $this->input->post('detalle')));
+
+				if ($trans_ok)
+				{
+					$this->session->set_flashdata('message', $this->diagnostico_model->get_msg());
+				}
+				else
+				{
+					$this->session->set_flashdata('error', $this->diagnostico_model->get_error());
+				}
+				redirect('diagnostico/listar', 'refresh');
+			}
+			else
+			{
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('diagnostico/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->diagnostico_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar diagnóstico';
+		$this->load->view('diagnostico/diagnostico_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL)
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id))
+		{
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+
+		}
+		$diagnostico = $this->diagnostico_model->get(array('id' => $id));
+		if (empty($diagnostico))
+		{
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+
+		}
+		$this->set_model_validation_rules($this->diagnostico_model);
+		if (isset($_POST) && !empty($_POST))
+		{
+			if ($id !== $this->input->post('id'))
+			{
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+			return;
+
+			}
+
+			if ($this->form_validation->run() === TRUE)
+			{
+				$trans_ok = TRUE;
+				$trans_ok&= $this->diagnostico_model->update(array(
+					'id' => $this->input->post('id'),
+					'detalle' => $this->input->post('detalle')));
+				if ($trans_ok)
+				{
+					$this->session->set_flashdata('message', $this->diagnostico_model->get_msg());
+					redirect('diagnostico/listar', 'refresh');
+				}
+			}
+			else
+			{
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('diagnostico/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->diagnostico_model->fields, $diagnostico);
+
+		$data['diagnostico'] = $diagnostico;
+
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar diagnóstico';
+		$this->load->view('diagnostico/diagnostico_modal_abm', $data);
+	}
+
+	public function modal_eliminar($id = NULL)
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id))
+		{
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+
+		}
+		$diagnostico = $this->diagnostico_model->get(array('id' => $id));
+		if (empty($diagnostico))
+		{
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+
+		}
+		if (isset($_POST) && !empty($_POST))
+		{
+			if ($id !== $this->input->post('id'))
+			{
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+			return;
+
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok&= $this->diagnostico_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok)
+			{
+				$this->session->set_flashdata('message', $this->diagnostico_model->get_msg());
+				redirect('diagnostico/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->diagnostico_model->fields, $diagnostico, TRUE);
+
+		$data['diagnostico'] = $diagnostico;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar diagnóstico';
+		$this->load->view('diagnostico/diagnostico_modal_abm', $data);
+	}
+
+	public function modal_ver($id = NULL)
+	{
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id))
+		{
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+
+		}
+		$diagnostico = $this->diagnostico_model->get(array('id' => $id));
+		if (empty($diagnostico))
+		{
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+
+		}
+
+		$data['fields'] = $this->build_fields($this->diagnostico_model->fields, $diagnostico, TRUE);
+
+		$data['diagnostico'] = $diagnostico;
+		$data['txt_btn'] = NULL;
+		$data['title'] = 'Ver diagnóstico';
+		$this->load->view('diagnostico/diagnostico_modal_abm', $data);
+	}
+}
+/* End of file Diagnostico.php */
+/* Location: ./application/controllers/Diagnostico.php */

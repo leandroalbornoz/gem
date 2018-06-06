@@ -1,0 +1,53 @@
+<html lang="es">
+	<head>
+		<base href="<?php echo base_url(); ?>" />
+		<meta charset="utf-8">
+	</head>
+	<body>
+		<div class="content-wrapper">
+			<section class="content-header">
+				<div role="tabpanel" class="tab-pane" id="tab_alumnos">
+					<div style="text-align: left;">
+						<img src="img/generales/logo-dge-sm.jpg" height="70px" width="70px">
+					</div>
+					<div style="text-align: center;">
+						<strong>Planilla de celadores para desinfección de escuelas</strong>
+					</div>
+					<div style="margin-top: 3%">
+						<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+							<thead>
+								<tr>
+									<th colspan="2">N° y Nombre de la institución: <?php echo"$escuela->nombre_largo" ?></th>
+								</tr>
+								<tr>
+									<th colspan="2">Fecha actual: <?php echo date('d/m/Y') ?></th>
+								</tr>
+								<tr>
+									<th colspan="2">Fecha de cierre: <?php echo (new DateTime($desinfeccion->fecha_cierre))->format('d/m/Y'); ?></th>
+								</tr>
+								<tr>
+									<th style="width: 10%;">Cuil</th>
+									<th style="width: 90%;">Apellido y Nombres</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php if (!empty($celadores)): ?>
+									<?php foreach ($celadores as $orden => $celador): ?>
+										<tr>
+											<td><?php echo $celador->cuil; ?></td>
+											<td><?php echo "$celador->apellido $celador->nombre"; ?></td>
+										</tr>
+									<?php endforeach; ?>
+								<?php else : ?>
+									<tr>
+										<td colspan="10" align="center">-- No se asignaron celadores --</td>
+									</tr>
+								<?php endif; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		</div>
+	</body>
+</html>

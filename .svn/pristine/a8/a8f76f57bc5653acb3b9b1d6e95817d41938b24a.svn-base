@@ -1,0 +1,613 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Rrhh extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL,ROL_ASISTENCIA_DIVISION));
+		$this->nav_route = 'admin/escuela';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Número', 'data' => 'numero', 'width' => 4),
+				array('label' => 'Anexo', 'data' => 'anexo', 'class' => 'dt-body-right', 'width' => 4),
+				array('label' => 'CUE', 'data' => 'cue', 'class' => 'dt-body-right', 'width' => 5),
+				array('label' => 'Nombre', 'data' => 'nombre', 'width' => 30),
+				array('label' => 'Nivel', 'data' => 'nivel', 'width' => 12, 'class' => 'text-sm'),
+				array('label' => 'Juri/Repa', 'data' => 'jurirepa', 'width' => 5, 'class' => 'text-sm'),
+				array('label' => 'Supervisión', 'data' => 'supervision', 'width' => 10, 'class' => 'text-sm'),
+				array('label' => 'Delegación', 'data' => 'delegacion', 'width' => 8, 'class' => 'text-sm'),
+				array('label' => 'Zona', 'data' => 'zona', 'width' => 5, 'class' => 'text-sm'),
+				array('label' => 'Departamento', 'data' => 'departamento', 'width' => 5, 'class' => 'text-sm'),
+				array('label' => 'Celadores', 'data' => 'celadores', 'width' => 8),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'escuela_table',
+			'source_url' => "rrhh/listar_data/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_escuela_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Escuelas';
+		$this->load_template('rrhh/rrhh_listar', $data);
+	}
+
+	public function listar_data($rol_codigo, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('escuela.id, escuela.numero, escuela.anexo, escuela.cue, escuela.nombre, nivel.descripcion as nivel, delegacion.descripcion as delegacion, CONCAT(jurisdiccion.codigo,\'/\',reparticion.codigo) as jurirepa, supervision.nombre as supervision, zona.descripcion as zona, c.celadores, COALESCE(departamento.descripcion) as departamento')
+			->unset_column('id')
+			->from('escuela')
+			->join('nivel', 'nivel.id = escuela.nivel_id', 'left')
+			->join('delegacion', 'delegacion.id = escuela.delegacion_id', 'left')
+			->join('reparticion', 'reparticion.id = escuela.reparticion_id', 'left')
+			->join('jurisdiccion', 'jurisdiccion.id = reparticion.jurisdiccion_id', 'left')
+			->join('supervision', 'supervision.id = escuela.supervision_id', 'left')
+			->join('zona', 'zona.id = escuela.zona_id', 'left')
+			->join('localidad', 'localidad.id = escuela.localidad_id', 'left')
+			->join('departamento', 'departamento.id = localidad.departamento_id', 'left')
+			->join("(SELECT e.numero, COUNT(1) celadores FROM servicio s JOIN cargo c ON s.cargo_id=c.id JOIN regimen r ON c.regimen_id=r.id JOIN escuela e ON c.escuela_id=e.id WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302') GROUP BY e.numero) c", 'c.numero=escuela.numero', 'left')
+			->where('escuela.anexo', '0')
+			->where('escuela.dependencia_id', '1');
+		$this->datatables->add_column('edit', '<a class="btn btn-xs btn-default" href="rrhh/escuela/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		switch ($this->rol->codigo) {
+
+			case ROL_GRUPO_ESCUELA:
+			case ROL_GRUPO_ESCUELA_CONSULTA:
+				$this->datatables
+					->join('escuela_grupo_escuela', 'escuela_grupo_escuela.escuela_id = escuela.id', 'left')
+					->join('escuela_grupo', 'escuela_grupo_escuela.escuela_grupo_id = escuela_grupo.id', 'left')
+					->where('escuela_grupo.id', $this->rol->entidad_id);
+				break;
+			case ROL_LINEA:
+			case ROL_CONSULTA_LINEA:
+				$this->datatables->where('nivel.linea_id', $this->rol->entidad_id);
+				break;
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$this->datatables->where('escuela.id', $this->rol->entidad_id);
+				break;
+			case ROL_SUPERVISION:
+				$this->datatables->where('supervision.id', $this->rol->entidad_id);
+				break;
+			case ROL_PRIVADA:
+				$this->datatables->where('dependencia_id', 2);
+				break;
+			case ROL_SEOS:
+				$this->datatables->where('dependencia_id', 3);
+				break;
+			case ROL_REGIONAL:
+				$this->datatables->where('regional.id', $this->rol->entidad_id);
+				break;
+			case ROL_ADMIN:
+			case ROL_USI:
+			case ROL_JEFE_LIQUIDACION:
+			case ROL_LIQUIDACION:
+			case ROL_CONSULTA:
+				break;
+			default:
+				echo '';
+				return;
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function escuela($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('rrhh_model');
+		$escuela = $this->rrhh_model->get_escuela($id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$data['anexos'] = $this->rrhh_model->get_detalles_anexos($escuela->id);
+		$data['caracteristicas'] = $this->rrhh_model->get_caracteristicas_escuela($escuela->id);
+		$data['error'] = $this->session->flashdata('error');
+		$data['celadores'] = $this->rrhh_model->get_planta_celadores($escuela->numero);
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'escritorio' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver escuela';
+		$this->load_template('rrhh/rrhh_escuela', $data);
+	}
+
+	public function modal_ver_horario($cargo_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $cargo_id == NULL || !ctype_digit($cargo_id) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$this->load->model('rrhh_model');
+		$escuela = $this->rrhh_model->get_escuela($escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($cargo_id);
+
+		$horarios_car = $this->rrhh_model->get_horarios_cargo($cargo_id, $escuela->numero);
+		$horarios_dia = array();
+		if (!empty($horarios_car)) {
+			foreach ($horarios_car as $horario) {
+				$horarios_dia[$horario->dia][] = $horario;
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+		$data['cargo'] = $cargo;
+		$data['horarios_dia'] = $horarios_dia;
+		$data['txt_btn'] = NULL;
+		$data['title'] = 'Ver horarios del servicio';
+		$this->load->view('rrhh/rrhh_horario_modal_ver', $data);
+	}
+
+	public function exportar_pdf($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('rrhh_model');
+		$escuela = $this->rrhh_model->get_escuela($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$horarios = $this->rrhh_model->get_horarios_celadores_escuela($escuela->numero);
+		$horarios_dia = array();
+		foreach ($horarios as $horario) {
+			$horarios_dia[$horario->cargo_id][$horario->dia][] = $horario;
+		}
+
+		$celadores = $this->rrhh_model->get_planta_celadores($escuela->numero);
+		$celadores_horario = array();
+		foreach ($celadores as $celador) {
+			$celadores_horario[$celador->cargo_id] = $celador;
+			$celadores_horario[$celador->cargo_id]->horario = array();
+			if (!empty($horarios_dia[$celador->cargo_id])) {
+				$celadores_horario[$celador->cargo_id]->horario = $horarios_dia[$celador->cargo_id];
+			}
+		}
+
+		$data['celadores_horario'] = $celadores_horario;
+		$data['escuela'] = $escuela;
+		$data['horarios_dia'] = $horarios_dia;
+		$data['anexos'] = $this->rrhh_model->get_detalles_anexos($escuela->id);
+		$data['caracteristicas'] = $this->rrhh_model->get_caracteristicas_escuela($escuela->id);
+		$data['celadores'] = $this->rrhh_model->get_planta_celadores($escuela->numero);
+
+		$content = $this->load->view('rrhh/rrhh_reporte_pdf', $data, TRUE);
+
+		$this->load->helper('mpdf');
+		$fecha_actual = date('d/m/Y');
+		$watermark = '';
+
+		exportMPDF($content, 'plugins/kv-mpdf-bootstrap.min.css', 'Declaración jurada de planta de celadores', "Escuela N°$escuela->numero - $escuela->nombre", '|{PAGENO} de {nb}|', 'LEGAL-L', $watermark, 'I', FALSE, FALSE);
+	}
+
+	public function autoridades($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('escuela_autoridad_model');
+		$autoridades = $this->escuela_autoridad_model->get(array(
+			'escuela_id' => $id,
+			'join' => array(
+				array('autoridad_tipo', 'autoridad_tipo.id = escuela_autoridad.autoridad_tipo_id', 'left', array('autoridad_tipo.descripcion as autoridad')),
+				array('persona', 'persona.id = escuela_autoridad.persona_id', 'left', array('CONCAT(persona.apellido, \', \', persona.nombre) as persona', 'persona.cuil', 'persona.telefono_fijo', 'persona.telefono_movil', 'persona.email'))),
+		));
+
+		$data['fields'] = $this->build_fields($this->escuela_model->fields, $escuela, TRUE);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['autoridades'] = $autoridades;
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'escritorio' => '', 'ver' => '', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver autoridades';
+		$this->load_template('escuela/escuela_autoridades', $data);
+	}
+
+	public function reporte_tareas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$model = new stdClass();
+		$model->fields = array(
+			'tarea' => array('label' => 'Filtro por tareas', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple', 'id_name' => 'tarea', 'array' => array(
+					'' => '-- Seleccione Tarea --',
+					'TAREAS LIVIANAS' => 'TAREAS LIVIANAS',
+					'SERENO' => 'SERENO',
+					'COCINERO' => 'COCINERO',
+					'SERVICIOS GENERALES' => 'SERVICIOS GENERALES',
+					'ADMINISTRATIVO' => 'ADMINISTRATIVO',
+					'CALDERISTA' => 'CALDERISTA',
+					'OBRERO RURAL' => 'OBRERO RURAL',
+					'MANTENIMIENTO' => 'MANTENIMIENTO'
+				))
+		);
+
+		if (isset($_POST) && !empty($_POST)) {
+			$this->load->model('rrhh_model');
+			$tareas = $this->input->post('tarea');
+			$celadores = $this->rrhh_model->get_celadores_tareas($tareas, $this->rol);
+			$data['celadores'] = $celadores;
+			$data['tareas'] = $tareas;
+			$this->load_template('rrhh/rrhh_reporte_tareas_data', $data);
+			return;
+		}
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$this->load_template('rrhh/rrhh_reporte_tareas', $data);
+	}
+
+	public function excel_reporte_celadores() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($this->input->post('codigo') !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($this->input->post('entidad_id'))) && $this->rol->entidad_id !== $this->input->post('entidad_id'))) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$this->load->model('rrhh_model');
+		$tareas = $this->input->post('tareas');
+		$campos = array(
+			'A' => array('Persona', 30),
+			'B' => array('Cuil', 15),
+			'C' => array('F.Nac', 15),
+			'D' => array('S.R', 25),
+			'E' => array('Escuela', 40),
+			'F' => array('Anexo', 10),
+			'G' => array('Horarios',18),
+			'H' => array('Tareas', 20),
+			'I' => array('Concepto', 15),
+			'J' => array('Estudios', 25),
+			'K' => array('Alta', 15),
+			'L' => array('Reemplaza a', 25)
+		);
+
+		$query = "
+				SELECT CONCAT(p.apellido,', ',p.nombre) as persona, p.cuil, DATE_FORMAT(p.fecha_nacimiento, '%d/%m/%Y'),sr.descripcion as situacion_revista, CONCAT(COALESCE(e.numero,''),' - ',COALESCE(e.nombre,'')) as escuela,e.anexo as anexo,GROUP_CONCAT(CONCAT(LEFT(dia.nombre, 2), ' ', LEFT(h.hora_desde, 5), '-', LEFT(h.hora_hasta, 5)) ORDER BY dia.id , h.hora_desde SEPARATOR '\n') horario,sf.tarea, cc.descripcion as celador_concepto,ne.descripcion as nivel_estudio,DATE_FORMAT(s.fecha_alta, '%d/%m/%Y'), CONCAT(pr.apellido, ', ', pr.nombre) as reemplazado 
+		FROM servicio s 
+		JOIN cargo c ON s.cargo_id=c.id 
+		JOIN regimen r ON c.regimen_id=r.id 
+		JOIN escuela e ON c.escuela_id=e.id
+		JOIN situacion_revista sr ON sr.id = s.situacion_revista_id
+		JOIN persona p ON p.id = s.persona_id
+		LEFT JOIN celador_concepto cc ON cc.id = s.celador_concepto_id
+		JOIN servicio_funcion sf ON s.id = sf.servicio_id AND sf.detalle='CELADOR' AND sf.tarea IS NOT NULL AND sf.tarea IN ?
+		LEFT JOIN servicio remp ON remp.id = s.reemplazado_id
+		LEFT JOIN persona pr ON pr.id = remp.persona_id
+		LEFT JOIN nivel_estudio ne ON p.nivel_estudio_id = ne.id
+		LEFT JOIN horario h ON h.cargo_id = c.id
+		LEFT JOIN dia ON dia.id= h.dia_id
+	";
+		switch ($this->rol->codigo) {
+			case ROL_GRUPO_ESCUELA:
+			case ROL_GRUPO_ESCUELA_CONSULTA:
+				$query .= " LEFT JOIN escuela_grupo_escuela ege ON ege.escuela_id = e.id
+									LEFT JOIN escuela_grupo eg ON ege.escuela_grupo_id = eg.id
+									WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302') 
+									AND eg.id = ? 
+									GROUP BY s.id ";
+				return $this->db->query($query, array($tareas, $this->rol->entidad_id))->result_array();
+				break;
+			case ROL_LINEA:
+			case ROL_CONSULTA_LINEA:
+				$query .= "
+						LEFT JOIN nivel ON nivel.id = e.nivel_id
+						WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302')
+						AND nivel.linea_id = ?  
+						GROUP BY s.id ";
+				return $this->db->query($query, array($tareas, $this->rol->entidad_id))->result_array();
+				break;
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$query .= "
+					WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302')
+					AND e.id = ? 
+					GROUP BY s.id ";
+				$celadores = $this->db->query($query, array($tareas, $this->rol->entidad_id))->result_array();
+				break;
+			case ROL_SUPERVISION:
+				$query .= "
+						LEFT JOIN supervision ON supervision.id = e.supervision_id
+						WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302')
+						AND supervision.id = ? 
+						GROUP BY s.id ";
+				$celadores = $this->db->query($query, array($tareas, $this->rol->entidad_id))->result_array();
+				break;
+			case ROL_PRIVADA:
+				$query .= "
+					WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302')
+					AND e.dependencia_id = 2 
+					GROUP BY s.id ";
+				$celadores = $this->db->query($query, array($tareas))->result_array();
+				break;
+			case ROL_SEOS:
+				$query .= "
+					WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302')
+					AND e.dependencia_id = 3 
+					GROUP BY s.id ";
+				$celadores = $this->db->query($query, array($tareas))->result_array();
+				break;
+			case ROL_ADMIN:
+			case ROL_USI:
+			case ROL_JEFE_LIQUIDACION:
+			case ROL_LIQUIDACION:
+			case ROL_CONSULTA:
+				$query .= "
+					WHERE s.fecha_baja IS NULL AND r.codigo IN ('0560201','0560202','0560301','0560302','0540302') 
+					GROUP BY s.id ";
+				$celadores = $this->db->query($query, array($tareas))->result_array();
+				break;
+		}
+
+		if (!empty($celadores)) {
+			if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			$this->load->library('PHPExcel');
+			$this->phpexcel->getProperties()->setTitle("Reporte de celadores - ANEXO 1")->setDescription("");
+			$this->phpexcel->setActiveSheetIndex(0);
+
+			$sheet = $this->phpexcel->getActiveSheet();
+			$sheet->setTitle(substr('Reporte de celadores - ANEXO 1', 0, 30));
+			$encabezado = array();
+			$ultima_columna = 'A';
+			foreach ($campos as $columna => $campo) {
+				$encabezado[] = $campo[0];
+				$sheet->getColumnDimension($columna)->setWidth($campo[1]);
+				$ultima_columna = $columna;
+			}
+
+			$sheet->fromArray(array($encabezado), NULL, 'A1');
+			$sheet->fromArray($celadores, NULL, 'A2');
+			$sheet->getStyle('A1:' . $ultima_columna . '1')->getFont()->setBold(true);
+			$ultima_fila = $sheet->getHighestRow();
+			$sheet->getStyle("G2:G$ultima_fila")->getAlignment()->setWrapText(true);
+			$sheet->getStyle("A2:L$ultima_fila")->getAlignment()->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+
+			header("Content-Type: application/vnd.ms-excel");
+			$nombreArchivo = "Anexo 1 - Celadores";
+			header("Content-Disposition: attachment; filename=\"$nombreArchivo.xls\"");
+			header("Cache-Control: max-age=0");
+
+			$writer = PHPExcel_IOFactory::createWriter($this->phpexcel, "Excel5");
+			$writer->save('php://output');
+			exit;
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('rrhh/reporte_tareas', 'refresh');
+		}
+	}
+
+	public function escritorio($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('anuncio_model');
+		$data['anuncios'] = $this->anuncio_model->get_anuncios();
+
+		$escuela = $this->escuela_model->get_one($id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		$data['administrar'] = TRUE;
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			if (in_array($this->rol->codigo, array(ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_CONSULTA_LINEA)) && !empty($escuela->escuela_id)) {
+				$escuela_sede = $this->escuela_model->get_one($escuela->escuela_id);
+				if ($this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela_sede)) {
+					$data['administrar'] = FALSE;
+				} else {
+					show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+				}
+			} else {
+				show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+			}
+		}
+		$this->load->model('caracteristica_escuela_model');
+		$fields_tipos = $this->caracteristica_escuela_model->get_fields($escuela->nivel_id, $escuela->id, TRUE);
+		foreach ($fields_tipos as $tipo => $fields) {
+			$data['fields_tipos'][$tipo] = $this->build_fields($fields);
+		}
+		$data['escuela'] = $escuela;
+		/* Auditoría Liquidaciones */
+		if ($escuela->dependencia_id === '1') {
+			$this->load->model('liquidaciones/liquidaciones_model');
+			$escuela_liquidaciones = $this->liquidaciones_model->get_escuela_auditoria($escuela->id);
+			if (!empty($escuela_liquidaciones)) {
+				$data['liquidaciones'] = $this->load->view('liquidaciones/escritorio_escuela_modulo_liquidaciones', $this->liquidaciones_model->get_vista($escuela->id, $data), TRUE);
+			}
+		}
+		/* Fines */
+		if ($escuela->nivel_id === '9') {
+			$this->load->model('tem/tem_model');
+			$escuela_tem = $this->tem_model->get_escuela_tem($escuela->id);
+			if (!empty($escuela_tem)) {
+				$data['modulos']['tem'] = $this->load->view('tem/escritorio_escuela_modulo_tem', $this->tem_model->get_vista($escuela->id, $data), TRUE);
+			}
+		}
+		/* Plan Conectividad Nacional */
+		if ($escuela->dependencia_id === '1') {
+			$this->load->model('conectividad/conectividad_model');
+			$escuela_conectividad = $this->conectividad_model->get_escuela_conectividad($escuela->id);
+			if (!empty($escuela_conectividad)) {
+				$data['modulos']['conectividad'] = $this->load->view('conectividad/escritorio_escuela_modulo_conectividad', $this->conectividad_model->get_vista($escuela->id, $data), TRUE);
+			}
+		}
+		/* Preinscripción 1° Grado 2018 */
+		if ($escuela->nivel_id === '2' && $escuela->dependencia_id === '1'/* && ENVIRONMENT !== 'production' */) {
+			$this->load->model('preinscripciones/preinscripcion_calendario_model');
+			$data['preinscripcion_instancias'] = $this->preinscripcion_calendario_model->get_instancias(FALSE);
+			$this->load->model('preinscripciones/preinscripcion_model');
+			$data['modulos']['escuela_preinscripcion'] = $this->load->view('preinscripciones/escritorio_escuela_modulo_preinscripciones', $this->preinscripcion_model->get_vista($escuela->id, 2018, $data), TRUE);
+		}
+		/* Relevamiento Extintores */
+		if ($escuela->dependencia_id === '1') {
+			$this->load->model('extintores/extintores_model');
+			$escuela_extintores = $this->extintores_model->get_escuela_extintores($escuela->id);
+			if (!empty($escuela_extintores)) {
+				$data['modulos']['extintores'] = $this->load->view('extintores/escritorio_escuela_modulo_extintores', $this->extintores_model->get_vista($escuela->id, $data), TRUE);
+			}
+		}
+		/* Operativo Aprender 2017 */
+		$this->load->model('aprender/aprender_operativo_model');
+		$escuela_operativo = $this->aprender_operativo_model->get_escuela_operativo($escuela->id);
+		if (!empty($escuela_operativo)) {
+			$this->load->model('aprender/aprender_operativo_aplicador_model');
+			$data['aprender_aplicadores'] = $this->aprender_operativo_aplicador_model->get_aplicadores_escuela($escuela->id);
+			$data['modulos_inactivos']['aprender_operativo'] = $this->load->view('aprender/escritorio_escuela_modulo_aprender', $this->aprender_operativo_model->get_vista($escuela->id, $data), TRUE);
+		}
+		/* Plan de completamiento de datos para SEOS */
+		if ($escuela->dependencia_id === '3') {
+			$this->load->model('completamiento/completamiento_model');
+			$data['modulos']['completamiento'] = $this->load->view('completamiento/escritorio_escuela_modulo_completamiento', $this->completamiento_model->get_vista($escuela->id, $data), TRUE);
+		}
+		/* Desinfección Elecciones */
+		$this->load->model('elecciones/elecciones_model');
+		$escuela_elecciones = $this->elecciones_model->get_escuela_elecciones($escuela->id);
+		if (!empty($escuela_elecciones)) {
+			if ($escuela_elecciones->eleccion_id === '4') {
+				$data['modulos']['elecciones'] = $this->load->view('elecciones/escritorio_escuela_modulo_elecciones', $this->elecciones_model->get_vista($escuela->id, $data, TRUE), TRUE);
+			} else {
+				$data['modulos_inactivos']['elecciones'] = $this->load->view('elecciones/escritorio_escuela_modulo_elecciones', $this->elecciones_model->get_vista($escuela->id, $data), TRUE);
+			}
+		}
+		/* Evaluar operativo */
+		if ($this->rol->codigo === ROL_DIR_ESCUELA && $escuela->dependencia_id === '2' && $escuela->nivel_id === '2') {
+			$this->load->model('operativo_evaluar/evaluar_operativo_model');
+			$data['modulos']['evaluar_operativo'] = $this->load->view('operativo_evaluar/escritorio_escuela_evaluar_operativo', $this->evaluar_operativo_model->get_vista($escuela->id, $data), TRUE);
+		}
+		if ($escuela->anexo === '0') {
+			$data['anexos'] = $this->escuela_model->get_anexos($escuela->id);
+		}
+		$this->load->model('escuela_carrera_model');
+		$data['carreras'] = $this->escuela_carrera_model->get_by_escuela($escuela->id);
+		$this->load->model('cargo_model');
+		$data['cargos'] = $this->cargo_model->get_by_escuela($escuela->id);
+		$this->load->model('division_model');
+		$divisiones = $this->division_model->get_by_escuela($escuela->id);
+		$data['divisiones'] = $divisiones;
+		$data['indices'] = $this->escuela_model->get_indices($escuela->id);
+		$this->load->model('usuarios_model');
+		$data['usuarios'] = $this->usuarios_model->usuarios_escuela($escuela->id);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$this->load_template('escritorio/escritorio_escuela', $data);
+	}
+
+	public function anuncios($usuario_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $usuario_id == NULL || !ctype_digit($usuario_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!empty($escuela_id)) {
+			$this->load->model('escuela_model');
+			$escuela = $this->escuela_model->get_one($this->rol->entidad_id);
+			if (empty($escuela)) {
+				show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+			}
+			if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+				show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+			}
+			$data['escuela'] = $escuela;
+		}
+
+		$data['anuncios'] = $this->db->select('a.id, a.fecha, a.texto, a.titulo')
+				->from('anuncio a')
+				->join('anuncio_usuario au', "au.anuncio_id=a.id AND au.usuario_id=$this->usuario", 'left')
+				->where('au.id IS NULL')
+				->order_by('a.fecha', 'DESC')
+				->get()->result();
+		$data['title'] = TITLE . ' - Ver anuncios';
+		$this->load_template('escuela/escuela_anuncios', $data);
+	}
+
+	public function alumnos_inasistencias($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+		$data['fields'] = $this->build_fields($this->escuela_model->fields, $escuela, TRUE);
+
+		$this->load->model('caracteristica_escuela_model');
+		$fields_tipos = $this->caracteristica_escuela_model->get_fields($escuela->nivel_id, $escuela->id, TRUE);
+		foreach ($fields_tipos as $tipo => $fields) {
+			$data['fields_tipos'][$tipo] = $this->build_fields($fields);
+		}
+
+		$this->load->model('escuela_autoridad_model');
+		$this->load->model('calendario_model');
+		$this->load->model('division_model');
+		$this->load->model('division_inasistencia_model');
+
+		$ciclo_lectivo = 2017;
+		$divisiones_escuela = $this->division_inasistencia_model->get_divisiones_escuela($escuela->id, $ciclo_lectivo);
+		$division_mes_inasistencia = array();
+		$divisiones = $this->division_inasistencia_model->get_divisiones_inasistencias($escuela->id, $ciclo_lectivo);
+		foreach ($divisiones as $division) {
+			$division_mes_inasistencia[$division->nombre_periodo][$division->id][$division->periodo][$division->mes] = $division;
+			$calendarios[$division->calendario_id] = $this->calendario_model->get_periodos($division->calendario_id, $ciclo_lectivo);
+		}
+		$data['division_mes_inasistencia'] = $division_mes_inasistencia;
+		$data['calendarios'] = $calendarios;
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['divisiones_escuela'] = $divisiones_escuela;
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'escritorio' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Asistencia de alumnos';
+		$this->load_template('escuela/escuela_alumnos_inasistencias', $data);
+	}
+}
+/* End of file Escuela.php */
+/* Location: ./application/controllers/Escuela.php */

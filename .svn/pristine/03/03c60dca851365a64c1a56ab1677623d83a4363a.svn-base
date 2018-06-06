@@ -1,0 +1,159 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_cargo extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS, ROL_MODULO, ROL_ADMIN);
+		$this->nav_route = 'titulo/titulo_persona';
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$model_persona_cargo = new stdClass();
+		$model_persona_cargo->fields = array(
+			'documento_bono' => array('label' => 'Documento'),
+			'persona' => array('label' => 'Persona'),
+			'cargo' => array('label' => 'cargo')
+		);
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('juntas/persona_cargo_hab_model');
+		$this->persona_cargo_hab_model->set_database($DB1);
+
+
+		$persona_cargo = $this->persona_cargo_hab_model->get(array(
+			'id' => $id,
+			'join' => array(
+				array('table' => 'persona', 'where' => 'persona.NroDocumen=persona_cargo_hab.documento_bono', 'type' => 'left', 'columnas' => array('persona.NroDocumen', 'CONCAT(persona.PerApe, ", ", persona.PerNom) as persona', 'persona.id as persona_id'))
+		)));
+		if (empty($persona_cargo)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('juntas/cargo_entidad_model');
+		$this->cargo_entidad_model->set_database($DB1);
+		$cargos_entidad = $this->cargo_entidad_model->verificar_cargo($persona_cargo->cargo);
+		if (empty($cargos_entidad)) {
+			$this->modal_error('El cargo que intenta eliminar no está asociado a su rol', 'Acción no autorizada');
+			return;
+		}
+
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_cargo_hab_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->persona_cargo_hab_model->get_msg());
+				redirect("juntas/escritorio/ver/$persona_cargo->persona_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', $this->persona_cargo_hab_model->get_error());
+				redirect("juntas/escritorio/ver/$persona_cargo->persona_id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($model_persona_cargo->fields, $persona_cargo, TRUE);
+		$data['persona_cargo'] = $persona_cargo;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar cargo';
+		$this->load->view('juntas/persona_cargo/persona_cargo_modal_abm', $data);
+	}
+
+	public function modal_agregar($persona_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/persona_model');
+		$this->persona_model->set_database($DB1);
+		if (empty($persona_id)) {
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		} else {
+			$persona = $this->persona_model->get_one($persona_id);
+		}
+
+		if (empty($persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		}
+
+		$this->load->model('juntas/persona_cargo_hab_model');
+		$this->persona_cargo_hab_model->set_database($DB1);
+
+		$persona_cargos = $this->persona_cargo_hab_model->get_cargos($persona->NroDocumen);
+		$persona_cargos_array = explode(", ", $persona_cargos->cargos);
+		$model_persona = new stdClass();
+		$modelo = array(
+			'documento_bono' => array('label' => 'Documento', 'readonly' => 'TRUE'),
+			'persona' => array('label' => 'Persona', 'readonly' => 'TRUE'),
+			'cargos' => array('label' => 'Cargos actuales', 'readonly' => 'TRUE'),
+			'cargo' => array('label' => 'Cargo', 'input_type' => 'combo', 'class' => 'selectize', 'required' => TRUE));
+
+		$model_persona->fields = $modelo;
+
+		$this->load->model('juntas/cargo_entidad_model');
+		$this->cargo_entidad_model->set_database($DB1);
+		$this->array_cargo_control = $array_cargos = $this->cargo_entidad_model->get_cargo($persona->NroDocumen);
+
+		if (empty($array_cargos)) {
+			unset($model_persona->fields['cargo']['input_type']);
+			$model_persona->fields['cargo']['readonly'] = TRUE;
+			$model_persona->fields['cargo']['value'] = "No hay cargos a seleccionar";
+			$data['txt_btn'] = '';
+		} else {
+			$model_persona->fields['cargo']['array'] = $array_cargos;
+			$data['txt_btn'] = 'Agregar';
+		}
+
+		$model_persona->fields['cargos']['value'] = "$persona_cargos->cargos";
+		$model_persona->fields['documento_bono']['value'] = $persona->NroDocumen;
+		$model_persona->fields['persona']['value'] = " $persona->PerApe, $persona->PerNom";
+
+		$this->load->model('juntas/persona_cargo_hab_model');
+		$this->persona_cargo_hab_model->set_database($DB1);
+		$this->set_model_validation_rules($model_persona);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				if (in_array($this->input->post('cargo'), $persona_cargos_array)) {
+					$this->session->set_flashdata('error', "El cargo ya se encuentra asignado");
+					redirect("juntas/escritorio/ver/$persona->id", 'refresh');
+				}
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_cargo_hab_model->create(array(
+					'documento_bono' => $persona->NroDocumen,
+					'cargo' => $this->input->post('cargo')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_cargo_hab_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->persona_cargo_hab_model->get_error());
+				}
+				redirect("juntas/escritorio/ver/$persona->id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("juntas/escritorio/ver/$persona->id", 'refresh');
+			}
+		}
+
+		$data['agregar'] = TRUE;
+		$data['fields'] = $this->build_fields($model_persona->fields);
+		$data['persona'] = $persona;
+		$data['title'] = 'Asignar Cargo';
+		$this->load->view('juntas/persona_cargo/persona_cargo_modal_abm', $data);
+	}
+}
+/* End of file Titulo_persona.php */
+	/* Location: ./application/modules/titulos/controllers/Titulo_persona.php */	

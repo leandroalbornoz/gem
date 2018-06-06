@@ -1,0 +1,239 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Abono_alumno extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('abono/abono_alumno_model');
+		$this->load->model('abono/abono_tipo_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_DIR_ESCUELA, ROL_SDIR_ESCUELA, ROL_SEC_ESCUELA, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_SUPERVISION, ROL_DOCENTE);
+		$this->nav_route = 'par/abono_alumno';
+	}
+
+	public function listar($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get(array('id' => $escuela_id));
+		if (empty($escuela)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$tableData = array(
+			'columns' => array(//@todo arreglar anchos de columnas
+				array('label' => 'Numero de Abono', 'data' => 'numero_abono', 'class' => 'dt-body-left', 'width' => 10),
+				array('label' => 'Alumno', 'data' => 'alumno', 'width' => 15),
+				array('label' => 'Documento', 'data' => 'documento', 'width' => 10),
+				array('label' => 'Tipo Abono', 'data' => 'abono_tipo', 'width' => 10),
+				array('label' => 'Monto', 'data' => 'monto', 'width' => 8),
+				array('label' => 'Fecha Desde', 'data' => 'fecha_desde', 'render' => 'date', 'width' => 8),
+				array('label' => 'Fecha Hasta', 'data' => 'fecha_hasta', 'render' => 'date', 'width' => 8),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'abono_alumno_table',
+			'source_url' => 'abono/abono_alumno/listar_data/' . $escuela_id
+		);
+		$data['alumno_id'] = $this->session->flashdata('alumno_id');
+		$data['escuela'] = $escuela;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Gestión Escuelas Mendoza - Abono Escuela';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('abono/abono_alumno/abono_alumno_listar', $data);
+	}
+
+	public function listar_data($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('abono_alumno.id,abono_alumno.numero_abono, CONCAT(persona.apellido,", ",persona.nombre) as alumno,CONCAT(documento_tipo.descripcion_corta," ",persona.documento) as documento, abono_tipo.descripcion as abono_tipo,abono_alumno.monto, abono_alumno.fecha_desde, abono_alumno.fecha_hasta,alumno.id as alumno_id')
+			->unset_column('id')
+			->from('abono_alumno')
+			->join('alumno', 'alumno.id = abono_alumno.alumno_id', 'left')
+			->join('persona', 'persona.id = alumno.persona_id', 'left')
+			->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left')
+			->join('alumno_division', 'alumno_division.alumno_id = alumno.id', 'left')
+			->join('division', 'division.id = alumno_division.division_id', 'left')
+			->join('escuela', 'escuela.id = division.escuela_id', 'left')
+			->join('abono_tipo', 'abono_tipo.id = abono_alumno.abono_tipo_id', 'left')
+			->where('escuela.id', $escuela_id)
+			->add_column('edit', '<a href="abono/abono_alumno/modal_ver/$1" class="btn btn-xs btn-default" title="Ver" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i></a> <a href="abono/abono_alumno/modal_editar/$1/' . $escuela_id . '" class="btn btn-xs btn-warning" title="Editar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-pencil"></i></a> <a href="abono/abono_alumno/modal_eliminar/$1/' . $escuela_id . '" class="btn btn-xs btn-danger" title="Eliminar" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_eliminar($id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$abono_alumno = $this->abono_alumno_model->get_one($id);
+		if (empty($abono_alumno)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$trans_ok = TRUE;
+			$trans_ok&= $this->abono_alumno_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->abono_alumno_model->get_msg());
+				redirect("abono/abono_alumno/listar/$escuela_id", 'refresh');
+			}
+		}
+		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);
+		$data['abono_alumno'] = $abono_alumno;
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = 'Gestión Escuelas Mendoza - Eliminar abono escuelas';
+		$this->load->view('abono/abono_alumno/abono_alumno_modal_abm', $data);
+	}
+
+	public function modal_buscar($escuela_id = NULL) {
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'd_documento' => array('label' => 'Documento', 'maxlength' => '100', 'minlength' => '3'),
+			'd_apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'minlength' => '3'),
+			'd_nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'minlength' => '3'),
+			'escuela_seleccionada' => array('label' => '', 'type' => 'integer', 'required' => TRUE),
+		);
+		$this->set_model_validation_rules($model_busqueda);
+		if (isset($_POST) && !empty($_POST)) {
+			$alumno_id = $this->input->post('alumno_id');
+			if ($alumno_id !== '') {
+				$this->session->set_flashdata('alumno_id', $alumno_id);
+				$this->session->set_flashdata('escuela_id', $escuela->id);
+			}
+			redirect("abono/abono_alumno/listar/$escuela->id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Buscar Alumno a agregar';
+		$this->load->view('abono/abono_alumno/abono_alumno_modal_buscar', $data);
+	}
+
+	public function modal_agregar_abono_alumno($alumno_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $alumno_id == NULL || !ctype_digit($alumno_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		$this->load->model('alumno_model');
+		$alumno = $this->alumno_model->get_one($alumno_id);
+		if (empty($alumno)) {
+			show_error('No se encontró el registro de la persona', 500, 'Registro no encontrado');
+		}
+		$this->load->model('abono/abono_tipo_model');
+		$this->array_abono_tipo_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar Tipo Abono --'));
+
+		$this->set_model_validation_rules($this->abono_alumno_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->abono_alumno_model->create(array(
+					'numero_abono' => $this->input->post('numero_abono'),
+					'monto' => $this->input->post('monto'),
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+					'alumno_id' => $this->input->post('alumno'),
+					'abono_tipo_id' => $this->input->post('abono_tipo'),));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->abono_alumno_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->abono_alumno_model->get_error());
+				}
+				redirect("abono/abono_alumno/listar/$escuela->id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("abono/abono_alumno/listar/$escuela->id", 'refresh');
+			}
+		}
+		$this->abono_alumno_model->fields['abono_tipo']['array'] = $array_abono_tipo;
+		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields);
+		$data['escuela'] = $escuela;
+		$data['alumno'] = $alumno;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar nuevo título';
+		$this->load->view('abono/abono_alumno/abono_alumno_modal_agregar', $data);
+	}
+
+	public function modal_editar($id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$abono_alumno = $this->abono_alumno_model->get_one($id);
+		if (empty($abono_alumno)) {
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+		}
+		$this->load->model('abono/abono_tipo_model');
+		$this->array_alumno_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion');
+		$this->set_model_validation_rules($this->abono_alumno_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			$trans_ok = TRUE;
+			$trans_ok&= $this->abono_alumno_model->update(array(
+				'id' => $this->input->post('id'),
+				'numero_abono' => $this->input->post('numero_abono'),
+				'abono_tipo_id' => $this->input->post('abono_tipo'),
+				'fecha_desde' => $this->get_date_sql('fecha_desde'),
+				'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+				'monto' => $this->input->post('monto')
+			));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->abono_alumno_model->get_msg());
+				redirect("abono/abono_alumno/listar/$escuela_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', $this->abono_alumno_model->get_error());
+				redirect("abono/abono_alumno/listar/$escuela_id", 'refresh');
+			}
+		}
+		$this->abono_alumno_model->fields['abono_tipo']['array'] = $array_abono_tipo;
+		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno);
+		$data['abono_alumno'] = $abono_alumno;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar Abono Alumno';
+		$this->load->view('abono/abono_alumno/abono_alumno_modal_abm', $data);
+	}
+
+	public function modal_ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$abono_alumno = $this->abono_alumno_model->get_one($id);
+		if (empty($abono_alumno)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);
+		$data['abono_alumno'] = $abono_alumno;
+		$data['txt_btn'] = NULL;
+		$data['title'] = 'Ver Abono';
+		$this->load->view('abono/abono_alumno/abono_alumno_modal_abm', $data);
+	}
+}
+/* End of file Abono_alumno.php */
+/* Location: ./application/modules/abono/controllers/Abono_alumno.php */

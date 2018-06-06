@@ -1,0 +1,201 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escuela extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->load->model('comedor_presupuesto_model');
+		$this->load->model('comedor_alumno_model');
+		$this->load->model('comedor_model');
+		$this->load->model('comedor_plazo_model');
+		$this->load->model('comedor_racion_model');
+		$this->load->model('comedor_valor_racion_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_GRUPO_ESCUELA_CONSULTA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/escuela';
+		if (ENVIRONMENT === 'production') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+	}
+
+	public function ver($comedor_presupuesto_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $comedor_presupuesto_id == NULL || !ctype_digit($comedor_presupuesto_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$comedor_presupuesto = $this->comedor_presupuesto_model->get_one($comedor_presupuesto_id);
+		if (empty($comedor_presupuesto)) {
+			show_error('No se encontró el registro del presupuesto', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($comedor_presupuesto->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$comedor_plazo = $this->comedor_plazo_model->get(array('mes' => $comedor_presupuesto->mes));
+		$cerrado = FALSE;
+		if (!empty($comedor_plazo)) {
+			$fecha_actual = date('Y-m-d');
+			if ($fecha_actual >= $comedor_plazo[0]->fecha_cierre) {
+				$cerrado = TRUE;
+			}
+		}
+
+		$meses_cargados = $this->comedor_model->get_escuela_comedor($escuela->id);
+		$comedor_divisiones = $this->comedor_presupuesto_model->get_comedor_divisiones($escuela->id, $comedor_presupuesto->mes);
+		$mes = new DateTime((!empty($comedor_presupuesto->mes) ? $comedor_presupuesto->mes : date('Ym')) . '01 ');
+		$data['cerrado'] = $cerrado;
+		$data['mes'] = $mes->format('d/m/Y');
+		$data['meses'] = explode(",", $meses_cargados->meses);
+		$data['mes_nombre'] = $this->nombres_meses[substr(date_format($mes, 'Ym'), 4, 2)] . "' " . substr(date_format($mes, 'Ym'), 2, 2);
+		$data['escuela'] = $escuela;
+		$data['comedor_divisiones'] = $comedor_divisiones;
+		$data['comedor_presupuesto'] = $comedor_presupuesto;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('escritorio' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '');
+		$data['title'] = TITLE . ' - Escuela comedor';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('comedor/escuela/escuela_ver', $data);
+	}
+
+	public function cambiar_mes($escuela_id = NULL, $mes_actual = NULL) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if (!empty($this->input->post('mes'))) {
+			if ($this->form_validation->run() === TRUE) {
+				$mes = DateTime::createFromFormat('d/m/Y', $this->input->post('mes'));
+				$mes_c = $mes->format('Ym');
+				$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+				$presupuesto = $this->comedor_presupuesto_model->buscar($escuela_id, $mes_c);
+				redirect("comedor/escuela/ver/$presupuesto->id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("escuela/escritorio/$escuela_id", 'refresh');
+			}
+		} else {
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+			$presupuesto = $this->comedor_presupuesto_model->buscar($escuela_id, $mes_actual);
+			redirect("comedor/escuela/ver/$presupuesto->id", 'refresh');
+		}
+	}
+
+	public function modal_dias_albergue($comedor_presupuesto_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $comedor_presupuesto_id == NULL || !ctype_digit($comedor_presupuesto_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$comedor_presupuesto = $this->comedor_presupuesto_model->get_one($comedor_presupuesto_id);
+		if (empty($comedor_presupuesto)) {
+			$this->modal_error('No se encontró el registro de comedor presupuesto', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($comedor_presupuesto->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->set_model_validation_rules($this->comedor_presupuesto_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if (empty($this->input->post('dias_albergado'))) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->comedor_presupuesto_model->update(array(
+					'id' => $comedor_presupuesto->id,
+					'dias_albergado' => $this->input->post('dias_albergado')
+					), FALSE);
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->session->set_flashdata('message', $this->comedor_presupuesto_model->get_msg());
+					redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->comedor_presupuesto_model->get_errors());
+					redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+			}
+		}
+
+		$data['comedor_presupuesto'] = $comedor_presupuesto;
+		$data['escuela'] = $escuela;
+		$data['fields'] = $this->build_fields($this->comedor_presupuesto_model->fields, $comedor_presupuesto);
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['txt_btn'] = "Cargar";
+		$data['title'] = 'Cargar días de albergue';
+		$this->load->view('comedor/escuela/modal_dias_albergue', $data);
+	}
+
+	public function modal_importar_alumnos($comedor_presupuesto_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $comedor_presupuesto_id == NULL || !ctype_digit($comedor_presupuesto_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$comedor_presupuesto = $this->comedor_presupuesto_model->get_one($comedor_presupuesto_id);
+		if (empty($comedor_presupuesto)) {
+			$this->modal_error('No se encontró el registro de comedor presupuesto', 'Registro no encontrado');
+			return;
+		}
+
+		$mes_valor = new DateTime($comedor_presupuesto->mes . '01');
+		$mes_anterior = (new DateTime($mes_valor->format('Ym') . '01 -1 month'))->format('Ym');
+		$comedor_presupuesto_anterior = $this->comedor_presupuesto_model->get(array('escuela_id' => $comedor_presupuesto->escuela_id, 'mes' => $mes_anterior));
+		$alumnos_importar = $this->comedor_alumno_model->get(array('comedor_presupuesto_id' => $comedor_presupuesto_anterior[0]->id));
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($comedor_presupuesto_id != $this->input->post('comedor_presupuesto_id')) {
+				show_error('No paso el control de seguridad', 500, 'accion no autorizada');
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			foreach ($alumnos_importar as $alumno) {
+				$trans_ok &= $this->comedor_alumno_model->create(array(
+					'comedor_presupuesto_id' => $this->input->post('comedor_presupuesto_id'),
+					'alumno_division_id' => $alumno->alumno_division_id,
+					'comedor_racion_id' => $alumno->comedor_racion_id
+					), FALSE);
+			}
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->comedor_alumno_model->get_msg());
+				redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$this->session->set_flashdata('error', $this->comedor_alumno_model->get_error());
+				redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+			}
+		}
+
+		$data['comedor_presupuesto'] = $comedor_presupuesto;
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['txt_btn'] = "Cargar";
+		$data['title'] = 'Importar alumnos';
+		$this->load->view('comedor/escuela/modal_importar_alumnos', $data);
+	}
+}

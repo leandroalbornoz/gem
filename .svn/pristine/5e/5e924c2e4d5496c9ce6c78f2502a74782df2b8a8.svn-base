@@ -1,0 +1,2057 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts"
+  DTS:refId="Package"
+  DTS:CreationDate="5/9/2017 12:01:45 PM"
+  DTS:CreationName="Microsoft.Package"
+  DTS:CreatorComputerName="DTI184"
+  DTS:CreatorName="DGE03\lalbornoz"
+  DTS:Description="Descripción del paquete SSIS"
+  DTS:DTSID="{AEAD3E11-FF97-49A4-B27C-126223E6DCB4}"
+  DTS:ExecutableType="Microsoft.Package"
+  DTS:LastModifiedProductVersion="12.0.4100.1"
+  DTS:LocaleID="3082"
+  DTS:MaxErrorCount="0"
+  DTS:ObjectName="gem_tmp_alumno"
+  DTS:ProtectionLevel="2"
+  DTS:VersionGUID="{4C168458-9572-4320-8E26-2430C573DB8C}">
+  <DTS:Property
+    DTS:Name="PackageFormatVersion">8</DTS:Property>
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[DestinationConnectionAdoNET]"
+      DTS:CreationName="ADO.NET:System.Data.Odbc.OdbcConnection, System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+      DTS:DTSID="{682867B3-A5CC-4D6A-964C-4C25E2579886}"
+      DTS:ObjectName="DestinationConnectionAdoNET">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectionString="Dsn=DGE60p;" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+    <DTS:ConnectionManager
+      DTS:refId="Package.ConnectionManagers[SourceConnectionAdoNET]"
+      DTS:CreationName="ADO.NET:System.Data.SqlClient.SqlConnection, System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"
+      DTS:DTSID="{78E017DC-58A1-4A25-A7CB-FFCE12B02105}"
+      DTS:ObjectName="SourceConnectionAdoNET">
+      <DTS:ObjectData>
+        <DTS:ConnectionManager
+          DTS:ConnectionString="Data Source=DGE04;User ID=lalbornoz;Integrated Security=True;" />
+      </DTS:ObjectData>
+    </DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Variables />
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\Tarea de SQL Preparación 1"
+      DTS:CreationName="Microsoft.ExecuteSQLTask"
+      DTS:DTSID="{E0173875-7DE8-4459-A780-35ABF5C36B6C}"
+      DTS:ExecutableType="Microsoft.ExecuteSQLTask"
+      DTS:FailPackageOnFailure="True"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Tarea de SQL Preparación 1"
+      DTS:TaskContact="Execute SQL Task; Microsoft Corporation; SQL Server 2014; © 2014 Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1"
+      DTS:ThreadHint="0">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <SQLTask:SqlTaskData
+          SQLTask:Connection="{682867B3-A5CC-4D6A-964C-4C25E2579886}"
+          SQLTask:SqlStatementSource="CREATE TABLE &quot;tmp_alumno&quot; (&#xA;&quot;AluId&quot; integer NOT NULL,&#xA;&quot;EscId&quot; varchar(4),&#xA;&quot;EscAnexo&quot; varchar(4),&#xA;&quot;TurCod&quot; integer,&#xA;&quot;DivAniCod&quot; varchar(2),&#xA;&quot;DivNro&quot; varchar(20),&#xA;&quot;AluOrden&quot; integer,&#xA;&quot;AluApellido&quot; varchar(35),&#xA;&quot;AluNombre&quot; varchar(50),&#xA;&quot;AluFchIng&quot; date,&#xA;&quot;AluCauIngC&quot; integer,&#xA;&quot;AluFchNac&quot; time,&#xA;&quot;AluSexo&quot; integer,&#xA;&quot;AluDocCod&quot; integer,&#xA;&quot;AluDocNum&quot; integer,&#xA;&quot;AluNac&quot; varchar(2),&#xA;&quot;AluPaiCodO&quot; integer,&#xA;&quot;AluEscCodP&quot; varchar(2),&#xA;&quot;AluEscCodM&quot; varchar(2),&#xA;&quot;AluCalle&quot; varchar(50),&#xA;&quot;AluCalleNro&quot; varchar(10),&#xA;&quot;AluBarrio&quot; varchar(30),&#xA;&quot;AluParaje&quot; varchar(30),&#xA;&quot;AluDepCod&quot; integer,&#xA;&quot;AluLocCod&quot; integer,&#xA;&quot;AluCondicion&quot; integer,&#xA;&quot;AluDefCod&quot; integer,&#xA;&quot;AluDocPadre&quot; integer,&#xA;&quot;AluDocMadre&quot; integer,&#xA;&quot;AluOcupaPadre&quot; varchar(50),&#xA;&quot;AluOcupaMadre&quot; varchar(50),&#xA;&quot;AluNomPadre&quot; varchar(50),&#xA;&quot;AluNomMadre&quot; varchar(50),&#xA;&quot;asis_refrigerio&quot; varchar(2),&#xA;&quot;asis_almuerzo&quot; varchar(2),&#xA;&quot;asis_becas&quot; varchar(2),&#xA;&quot;asis_planjefes&quot; varchar(2),&#xA;&quot;asis_abonos&quot; varchar(2),&#xA;&quot;asis_calzado&quot; varchar(2),&#xA;&quot;asis_vestimenta&quot; varchar(2),&#xA;&quot;asis_copaleche&quot; varchar(2),&#xA;&quot;asis_utiles&quot; varchar(2),&#xA;&quot;asis_cena&quot; varchar(2),&#xA;&quot;asis_dobleesc&quot; varchar(2),&#xA;&quot;asis_comedortrad&quot; varchar(2),&#xA;&quot;asis_asignacion&quot; varchar(2) NOT NULL,&#xA;&quot;FechaGrab&quot; date NOT NULL,&#xA;&quot;duplicado&quot; integer,&#xA;&quot;asis_transporte&quot; varchar(2),&#xA;&quot;codzona&quot; integer,&#xA;&quot;celular&quot; integer,&#xA;&quot;empresamovil&quot; integer,&#xA;&quot;email&quot; varchar(50),&#xA;&quot;albergue&quot; varchar(2),&#xA;&quot;padre_tutor&quot; varchar(2),&#xA;&quot;madre_tutor&quot; varchar(2)&#xA;)&#xA;GO&#xA;" xmlns:SQLTask="www.microsoft.com/sqlserver/dts/tasks/sqltask" />
+      </DTS:ObjectData>
+    </DTS:Executable>
+    <DTS:Executable
+      DTS:refId="Package\Tarea Flujo de datos 1"
+      DTS:CreationName="Microsoft.Pipeline"
+      DTS:DelayValidation="True"
+      DTS:DTSID="{393CA4E4-C458-4114-AF37-8D79990C8787}"
+      DTS:ExecutableType="Microsoft.Pipeline"
+      DTS:FailPackageOnFailure="True"
+      DTS:LocaleID="-1"
+      DTS:ObjectName="Tarea Flujo de datos 1"
+      DTS:TaskContact="Performs high-performance data extraction, transformation and loading;Microsoft Corporation; Microsoft SQL Server; (C) Microsoft Corporation; All Rights Reserved;http://www.microsoft.com/sql/support/default.asp;1">
+      <DTS:Variables />
+      <DTS:ObjectData>
+        <pipeline
+          defaultBufferSize="3145728"
+          version="1">
+          <components>
+            <component
+              refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno"
+              componentClassID="Microsoft.ManagedComponentHost"
+              contactInfo="Carga datos en una base de datos compatible con ADO.NET que use una vista o tabla de base de datos. Se cargan datos en una tabla nueva o existente. Por ejemplo, se usa un proveedor ADO.NET para ODBC para cargar datos en un destino ODBC.;Microsoft Corporation; Microsoft SQL Server; © Microsoft Corporation; Todos los derechos reservados; http://www.microsoft.com/sql/support;2"
+              description="Carga datos en una base de datos compatible con ADO.NET que use una vista o tabla de base de datos. Se cargan datos en una tabla nueva o existente. Por ejemplo, se usa un proveedor ADO.NET para ODBC para cargar datos en un destino ODBC."
+              name="Destino - tmp_alumno"
+              usesDispositions="true"
+              validateExternalMetadata="False"
+              version="2">
+              <properties>
+                <property
+                  dataType="System.String"
+                  description="Nombre de la tabla de la base de datos de destino."
+                  expressionType="Notify"
+                  name="TableOrViewName"
+                  UITypeEditor="Microsoft.DataTransformationServices.Controls.ModalMultilineStringEditor">"tmp_alumno"</property>
+                <property
+                  dataType="System.Int32"
+                  description="Especifique el número de filas por lote. El valor predeterminado es 0, que utiliza el mismo tamaño que el búfer interno de SSIS. "
+                  expressionType="Notify"
+                  name="BatchSize">0</property>
+                <property
+                  dataType="System.Int32"
+                  description="Número de segundos antes de que se agote el tiempo de espera de un comando. Un valor de 0 indica un tiempo de espera infinito. "
+                  expressionType="Notify"
+                  name="CommandTimeout">30</property>
+                <property
+                  dataType="System.Boolean"
+                  description="Especifica si se debe usar la interfaz SqlBulkCopy para mejorar el rendimiento de las operaciones de inserción masiva. No todos los proveedores admiten esta interfaz."
+                  expressionType="Notify"
+                  name="UseBulkInsertWhenPossible">true</property>
+                <property
+                  dataType="System.String"
+                  name="UserComponentTypeName">Microsoft.ADONETDestination</property>
+              </properties>
+              <connections>
+                <connection
+                  refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Connections[IDbConnection]"
+                  connectionManagerID="Package.ConnectionManagers[DestinationConnectionAdoNET]"
+                  connectionManagerRefId="Package.ConnectionManagers[DestinationConnectionAdoNET]"
+                  description="Administrador de conexiones administrado"
+                  name="IDbConnection" />
+              </connections>
+              <inputs>
+                <input
+                  refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input]"
+                  errorRowDisposition="FailComponent"
+                  hasSideEffects="true"
+                  name="Destination Input">
+                  <inputColumns>
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluId]"
+                      cachedDataType="i4"
+                      cachedName="AluId"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluId]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluId]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[EscId]"
+                      cachedDataType="wstr"
+                      cachedLength="4"
+                      cachedName="EscId"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[EscId]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscId]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[EscAnexo]"
+                      cachedDataType="wstr"
+                      cachedLength="4"
+                      cachedName="EscAnexo"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[EscAnexo]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscAnexo]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[TurCod]"
+                      cachedDataType="i4"
+                      cachedName="TurCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[TurCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[TurCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[DivAniCod]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="DivAniCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[DivAniCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivAniCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[DivNro]"
+                      cachedDataType="wstr"
+                      cachedLength="20"
+                      cachedName="DivNro"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[DivNro]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivNro]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluOrden]"
+                      cachedDataType="i4"
+                      cachedName="AluOrden"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOrden]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOrden]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluApellido]"
+                      cachedDataType="wstr"
+                      cachedLength="35"
+                      cachedName="AluApellido"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluApellido]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluApellido]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluNombre]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluNombre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNombre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNombre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluFchIng]"
+                      cachedDataType="dbTimeStamp"
+                      cachedName="AluFchIng"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluFchIng]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchIng]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluCauIngC]"
+                      cachedDataType="i4"
+                      cachedName="AluCauIngC"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCauIngC]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCauIngC]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluFchNac]"
+                      cachedDataType="dbTimeStamp"
+                      cachedName="AluFchNac"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluFchNac]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchNac]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluSexo]"
+                      cachedDataType="i4"
+                      cachedName="AluSexo"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluSexo]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluSexo]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDocCod]"
+                      cachedDataType="i4"
+                      cachedName="AluDocCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDocNum]"
+                      cachedDataType="i4"
+                      cachedName="AluDocNum"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocNum]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocNum]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluNac]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="AluNac"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNac]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNac]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluPaiCodO]"
+                      cachedDataType="i4"
+                      cachedName="AluPaiCodO"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluPaiCodO]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluPaiCodO]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluEscCodP]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="AluEscCodP"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluEscCodP]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodP]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluEscCodM]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="AluEscCodM"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluEscCodM]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodM]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluCalle]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluCalle"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCalle]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalle]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluCalleNro]"
+                      cachedDataType="wstr"
+                      cachedLength="10"
+                      cachedName="AluCalleNro"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCalleNro]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalleNro]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluBarrio]"
+                      cachedDataType="wstr"
+                      cachedLength="30"
+                      cachedName="AluBarrio"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluBarrio]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluBarrio]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluParaje]"
+                      cachedDataType="wstr"
+                      cachedLength="30"
+                      cachedName="AluParaje"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluParaje]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluParaje]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDepCod]"
+                      cachedDataType="i4"
+                      cachedName="AluDepCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDepCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDepCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluLocCod]"
+                      cachedDataType="i4"
+                      cachedName="AluLocCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluLocCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluLocCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluCondicion]"
+                      cachedDataType="i4"
+                      cachedName="AluCondicion"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCondicion]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCondicion]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDefCod]"
+                      cachedDataType="i4"
+                      cachedName="AluDefCod"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDefCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDefCod]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDocPadre]"
+                      cachedDataType="i4"
+                      cachedName="AluDocPadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocPadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocPadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluDocMadre]"
+                      cachedDataType="i4"
+                      cachedName="AluDocMadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocMadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocMadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluOcupaPadre]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluOcupaPadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOcupaPadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaPadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluOcupaMadre]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluOcupaMadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOcupaMadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaMadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluNomPadre]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluNomPadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNomPadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomPadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[AluNomMadre]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="AluNomMadre"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNomMadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomMadre]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_refrigerio]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_refrigerio"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_refrigerio]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_refrigerio]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_almuerzo]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_almuerzo"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_almuerzo]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_almuerzo]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_becas]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_becas"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_becas]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_becas]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_planjefes]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_planjefes"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_planjefes]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_planjefes]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_abonos]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_abonos"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_abonos]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_abonos]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_calzado]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_calzado"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_calzado]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_calzado]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_vestimenta]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_vestimenta"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_vestimenta]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_vestimenta]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_copaleche]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_copaleche"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_copaleche]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_copaleche]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_utiles]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_utiles"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_utiles]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_utiles]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_cena]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_cena"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_cena]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_cena]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_dobleesc]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_dobleesc"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_dobleesc]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_dobleesc]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_comedortrad]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_comedortrad"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_comedortrad]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_comedortrad]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_asignacion]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_asignacion"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_asignacion]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_asignacion]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[FechaGrab]"
+                      cachedDataType="dbTimeStamp"
+                      cachedName="FechaGrab"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[FechaGrab]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[FechaGrab]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[duplicado]"
+                      cachedDataType="i4"
+                      cachedName="duplicado"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[duplicado]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[duplicado]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[asis_transporte]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="asis_transporte"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_transporte]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_transporte]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[codzona]"
+                      cachedDataType="i4"
+                      cachedName="codzona"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[codzona]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[codzona]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[celular]"
+                      cachedDataType="i4"
+                      cachedName="celular"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[celular]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[celular]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[empresamovil]"
+                      cachedDataType="i4"
+                      cachedName="empresamovil"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[empresamovil]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[empresamovil]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[email]"
+                      cachedDataType="wstr"
+                      cachedLength="50"
+                      cachedName="email"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[email]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[email]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[albergue]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="albergue"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[albergue]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[albergue]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[padre_tutor]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="padre_tutor"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[padre_tutor]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[padre_tutor]" />
+                    <inputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].Columns[madre_tutor]"
+                      cachedDataType="wstr"
+                      cachedLength="2"
+                      cachedName="madre_tutor"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[madre_tutor]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[madre_tutor]" />
+                  </inputColumns>
+                  <externalMetadataColumns
+                    isUsed="True">
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluId]"
+                      dataType="i4"
+                      name="AluId" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[EscId]"
+                      dataType="wstr"
+                      length="4"
+                      name="EscId" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[EscAnexo]"
+                      dataType="wstr"
+                      length="4"
+                      name="EscAnexo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[TurCod]"
+                      dataType="i4"
+                      name="TurCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[DivAniCod]"
+                      dataType="wstr"
+                      length="2"
+                      name="DivAniCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[DivNro]"
+                      dataType="wstr"
+                      length="20"
+                      name="DivNro" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOrden]"
+                      dataType="i4"
+                      name="AluOrden" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluApellido]"
+                      dataType="wstr"
+                      length="35"
+                      name="AluApellido" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNombre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNombre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluFchIng]"
+                      dataType="dbTimeStamp"
+                      name="AluFchIng" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCauIngC]"
+                      dataType="i4"
+                      name="AluCauIngC" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluFchNac]"
+                      dataType="dbTimeStamp"
+                      name="AluFchNac" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluSexo]"
+                      dataType="i4"
+                      name="AluSexo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocCod]"
+                      dataType="i4"
+                      name="AluDocCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocNum]"
+                      dataType="i4"
+                      name="AluDocNum" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNac]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluNac" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluPaiCodO]"
+                      dataType="i4"
+                      name="AluPaiCodO" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluEscCodP]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluEscCodP" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluEscCodM]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluEscCodM" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCalle]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluCalle" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCalleNro]"
+                      dataType="wstr"
+                      length="10"
+                      name="AluCalleNro" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluBarrio]"
+                      dataType="wstr"
+                      length="30"
+                      name="AluBarrio" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluParaje]"
+                      dataType="wstr"
+                      length="30"
+                      name="AluParaje" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDepCod]"
+                      dataType="i4"
+                      name="AluDepCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluLocCod]"
+                      dataType="i4"
+                      name="AluLocCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluCondicion]"
+                      dataType="i4"
+                      name="AluCondicion" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDefCod]"
+                      dataType="i4"
+                      name="AluDefCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocPadre]"
+                      dataType="i4"
+                      name="AluDocPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluDocMadre]"
+                      dataType="i4"
+                      name="AluDocMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOcupaPadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluOcupaPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluOcupaMadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluOcupaMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNomPadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNomPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[AluNomMadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNomMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_refrigerio]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_refrigerio" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_almuerzo]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_almuerzo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_becas]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_becas" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_planjefes]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_planjefes" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_abonos]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_abonos" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_calzado]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_calzado" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_vestimenta]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_vestimenta" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_copaleche]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_copaleche" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_utiles]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_utiles" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_cena]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_cena" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_dobleesc]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_dobleesc" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_comedortrad]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_comedortrad" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_asignacion]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_asignacion" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[FechaGrab]"
+                      dataType="dbTimeStamp"
+                      name="FechaGrab" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[duplicado]"
+                      dataType="i4"
+                      name="duplicado" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[asis_transporte]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_transporte" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[codzona]"
+                      dataType="i4"
+                      name="codzona" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[celular]"
+                      dataType="i4"
+                      name="celular" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[empresamovil]"
+                      dataType="i4"
+                      name="empresamovil" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[email]"
+                      dataType="wstr"
+                      length="50"
+                      name="email" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[albergue]"
+                      dataType="wstr"
+                      length="2"
+                      name="albergue" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[padre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      name="padre_tutor" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input].ExternalColumns[madre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      name="madre_tutor" />
+                  </externalMetadataColumns>
+                </input>
+              </inputs>
+              <outputs>
+                <output
+                  refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Outputs[Salida de error de destino de ADO NET]"
+                  exclusionGroup="1"
+                  isErrorOut="true"
+                  name="Salida de error de destino de ADO NET"
+                  synchronousInputId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input]">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Outputs[Salida de error de destino de ADO NET].Columns[ErrorCode]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Outputs[Salida de error de destino de ADO NET].Columns[ErrorCode]"
+                      name="ErrorCode"
+                      specialFlags="1" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Outputs[Salida de error de destino de ADO NET].Columns[ErrorColumn]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Outputs[Salida de error de destino de ADO NET].Columns[ErrorColumn]"
+                      name="ErrorColumn"
+                      specialFlags="2" />
+                  </outputColumns>
+                  <externalMetadataColumns />
+                </output>
+              </outputs>
+            </component>
+            <component
+              refId="Package\Tarea Flujo de datos 1\Origen - Consulta"
+              componentClassID="Microsoft.ManagedComponentHost"
+              contactInfo="Consume datos de SQL Server, OLE DB, ODBC u Oracle mediante el correspondiente proveedor de datos de .NET Framework. Se usa una instrucción Transact-SQL para definir el conjunto de resultados. Por ejemplo, se extraen datos de SQL Server con el proveedor de datos de .NET Framework para SQL Server.;Microsoft Corporation; Microsoft SQL Server; © Microsoft Corporation; Todos los derechos reservados; http://www.microsoft.com/sql/support;4"
+              description="Consume datos de SQL Server, OLE DB, ODBC u Oracle mediante el correspondiente proveedor de datos de .NET Framework. Se usa una instrucción Transact-SQL para definir el conjunto de resultados. Por ejemplo, se extraen datos de SQL Server con el proveedor de datos de .NET Framework para SQL Server."
+              name="Origen - Consulta"
+              usesDispositions="true"
+              version="4">
+              <properties>
+                <property
+                  dataType="System.String"
+                  description="Especifica la instrucción SQL utilizada por el componente para extraer datos."
+                  expressionType="Notify"
+                  name="SqlCommand"
+                  UITypeEditor="Microsoft.DataTransformationServices.Controls.ModalMultilineStringEditor">SELECT 
+CASE WHEN AluId IS NULL THEN '-1' ELSE AluId END AS AluId,
+CASE WHEN EscId IS NULL THEN '-1' ELSE EscId END AS EscId,
+CASE WHEN EscAnexo IS NULL THEN '-1' ELSE EscAnexo END AS EscAnexo,
+CASE WHEN TurCod IS NULL THEN '-1' ELSE TurCod END AS TurCod,
+CASE WHEN DivAniCod IS NULL THEN '-1' ELSE DivAniCod END AS DivAniCod,
+CASE WHEN DivNro IS NULL THEN '-1' ELSE DivNro END AS DivNro,
+CASE WHEN AluOrden IS NULL THEN '-1' ELSE AluOrden END AS AluOrden,
+CASE WHEN AluApellido IS NULL THEN '-1' ELSE AluApellido END AS AluApellido,
+CASE WHEN AluNombre IS NULL THEN '-1' ELSE AluNombre END AS AluNombre,
+CASE WHEN AluFchIng IS NULL THEN '1753-01-01' ELSE AluFchIng END AS AluFchIng,
+CASE WHEN AluCauIngC IS NULL THEN '-1' ELSE AluCauIngC END AS AluCauIngC,
+CASE WHEN AluFchNac IS NULL THEN '1753-01-01' ELSE AluFchNac END AS AluFchNac,
+CASE WHEN AluSexo IS NULL THEN '-1' ELSE AluSexo END AS AluSexo,
+CASE WHEN AluDocCod IS NULL THEN '-1' ELSE AluDocCod END AS AluDocCod,
+CASE WHEN AluDocNum IS NULL THEN '-1' ELSE AluDocNum END AS AluDocNum,
+CASE WHEN AluNac IS NULL THEN '-1' ELSE AluNac END AS AluNac,
+CASE WHEN AluPaiCodO IS NULL THEN '-1' ELSE AluPaiCodO END AS AluPaiCodO,
+CASE WHEN AluEscCodP IS NULL THEN '-1' ELSE AluEscCodP END AS AluEscCodP,
+CASE WHEN AluEscCodM IS NULL THEN '-1' ELSE AluEscCodM END AS AluEscCodM,
+CASE WHEN AluCalle IS NULL THEN '-1' ELSE AluCalle END AS AluCalle,
+CASE WHEN AluCalleNro IS NULL THEN '-1' ELSE AluCalleNro END AS AluCalleNro,
+CASE WHEN AluBarrio IS NULL THEN '-1' ELSE AluBarrio END AS AluBarrio,
+CASE WHEN AluParaje IS NULL THEN '-1' ELSE AluParaje END AS AluParaje,
+CASE WHEN AluDepCod IS NULL THEN '-1' ELSE AluDepCod END AS AluDepCod,
+CASE WHEN AluLocCod IS NULL THEN '-1' ELSE AluLocCod END AS AluLocCod,
+CASE WHEN AluCondicion IS NULL THEN '-1' ELSE AluCondicion END AS AluCondicion,
+CASE WHEN AluDefCod IS NULL THEN '-1' ELSE AluDefCod END AS AluDefCod,
+CASE WHEN AluDocPadre IS NULL THEN '-1' ELSE AluDocPadre END AS AluDocPadre,
+CASE WHEN AluDocMadre IS NULL THEN '-1' ELSE AluDocMadre END AS AluDocMadre,
+CASE WHEN AluOcupaPadre IS NULL THEN '-1' ELSE AluOcupaPadre END AS AluOcupaPadre,
+CASE WHEN AluOcupaMadre IS NULL THEN '-1' ELSE AluOcupaMadre END AS AluOcupaMadre,
+CASE WHEN AluNomPadre IS NULL THEN '-1' ELSE AluNomPadre END AS AluNomPadre,
+CASE WHEN AluNomMadre IS NULL THEN '-1' ELSE AluNomMadre END AS AluNomMadre,
+CASE WHEN asis_refrigerio IS NULL THEN '-1' ELSE asis_refrigerio END AS asis_refrigerio,
+CASE WHEN asis_almuerzo IS NULL THEN '-1' ELSE asis_almuerzo END AS asis_almuerzo,
+CASE WHEN asis_becas IS NULL THEN '-1' ELSE asis_becas END AS asis_becas,
+CASE WHEN asis_planjefes IS NULL THEN '-1' ELSE asis_planjefes END AS asis_planjefes,
+CASE WHEN asis_abonos IS NULL THEN '-1' ELSE asis_abonos END AS asis_abonos,
+CASE WHEN asis_calzado IS NULL THEN '-1' ELSE asis_calzado END AS asis_calzado,
+CASE WHEN asis_vestimenta IS NULL THEN '-1' ELSE asis_vestimenta END AS asis_vestimenta,
+CASE WHEN asis_copaleche IS NULL THEN '-1' ELSE asis_copaleche END AS asis_copaleche,
+CASE WHEN asis_utiles IS NULL THEN '-1' ELSE asis_utiles END AS asis_utiles,
+CASE WHEN asis_cena IS NULL THEN '-1' ELSE asis_cena END AS asis_cena,
+CASE WHEN asis_dobleesc IS NULL THEN '-1' ELSE asis_dobleesc END AS asis_dobleesc,
+CASE WHEN asis_comedortrad IS NULL THEN '-1' ELSE asis_comedortrad END AS asis_comedortrad,
+CASE WHEN asis_asignacion IS NULL THEN '-1' ELSE asis_asignacion END AS asis_asignacion,
+CASE WHEN FechaGrab IS NULL THEN '1753-01-01' ELSE FechaGrab END AS FechaGrab,
+CASE WHEN duplicado IS NULL THEN '-1' ELSE duplicado END AS duplicado,
+CASE WHEN asis_transporte IS NULL THEN '-1' ELSE asis_transporte END AS asis_transporte,
+CASE WHEN codzona IS NULL THEN '-1' ELSE codzona END AS codzona,
+CASE WHEN celular IS NULL THEN '-1' ELSE celular END AS celular,
+CASE WHEN empresamovil IS NULL THEN '-1' ELSE empresamovil END AS empresamovil,
+CASE WHEN email IS NULL THEN '-1' ELSE email END AS email,
+CASE WHEN albergue IS NULL THEN '-1' ELSE albergue END AS albergue,
+CASE WHEN padre_tutor IS NULL THEN '-1' ELSE padre_tutor END AS padre_tutor,
+CASE WHEN madre_tutor IS NULL THEN '-1' ELSE madre_tutor END AS madre_tutor
+FROM alumnos where escid!='';</property>
+                <property
+                  dataType="System.Int32"
+                  description="Número de segundos antes de que se agote el tiempo de espera de un comando. Un valor de 0 indica un tiempo de espera infinito."
+                  name="CommandTimeout">30</property>
+                <property
+                  dataType="System.Boolean"
+                  description="Indica si se debe permitir que columnas externas que no sean de cadenas se conviertan implícitamente en cadenas en las columnas de salida."
+                  name="AllowImplicitStringConversion">true</property>
+                <property
+                  dataType="System.String"
+                  description="Nombre de la tabla de la base de datos de origen."
+                  expressionType="Notify"
+                  name="TableOrViewName"
+                  UITypeEditor="Microsoft.DataTransformationServices.Controls.ModalMultilineStringEditor"></property>
+                <property
+                  dataType="System.Int32"
+                  description="Especificar el modo de recuperar información de columnas externas"
+                  name="AccessMode"
+                  typeConverter="Microsoft.SqlServer.Dts.Pipeline.DataReaderSourceAdapter+EnumToStringConverter">2</property>
+                <property
+                  dataType="System.String"
+                  name="UserComponentTypeName">Microsoft.DataReaderSourceAdapter</property>
+              </properties>
+              <connections>
+                <connection
+                  refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Connections[IDbConnection]"
+                  connectionManagerID="Package.ConnectionManagers[SourceConnectionAdoNET]"
+                  connectionManagerRefId="Package.ConnectionManagers[SourceConnectionAdoNET]"
+                  description="Administrador de conexiones administrado"
+                  name="IDbConnection" />
+              </connections>
+              <outputs>
+                <output
+                  refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET]"
+                  name="Salida de origen de ADO NET">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluId]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluId]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluId]"
+                      name="AluId"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscId]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[EscId]"
+                      length="4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscId]"
+                      name="EscId"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscAnexo]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[EscAnexo]"
+                      length="4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[EscAnexo]"
+                      name="EscAnexo"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[TurCod]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[TurCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[TurCod]"
+                      name="TurCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivAniCod]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[DivAniCod]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivAniCod]"
+                      name="DivAniCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivNro]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[DivNro]"
+                      length="20"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[DivNro]"
+                      name="DivNro"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOrden]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOrden]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOrden]"
+                      name="AluOrden"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluApellido]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluApellido]"
+                      length="35"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluApellido]"
+                      name="AluApellido"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNombre]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNombre]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNombre]"
+                      name="AluNombre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchIng]"
+                      dataType="dbTimeStamp"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluFchIng]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchIng]"
+                      name="AluFchIng"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCauIngC]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCauIngC]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCauIngC]"
+                      name="AluCauIngC"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchNac]"
+                      dataType="dbTimeStamp"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluFchNac]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluFchNac]"
+                      name="AluFchNac"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluSexo]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluSexo]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluSexo]"
+                      name="AluSexo"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocCod]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocCod]"
+                      name="AluDocCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocNum]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocNum]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocNum]"
+                      name="AluDocNum"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNac]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNac]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNac]"
+                      name="AluNac"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluPaiCodO]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluPaiCodO]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluPaiCodO]"
+                      name="AluPaiCodO"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodP]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluEscCodP]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodP]"
+                      name="AluEscCodP"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodM]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluEscCodM]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluEscCodM]"
+                      name="AluEscCodM"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalle]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCalle]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalle]"
+                      name="AluCalle"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalleNro]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCalleNro]"
+                      length="10"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCalleNro]"
+                      name="AluCalleNro"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluBarrio]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluBarrio]"
+                      length="30"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluBarrio]"
+                      name="AluBarrio"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluParaje]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluParaje]"
+                      length="30"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluParaje]"
+                      name="AluParaje"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDepCod]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDepCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDepCod]"
+                      name="AluDepCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluLocCod]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluLocCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluLocCod]"
+                      name="AluLocCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCondicion]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCondicion]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluCondicion]"
+                      name="AluCondicion"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDefCod]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDefCod]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDefCod]"
+                      name="AluDefCod"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocPadre]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocPadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocPadre]"
+                      name="AluDocPadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocMadre]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocMadre]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluDocMadre]"
+                      name="AluDocMadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaPadre]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOcupaPadre]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaPadre]"
+                      name="AluOcupaPadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaMadre]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOcupaMadre]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluOcupaMadre]"
+                      name="AluOcupaMadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomPadre]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNomPadre]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomPadre]"
+                      name="AluNomPadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomMadre]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNomMadre]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[AluNomMadre]"
+                      name="AluNomMadre"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_refrigerio]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_refrigerio]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_refrigerio]"
+                      name="asis_refrigerio"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_almuerzo]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_almuerzo]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_almuerzo]"
+                      name="asis_almuerzo"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_becas]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_becas]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_becas]"
+                      name="asis_becas"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_planjefes]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_planjefes]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_planjefes]"
+                      name="asis_planjefes"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_abonos]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_abonos]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_abonos]"
+                      name="asis_abonos"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_calzado]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_calzado]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_calzado]"
+                      name="asis_calzado"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_vestimenta]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_vestimenta]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_vestimenta]"
+                      name="asis_vestimenta"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_copaleche]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_copaleche]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_copaleche]"
+                      name="asis_copaleche"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_utiles]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_utiles]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_utiles]"
+                      name="asis_utiles"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_cena]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_cena]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_cena]"
+                      name="asis_cena"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_dobleesc]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_dobleesc]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_dobleesc]"
+                      name="asis_dobleesc"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_comedortrad]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_comedortrad]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_comedortrad]"
+                      name="asis_comedortrad"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_asignacion]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_asignacion]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_asignacion]"
+                      name="asis_asignacion"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[FechaGrab]"
+                      dataType="dbTimeStamp"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[FechaGrab]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[FechaGrab]"
+                      name="FechaGrab"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[duplicado]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[duplicado]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[duplicado]"
+                      name="duplicado"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_transporte]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_transporte]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[asis_transporte]"
+                      name="asis_transporte"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[codzona]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[codzona]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[codzona]"
+                      name="codzona"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[celular]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[celular]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[celular]"
+                      name="celular"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[empresamovil]"
+                      dataType="i4"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[empresamovil]"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[empresamovil]"
+                      name="empresamovil"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[email]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[email]"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[email]"
+                      name="email"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[albergue]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[albergue]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[albergue]"
+                      name="albergue"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[padre_tutor]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[padre_tutor]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[padre_tutor]"
+                      name="padre_tutor"
+                      truncationRowDisposition="FailComponent" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[madre_tutor]"
+                      dataType="wstr"
+                      errorOrTruncationOperation="Conversión"
+                      errorRowDisposition="FailComponent"
+                      externalMetadataColumnId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[madre_tutor]"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].Columns[madre_tutor]"
+                      name="madre_tutor"
+                      truncationRowDisposition="FailComponent" />
+                  </outputColumns>
+                  <externalMetadataColumns
+                    isUsed="True">
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluId]"
+                      dataType="i4"
+                      name="AluId" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[EscId]"
+                      dataType="wstr"
+                      length="4"
+                      name="EscId" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[EscAnexo]"
+                      dataType="wstr"
+                      length="4"
+                      name="EscAnexo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[TurCod]"
+                      dataType="i4"
+                      name="TurCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[DivAniCod]"
+                      dataType="wstr"
+                      length="2"
+                      name="DivAniCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[DivNro]"
+                      dataType="wstr"
+                      length="20"
+                      name="DivNro" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOrden]"
+                      dataType="i4"
+                      name="AluOrden" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluApellido]"
+                      dataType="wstr"
+                      length="35"
+                      name="AluApellido" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNombre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNombre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluFchIng]"
+                      dataType="dbTimeStamp"
+                      name="AluFchIng" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCauIngC]"
+                      dataType="i4"
+                      name="AluCauIngC" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluFchNac]"
+                      dataType="dbTimeStamp"
+                      name="AluFchNac" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluSexo]"
+                      dataType="i4"
+                      name="AluSexo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocCod]"
+                      dataType="i4"
+                      name="AluDocCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocNum]"
+                      dataType="i4"
+                      name="AluDocNum" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNac]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluNac" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluPaiCodO]"
+                      dataType="i4"
+                      name="AluPaiCodO" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluEscCodP]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluEscCodP" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluEscCodM]"
+                      dataType="wstr"
+                      length="2"
+                      name="AluEscCodM" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCalle]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluCalle" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCalleNro]"
+                      dataType="wstr"
+                      length="10"
+                      name="AluCalleNro" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluBarrio]"
+                      dataType="wstr"
+                      length="30"
+                      name="AluBarrio" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluParaje]"
+                      dataType="wstr"
+                      length="30"
+                      name="AluParaje" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDepCod]"
+                      dataType="i4"
+                      name="AluDepCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluLocCod]"
+                      dataType="i4"
+                      name="AluLocCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluCondicion]"
+                      dataType="i4"
+                      name="AluCondicion" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDefCod]"
+                      dataType="i4"
+                      name="AluDefCod" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocPadre]"
+                      dataType="i4"
+                      name="AluDocPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluDocMadre]"
+                      dataType="i4"
+                      name="AluDocMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOcupaPadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluOcupaPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluOcupaMadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluOcupaMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNomPadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNomPadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[AluNomMadre]"
+                      dataType="wstr"
+                      length="50"
+                      name="AluNomMadre" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_refrigerio]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_refrigerio" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_almuerzo]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_almuerzo" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_becas]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_becas" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_planjefes]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_planjefes" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_abonos]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_abonos" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_calzado]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_calzado" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_vestimenta]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_vestimenta" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_copaleche]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_copaleche" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_utiles]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_utiles" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_cena]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_cena" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_dobleesc]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_dobleesc" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_comedortrad]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_comedortrad" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_asignacion]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_asignacion" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[FechaGrab]"
+                      dataType="dbTimeStamp"
+                      name="FechaGrab" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[duplicado]"
+                      dataType="i4"
+                      name="duplicado" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[asis_transporte]"
+                      dataType="wstr"
+                      length="2"
+                      name="asis_transporte" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[codzona]"
+                      dataType="i4"
+                      name="codzona" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[celular]"
+                      dataType="i4"
+                      name="celular" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[empresamovil]"
+                      dataType="i4"
+                      name="empresamovil" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[email]"
+                      dataType="wstr"
+                      length="50"
+                      name="email" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[albergue]"
+                      dataType="wstr"
+                      length="2"
+                      name="albergue" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[padre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      name="padre_tutor" />
+                    <externalMetadataColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET].ExternalColumns[madre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      name="madre_tutor" />
+                  </externalMetadataColumns>
+                </output>
+                <output
+                  refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET]"
+                  isErrorOut="true"
+                  name="Salida de error de origen de ADO NET">
+                  <outputColumns>
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluId]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluId]"
+                      name="AluId" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[EscId]"
+                      dataType="wstr"
+                      length="4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[EscId]"
+                      name="EscId" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[EscAnexo]"
+                      dataType="wstr"
+                      length="4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[EscAnexo]"
+                      name="EscAnexo" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[TurCod]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[TurCod]"
+                      name="TurCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[DivAniCod]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[DivAniCod]"
+                      name="DivAniCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[DivNro]"
+                      dataType="wstr"
+                      length="20"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[DivNro]"
+                      name="DivNro" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOrden]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOrden]"
+                      name="AluOrden" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluApellido]"
+                      dataType="wstr"
+                      length="35"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluApellido]"
+                      name="AluApellido" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNombre]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNombre]"
+                      name="AluNombre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluFchIng]"
+                      dataType="dbTimeStamp"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluFchIng]"
+                      name="AluFchIng" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCauIngC]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCauIngC]"
+                      name="AluCauIngC" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluFchNac]"
+                      dataType="dbTimeStamp"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluFchNac]"
+                      name="AluFchNac" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluSexo]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluSexo]"
+                      name="AluSexo" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocCod]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocCod]"
+                      name="AluDocCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocNum]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocNum]"
+                      name="AluDocNum" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNac]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNac]"
+                      name="AluNac" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluPaiCodO]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluPaiCodO]"
+                      name="AluPaiCodO" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluEscCodP]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluEscCodP]"
+                      name="AluEscCodP" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluEscCodM]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluEscCodM]"
+                      name="AluEscCodM" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCalle]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCalle]"
+                      name="AluCalle" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCalleNro]"
+                      dataType="wstr"
+                      length="10"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCalleNro]"
+                      name="AluCalleNro" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluBarrio]"
+                      dataType="wstr"
+                      length="30"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluBarrio]"
+                      name="AluBarrio" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluParaje]"
+                      dataType="wstr"
+                      length="30"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluParaje]"
+                      name="AluParaje" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDepCod]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDepCod]"
+                      name="AluDepCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluLocCod]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluLocCod]"
+                      name="AluLocCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCondicion]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluCondicion]"
+                      name="AluCondicion" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDefCod]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDefCod]"
+                      name="AluDefCod" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocPadre]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocPadre]"
+                      name="AluDocPadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocMadre]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluDocMadre]"
+                      name="AluDocMadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOcupaPadre]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOcupaPadre]"
+                      name="AluOcupaPadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOcupaMadre]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluOcupaMadre]"
+                      name="AluOcupaMadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNomPadre]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNomPadre]"
+                      name="AluNomPadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNomMadre]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[AluNomMadre]"
+                      name="AluNomMadre" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_refrigerio]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_refrigerio]"
+                      name="asis_refrigerio" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_almuerzo]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_almuerzo]"
+                      name="asis_almuerzo" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_becas]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_becas]"
+                      name="asis_becas" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_planjefes]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_planjefes]"
+                      name="asis_planjefes" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_abonos]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_abonos]"
+                      name="asis_abonos" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_calzado]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_calzado]"
+                      name="asis_calzado" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_vestimenta]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_vestimenta]"
+                      name="asis_vestimenta" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_copaleche]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_copaleche]"
+                      name="asis_copaleche" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_utiles]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_utiles]"
+                      name="asis_utiles" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_cena]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_cena]"
+                      name="asis_cena" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_dobleesc]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_dobleesc]"
+                      name="asis_dobleesc" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_comedortrad]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_comedortrad]"
+                      name="asis_comedortrad" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_asignacion]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_asignacion]"
+                      name="asis_asignacion" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[FechaGrab]"
+                      dataType="dbTimeStamp"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[FechaGrab]"
+                      name="FechaGrab" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[duplicado]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[duplicado]"
+                      name="duplicado" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_transporte]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[asis_transporte]"
+                      name="asis_transporte" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[codzona]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[codzona]"
+                      name="codzona" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[celular]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[celular]"
+                      name="celular" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[empresamovil]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[empresamovil]"
+                      name="empresamovil" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[email]"
+                      dataType="wstr"
+                      length="50"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[email]"
+                      name="email" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[albergue]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[albergue]"
+                      name="albergue" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[padre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[padre_tutor]"
+                      name="padre_tutor" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[madre_tutor]"
+                      dataType="wstr"
+                      length="2"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[madre_tutor]"
+                      name="madre_tutor" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[ErrorCode]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[ErrorCode]"
+                      name="ErrorCode"
+                      specialFlags="1" />
+                    <outputColumn
+                      refId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[ErrorColumn]"
+                      dataType="i4"
+                      lineageId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de error de origen de ADO NET].Columns[ErrorColumn]"
+                      name="ErrorColumn"
+                      specialFlags="2" />
+                  </outputColumns>
+                  <externalMetadataColumns />
+                </output>
+              </outputs>
+            </component>
+          </components>
+          <paths>
+            <path
+              refId="Package\Tarea Flujo de datos 1.Paths[Salida de origen de ADO NET]"
+              endId="Package\Tarea Flujo de datos 1\Destino - tmp_alumno.Inputs[Destination Input]"
+              name="Salida de origen de ADO NET"
+              startId="Package\Tarea Flujo de datos 1\Origen - Consulta.Outputs[Salida de origen de ADO NET]" />
+          </paths>
+        </pipeline>
+      </DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+  <DTS:PrecedenceConstraints>
+    <DTS:PrecedenceConstraint
+      DTS:refId="Package.PrecedenceConstraints[{285A60B5-0E8D-49B1-8507-0648CD25AEAE\}]"
+      DTS:CreationName=""
+      DTS:DTSID="{285A60B5-0E8D-49B1-8507-0648CD25AEAE}"
+      DTS:From="Package\Tarea de SQL Preparación 1"
+      DTS:LogicalAnd="True"
+      DTS:ObjectName="{285A60B5-0E8D-49B1-8507-0648CD25AEAE}"
+      DTS:To="Package\Tarea Flujo de datos 1" />
+  </DTS:PrecedenceConstraints>
+</DTS:Executable>

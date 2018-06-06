@@ -1,0 +1,166 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Preinscripcion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'preinscripcion';
+		$this->msg_name = 'Preinscripción a Escuela';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'ciclo_lectivo', 'escuela_id', 'vacantes', 'fecha_carga');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'vacantes' => array('label' => 'Vacantes', 'type' => 'number', 'min' => '1', 'required' => TRUE),
+		);
+		$this->requeridos = array('escuela_id', 'ciclo_lectivo', 'vacantes', 'fecha_carga');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('escuela', 'escuela.id = preinscripcion.escuela_id', 'left', array("CONCAT(escuela.numero, ' - ', escuela.nombre) as escuela"))
+		);
+	}
+
+	public function get_preinscripcion($id) {
+		return $this->db
+				->select("p.id, p.escuela_id, p.vacantes, p.ciclo_lectivo, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Inscripto' THEN 1 ELSE 0 END),0) inscriptos, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Postulante' THEN 1 ELSE 0 END), 0) postulantes, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Derivado' THEN 1 ELSE 0 END), 0) derivados, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id <= 3 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_1, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado != 'Anulado' THEN 1 ELSE 0 END),0) instancia_2, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_2_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Postulante' THEN 1 ELSE 0 END),0) instancia_2_p, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado != 'Anulado' THEN 1 ELSE 0 END),0) instancia_3, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Derivado' THEN 1 ELSE 0 END),0) instancia_3_d, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_3_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 6 AND pa.estado != 'Anulado' THEN 1 ELSE 0 END),0) instancia_4")
+				->from('preinscripcion p')
+				->join('preinscripcion_alumno pa', "pa.preinscripcion_id=p.id", 'left')
+				->where('p.id', $id)
+				->group_by('p.id')
+				->get()->row();
+	}
+
+	public function get_postulantes_escuelas($id) {
+		return $this->db
+				->select("p.id, p.escuela_id, p.vacantes, p.ciclo_lectivo, esc.numero, esc.nombre")
+				->from('preinscripcion p')
+				->join('preinscripcion_alumno pa', "pa.preinscripcion_id=p.id AND estado='Postulante'")
+				->join('escuela esc', 'p.escuela_id = esc.id', 'left')
+				->where('pa.estado !=', 'Anulado')
+				->group_by('p.escuela_id')
+				->get()->result();
+	}
+
+	public function get_by_escuela($escuela_id, $ciclo_lectivo) {
+		return $this->db
+				->select("p.id, p.escuela_id, p.vacantes, p.ciclo_lectivo, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Inscripto' THEN 1 ELSE 0 END),0) inscriptos, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Postulante' THEN 1 ELSE 0 END), 0) postulantes, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Derivado' THEN 1 ELSE 0 END), 0) derivados, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id <= 3 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_1, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4  AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_2_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Postulante' THEN 1 ELSE 0 END),0) instancia_2_p, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Derivado' THEN 1 ELSE 0 END),0) instancia_3_d, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_3_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 THEN 1 ELSE 0 END),0) instancia_3, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 6 THEN 1 ELSE 0 END),0) instancia_4")
+				->from('preinscripcion p')
+				->join('preinscripcion_alumno pa', 'pa.preinscripcion_id=p.id AND pa.estado !=\'Anulado\' ', 'left')
+				->where('p.escuela_id', $escuela_id)
+				->where('p.ciclo_lectivo', $ciclo_lectivo)
+				//->where('pa.estado !=', 'Anulado')
+				->group_by('p.id')
+				->get()->row();
+	}
+
+	public function get_by_supervision($supervision_id) {
+		return $this->db
+				->select('e.id, e.numero, e.anexo, e.nombre, COUNT(DISTINCT d.id) divisiones, COUNT(DISTINCT ad.id) alumnos, p.id as preinscripcion_id, p.vacantes, pa.inscriptos, pa.postulantes, pa.instancia_1, pa.instancia_2, pa.instancia_3, pa.instancia_2_p, pa.instancia_2_i, pa.instancia_3_d, pa.instancia_4')
+				->from('escuela e')
+				->join('supervision s', 'e.supervision_id = s.id')
+				->join('division d', 'd.escuela_id = e.id AND d.curso_id=7', 'left')
+				->join('alumno_division ad', 'ad.division_id=d.id AND ad.fecha_hasta IS NULL', 'left')
+				->join('preinscripcion p', 'p.escuela_id = e.id', 'left')
+				->join("(SELECT p.escuela_id, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Inscripto' THEN 1 ELSE 0 END), 0) inscriptos, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Postulante' THEN 1 ELSE 0 END), 0) postulantes, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id <= 3 AND pa.estado !='Anulado' THEN 1 ELSE 0 END),0) instancia_1, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4  AND pa.estado !='Anulado' THEN 1 ELSE 0 END),0) instancia_2, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Postulante' THEN 1 ELSE 0 END),0) instancia_2_p, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_2_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Derivado' THEN 1 ELSE 0 END),0) instancia_3_d, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado !='Anulado' THEN 1 ELSE 0 END),0) instancia_3, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 6 AND pa.estado !='Anulado' THEN 1 ELSE 0 END),0) instancia_4 "
+					. "FROM preinscripcion p JOIN preinscripcion_alumno pa ON p.id = pa.preinscripcion_id "
+					. "GROUP BY p.escuela_id) pa", 'pa.escuela_id = e.id', 'left')
+				->where('s.id', $supervision_id)
+				->where('e.nivel_id=s.nivel_id AND e.dependencia_id=s.dependencia_id')
+				->order_by('e.numero, e.anexo')
+				->group_by('e.id')
+				->get()->result();
+	}
+
+	public function get_by_nivel($nivel_id) {
+		return $this->db
+				->select('s.id, s.orden numero, s.nombre, COUNT(DISTINCT e.id) escuelas, p.escuelas_p, COUNT(DISTINCT d.id) divisiones, COUNT(DISTINCT ad.id) alumnos, p.vacantes, pa.inscriptos, pa.postulantes, pa.instancia_1, pa.instancia_2, pa.instancia_3, pa.instancia_2_p, pa.instancia_2_i, pa.instancia_3_d, pa.instancia_4')
+				->from('escuela e')
+				->join('supervision s', 'e.supervision_id = s.id', 'left')
+				->join('division d', 'd.escuela_id = e.id AND d.curso_id=7', 'left')
+				->join('alumno_division ad', 'ad.division_id=d.id AND ad.fecha_hasta IS NULL', 'left')
+				->join("(SELECT e.supervision_id, COUNT(DISTINCT e.id) escuelas_p, SUM(p.vacantes) vacantes "
+					. "FROM preinscripcion p JOIN escuela e ON p.escuela_id = e.id "
+					. "GROUP BY e.supervision_id) p", 'p.supervision_id = s.id', 'left')
+				->join("(SELECT e.supervision_id, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Inscripto' THEN 1 ELSE 0 END), 0) inscriptos, "
+					. "COALESCE(SUM(CASE pa.estado WHEN 'Postulante' THEN 1 ELSE 0 END), 0) postulantes, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id <= 3 THEN 1 ELSE 0 END),0) instancia_1, "
+					. "COALESCE(SUM(CASE pa.preinscripcion_tipo_id WHEN 4 THEN 1 ELSE 0 END),0) instancia_2, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Postulante' THEN 1 ELSE 0 END),0) instancia_2_p, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 4 AND pa.estado = 'Inscripto' THEN 1 ELSE 0 END),0) instancia_2_i, "
+					. "COALESCE(SUM(CASE WHEN pa.preinscripcion_tipo_id = 5 AND pa.estado = 'Derivado' THEN 1 ELSE 0 END),0) instancia_3_d, "
+					. "COALESCE(SUM(CASE pa.preinscripcion_tipo_id WHEN 5 THEN 1 ELSE 0 END),0) instancia_3, "
+					. "COALESCE(SUM(CASE pa.preinscripcion_tipo_id WHEN 6 THEN 1 ELSE 0 END),0) instancia_4 "
+					. "FROM preinscripcion p JOIN preinscripcion_alumno pa ON p.id = pa.preinscripcion_id AND pa.estado!='Anulado' JOIN escuela e ON p.escuela_id = e.id "
+					. "GROUP BY e.supervision_id) pa", 'pa.supervision_id = s.id', 'left')
+				->where('e.nivel_id', $nivel_id)
+				->where('e.dependencia_id=1')
+				->where('e.nivel_id=s.nivel_id AND e.dependencia_id=s.dependencia_id')
+				->order_by('s.orden')
+				->group_by('s.id')
+				->get()->result();
+	}
+
+	public function get_escuelas_con_vacantes() {
+		return $this->db
+				->select('s.nombre supervision, e.numero, e.nombre, l.descripcion localidad, d.descripcion departamento, p.vacantes-COALESCE(pa.inscriptos,0) as vacantes')
+				->from('escuela e')
+				->join('preinscripcion p', 'p.escuela_id = e.id', 'left')
+				->join('supervision s', 'e.supervision_id = s.id', 'left')
+				->join('localidad l', 'e.localidad_id=l.id', 'left')
+				->join('departamento d', 'l.departamento_id=d.id', 'left')
+				->join("(SELECT p.escuela_id, "
+					. "COUNT(pa.id) inscriptos "
+					. "FROM preinscripcion p JOIN preinscripcion_alumno pa ON p.id = pa.preinscripcion_id AND pa.estado='Inscripto' "
+					. "GROUP BY p.escuela_id) pa", 'pa.escuela_id = e.id', 'left')
+				->where('e.nivel_id', '2')
+				->where('e.dependencia_id', '1')
+				->where('e.nivel_id=s.nivel_id AND e.dependencia_id=s.dependencia_id')
+				->where('p.vacantes>COALESCE(pa.inscriptos,0)')
+				->order_by('s.orden, e.numero')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Preinscripcion_model.php */
+/* Location: ./application/modules/preinscripciones/models/Preinscripcion_model.php */

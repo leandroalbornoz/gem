@@ -1,0 +1,259 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Area extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('areas/area_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_AREA, ROL_CONSULTA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+		if (in_array($this->rol->codigo, array(ROL_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/area';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Código', 'data' => 'codigo', 'width' => 10),
+				array('label' => 'Descripción', 'data' => 'descripcion', 'width' => 20),
+				array('label' => 'Juri/Repa', 'data' => 'jurirepa', 'width' => 10),
+				array('label' => 'Repartición', 'data' => 'reparticion', 'width' => 30),
+				array('label' => 'Área Padre', 'data' => 'area_padre', 'width' => 20),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'area_table',
+			'source_url' => "areas/area/listar_data/{$this->rol->codigo}/{$this->rol->entidad_id}"
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Áreas';
+		$this->load_template('areas/area/area_listar', $data);
+	}
+
+	public function listar_data($rol_codigo, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('area.id, area.codigo, area.descripcion, area.reparticion_id, area.area_padre_id, area_padre.descripcion as area_padre, CONCAT(jurisdiccion.codigo,\'/\',reparticion.codigo) as jurirepa, reparticion.descripcion as reparticion')
+			->unset_column('id')
+			->from('area')
+			->join('area area_padre', 'area_padre.id = area.area_padre_id', 'left')
+			->join('reparticion', 'reparticion.id = area.reparticion_id', 'left')
+			->join('jurisdiccion', 'jurisdiccion.id = reparticion.jurisdiccion_id', 'left')
+			->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="areas/area/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="areas/area/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item" href="areas/area/eliminar/$1" title="Eliminar"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '<li><a class="dropdown-item" href="areas/personal/listar/$1"><i class="fa fa-users""></i> Personal</a></li>'
+				. '</ul></div>', 'id');
+
+		if ($this->rol->codigo === ROL_AREA) {
+			$this->datatables->join('area area_filtro', 'area.codigo LIKE CONCAT(area_filtro.codigo,\'%\')', 'left');
+			$this->datatables->where('area_filtro.id', $this->rol->entidad_id);
+		}
+		echo $this->datatables->generate();
+	}
+
+	public function agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("areas/area/listar");
+		}
+
+//		$this->load->model('reparticion_model');
+		if ($this->rol->codigo === ROL_AREA) {
+			$this->array_area_padre_control = $array_area_padre = $this->get_array('area', 'area', 'id', array(
+				'select' => array('area.id', "CONCAT(area.codigo, ' - ', area.descripcion) as area"),
+				'join' => array(array('area area_filtro', 'area.codigo LIKE CONCAT(area_filtro.codigo,\'%\')', 'left')),
+				'where' => array(array('column' => 'area_filtro.id', 'value' => $this->rol->entidad_id)),
+				'sort_by' => 'area.codigo'
+			));
+		} elseif ($this->rol->codigo === ROL_ADMIN) {
+			$this->array_area_padre_control = $array_area_padre = $this->get_array('area', 'area', 'id', array(
+				'select' => array('area.id', "CONCAT(area.codigo, ' - ', area.descripcion) as area"),
+				'sort_by' => 'area.codigo'
+				), array('' => '-- Seleccionar Área --'));
+		}
+//		$this->array_reparticion_control = $array_reparticion = $this->get_array('reparticion', 'reparticion', 'id', array(
+//			'select' => array('reparticion.id', 'CONCAT(jurisdiccion.codigo, \' \', reparticion.codigo, \' \', reparticion.descripcion) as reparticion'),
+//			'join' => array(
+//				array('jurisdiccion', 'jurisdiccion.id = reparticion.jurisdiccion_id', 'left'),
+//			),
+//			'sort_by' => 'jurisdiccion.codigo, reparticion.codigo'
+//			), array('' => '-- Seleccionar repartición --'));
+		$area_codigo = $this->area_model->get_codigo($this->input->post('area_padre'));
+		$this->area_model->fields['codigo']['value'] = $area_codigo;
+		$this->set_model_validation_rules($this->area_model);
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->area_model->create(array(
+				'codigo' => $area_codigo,
+				'descripcion' => $this->input->post('descripcion'),
+				'reparticion_id' => 165,
+				'area_padre_id' => $this->input->post('area_padre')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->area_model->get_msg());
+				redirect('areas/area/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->area_model->get_error() ? $this->area_model->get_error() : $this->session->flashdata('error')));
+
+		$this->area_model->fields['area_padre']['array'] = $array_area_padre;
+//		$this->area_model->fields['reparticion']['array'] = $array_reparticion;
+		$data['fields'] = $this->build_fields($this->area_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar área';
+		$this->load_template('areas/area/area_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("areas/area/ver/$id");
+		}
+		$area = $this->area_model->get(array('id' => $id));
+		if (empty($area)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+//		$this->load->model('reparticion_model');
+		$this->array_area_padre_control = $array_area_padre = $this->get_array('area', 'area', 'id', array(
+			'select' => array('id', "CONCAT(codigo, ' - ', descripcion) as area"), 'sort_by' => 'codigo'
+			), array('' => '-- Seleccionar Área --'));
+//		$this->array_reparticion_control = $array_reparticion = $this->get_array('reparticion', 'reparticion', 'id', array(
+//			'select' => array('reparticion.id', 'CONCAT(jurisdiccion.codigo, \' \', reparticion.codigo, \' \', reparticion.descripcion) as reparticion'),
+//			'join' => array(
+//				array('jurisdiccion', 'jurisdiccion.id = reparticion.jurisdiccion_id', 'left'),
+//			),
+//			'sort_by' => 'jurisdiccion.codigo, reparticion.codigo'
+//		));
+		$this->set_model_validation_rules($this->area_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->area_model->update(array(
+					'id' => $this->input->post('id'),
+					'codigo' => $this->input->post('codigo'),
+					'descripcion' => $this->input->post('descripcion'),
+//					'reparticion_id' => $this->input->post('reparticion'),
+					'area_padre_id' => $this->input->post('area_padre')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->area_model->get_msg());
+					redirect('areas/area/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->area_model->get_error() ? $this->area_model->get_error() : $this->session->flashdata('error')));
+
+		$this->area_model->fields['area_padre']['array'] = $array_area_padre;
+//		$this->area_model->fields['reparticion']['array'] = $array_reparticion;
+		$data['fields'] = $this->build_fields($this->area_model->fields, $area);
+
+		$data['area'] = $area;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar área';
+		$this->load_template('areas/area/area_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("areas/area/ver/$id");
+		}
+
+		$area = $this->area_model->get_one($id);
+		if (empty($area)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->area_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->area_model->get_msg());
+				redirect('areas/area/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->area_model->get_error() ? $this->area_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->area_model->fields, $area, TRUE);
+
+		$data['area'] = $area;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Eliminar área';
+		$this->load_template('areas/area/area_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$area = $this->area_model->get_one($id);
+		if (empty($area)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->area_model->fields, $area, TRUE);
+
+		$data['area'] = $area;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver área';
+		$this->load_template('areas/area/area_abm', $data);
+	}
+}
+/* End of file Area.php */
+/* Location: ./application/controllers/Area.php */

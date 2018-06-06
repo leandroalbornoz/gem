@@ -1,0 +1,6 @@
+select * from cedula_migracion.tmp_alumno ta 
+JOIN cedula_migracion.tmp_alugrados tal 
+ON ta.divanicod = tal.grado_id 
+JOIN cedula.division d 
+ON ta.divnro = d.division
+GROUP BY aluid ORDER BY escid;

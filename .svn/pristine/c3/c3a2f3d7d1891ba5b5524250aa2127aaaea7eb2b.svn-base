@@ -1,0 +1,132 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Evaluacion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'evaluacion';
+		$this->msg_name = 'Evaluación';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'evaluacion_tipo_id', 'fecha', 'cursada_id', 'tema', 'ciclo_lectivo', 'calendario_periodo_id');
+		$this->fields = array(
+			'evaluacion_tipo' => array('label' => 'Tipo de evaluación', 'input_type' => 'combo', 'id_name' => 'evaluacion_tipo_id', 'required' => TRUE),
+			'fecha' => array('label' => 'Fecha', 'type' => 'date', 'required' => TRUE),
+			'tema' => array('label' => 'Tema', 'maxlength' => '45', 'required' => TRUE),
+			'periodo' => array('label' => 'Periodo', 'input_type' => 'combo', 'id_name' => 'calendario_periodo_id', 'required' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'type' => 'number', 'required' => TRUE, 'readonly' => TRUE)
+		);
+		$this->requeridos = array('evaluacion_tipo_id', 'fecha', 'cursada_id', 'ciclo_lectivo', 'calendario_periodo_id');
+		$this->unicos = array(array('evaluacion_tipo_id', 'cursada_id', 'ciclo_lectivo', 'calendario_periodo_id', 'tema'));
+		$this->default_join = array(
+			array('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id', 'left', array('evaluacion_tipo.descripcion as evaluacion_tipo')),
+			array('cursada', 'cursada.id = evaluacion.cursada_id', 'left', array('cursada.id as cursada_id')),
+			array('division', 'cursada.division_id = division.id', 'left', array('CONCAT(curso.descripcion,\' \',division.division) as division')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso')),
+			array('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left', array('espacio_curricular.id as espacio_curricular_id')),
+			array('materia', 'materia.id = espacio_curricular.materia_id', 'left', array('materia.descripcion as espacio_curricular')),
+			array('calendario', 'calendario.id = division.calendario_id', 'left', array('calendario.descripcion as calendario')),
+			array('calendario_periodo', 'calendario_periodo.calendario_id = calendario.id AND calendario_periodo.id = evaluacion.calendario_periodo_id', 'left', array("calendario_periodo.id as calendario_periodo_id", "CONCAT(calendario_periodo.periodo, '° ', calendario.nombre_periodo) periodo"))
+		);
+	}
+
+	public function get_evaluaciones_cursada($cursada_id) {
+		$result = $this->db->select("evaluacion.id,evaluacion_tipo.descripcion as evaluacion_tipo, evaluacion.tema, evaluacion.fecha, CONCAT(curso.descripcion,' ',division.division) as division, cursada.id as cursada_id,SUM(CASE WHEN cursada_nota.asistencia = 'Ausente' THEN 1 ELSE 0 END) ausentes,COUNT(DISTINCT cursada_nota.id) inscriptos, SUM(cursada_nota.nota) as suma_notas,CONCAT(COALESCE(calendario_periodo.periodo,''),'° ',COALESCE(calendario.nombre_periodo,'')) AS periodo, calendario_periodo.periodo as calendario_periodo,COALESCE(curso.calificacion_id,'') as calificacion_id")
+				->from('evaluacion')
+				->join('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id')
+				->join('cursada', 'evaluacion.cursada_id = cursada.id')
+				->join('cursada_nota', 'cursada_nota.evaluacion_id = evaluacion.id', 'left')
+				->join('division', 'cursada.division_id = division.id')
+				->join('curso', 'division.curso_id = curso.id', 'left')
+				->join('espacio_curricular', 'cursada.espacio_curricular_id = espacio_curricular.id', 'left')
+				->join('materia', 'materia.id = espacio_curricular.materia_id', 'left')
+				->join('calendario_periodo', 'calendario_periodo.id = evaluacion.calendario_periodo_id', 'left')
+				->join('calendario', 'calendario_periodo.calendario_id = calendario.id', 'left')
+				->where('evaluacion.cursada_id', $cursada_id)
+				->order_by('evaluacion.fecha,tema')
+				->group_by('evaluacion.id')
+				->get()->result();
+		$array_evaluacion_periodo = array();
+		foreach ($result as $evaluacion) {
+			$array_evaluacion_periodo[$evaluacion->calendario_periodo][] = $evaluacion;
+		}
+		return $array_evaluacion_periodo;
+	}
+
+	public function get_evaluaciones_notas_cursada($cursada_id) {
+		$notas = $this->db->select("evaluacion.id evaluacion_id, evaluacion_tipo.descripcion as evaluacion_tipo, evaluacion.tema, evaluacion.fecha, cursada_nota.alumno_cursada_id, cursada_nota.nota, cursada_nota.asistencia, documento_tipo.descripcion_corta documento_tipo, persona.documento, CONCAT_WS(', ', persona.apellido, persona.nombre) persona, CONCAT(calendario_periodo.periodo,'° ',calendario.nombre_periodo) as calendario_periodo, evaluacion.calendario_periodo_id as calendario_periodo_id")
+				->from('evaluacion')
+				->join('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id')
+				->join('cursada', 'cursada.id = evaluacion.cursada_id')
+				->join('cursada_nota', 'cursada_nota.evaluacion_id = evaluacion.id')
+				->join('alumno_cursada', 'alumno_cursada.id = cursada_nota.alumno_cursada_id', 'left')
+				->join('alumno_division', 'alumno_division.id = alumno_cursada.alumno_division_id', 'left')
+				->join('alumno', 'alumno.id = alumno_division.alumno_id', 'left')
+				->join('persona', 'persona.id = alumno.persona_id', 'left')
+				->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left')
+				->join('calendario_periodo', 'calendario_periodo.id= evaluacion.calendario_periodo_id', 'left')
+				->join('calendario', 'calendario.id = calendario_periodo.calendario_id', 'left')
+				->where('evaluacion.cursada_id', $cursada_id)
+				->order_by('evaluacion.fecha asc, evaluacion.tema asc')
+				->get()->result();
+		$evaluaciones = array();
+		foreach ($notas as $nota) {
+			if (!isset($evaluaciones[$nota->calendario_periodo][$nota->evaluacion_id])) {
+				$evaluaciones[$nota->calendario_periodo][$nota->evaluacion_id] = (object) array('evaluacion_id' => $nota->evaluacion_id, 'evaluacion_tipo' => $nota->evaluacion_tipo, 'tema' => $nota->tema, 'fecha' => $nota->fecha, 'periodo' => $nota->calendario_periodo);
+				$evaluaciones[$nota->calendario_periodo][$nota->evaluacion_id]->notas = array();
+			}
+			$evaluaciones[$nota->calendario_periodo][$nota->evaluacion_id]->notas[$nota->alumno_cursada_id] = $nota;
+		}
+		return $evaluaciones;
+	}
+
+	public function get_evaluaciones_alumno_periodo($cursada_id, $alumno_division, $calendario_periodo_id) {
+		$result = $this->db->select("e.id, e.fecha, e.tema, et.descripcion as evaluacion_tipo, e.cursada_id, ad.id as alumno_division_id, ac.id as alumno_cursada_id, ad.fecha_desde, ad.fecha_hasta, CONCAT(cp.periodo, '° ', cal.nombre_periodo) as nombre_periodo, cp.periodo as periodo, cn.asistencia, cn.nota, cn.id as cursada_nota_id, e.calendario_periodo_id ")
+				->from('evaluacion e')
+				->join('cursada c', 'e.cursada_id = c.id')
+				->join('division d', 'd.id = c.division_id')
+				->join('curso cur', 'd.curso_id = cur.id')
+				->join('alumno_division ad', 'ad.division_id = d.id')
+				->join('alumno_cursada ac', 'ac.alumno_division_id=ad.id AND ac.cursada_id = c.id ', 'left')
+				->join('cursada_nota cn', 'cn.evaluacion_id = e.id AND cn.alumno_cursada_id = ac.id', 'left')
+				->join('calendario_periodo cp', 'cp.id= e.calendario_periodo_id')
+				->join('calendario cal', 'cal.id = cp.calendario_id')
+				->join('evaluacion_tipo et', 'et.id = e.evaluacion_tipo_id')
+				->where('ad.id', $alumno_division->id)
+				->where('c.id', $cursada_id)
+				->where('cp.id', $calendario_periodo_id)
+				->where('e.fecha BETWEEN ad.fecha_desde AND COALESCE(ad.fecha_hasta, e.fecha)')
+				->group_by('e.id')
+				->get()->result();
+		$array_evaluaciones_periodo = array();
+		foreach ($result as $evaluacion) {
+			$array_evaluaciones_periodo[] = $evaluacion;
+		}
+		return $array_evaluaciones_periodo;
+	}
+
+	public function get_notas_evalaucion($evaluacion_id) {
+		return $this->db->select('cursada_nota.id')
+				->from('cursada_nota')
+				->join('evaluacion', 'evaluacion.id = cursada_nota.evaluacion_id', 'left')
+				->where('cursada_nota.evaluacion_id', $evaluacion_id)
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('evaluacion_id', $delete_id)->count_all_results('cursada_nota') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cursada de nota.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Evaluacion_model.php */
+/* Location: ./application/models/Evaluacion_model.php */

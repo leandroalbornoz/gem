@@ -1,0 +1,51 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_CONSULTA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+	}
+
+	public function index($mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($mes)) {
+			$this->load->model('planilla_asisnov_model');
+			$mes = '201710';// $this->planilla_asisnov_model->get_mes_actual();
+		}
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['mes'] = $mes;
+		$this->load->model('liquidaciones/altas_model');
+		$data['altas_departamentos'] = $this->altas_model->get_by_departamento($mes);
+		$this->load->model('liquidaciones/bajas_model');
+		$data['bajas_departamentos'] = $this->bajas_model->get_by_departamento($mes);
+		$data['accesos'] = load_permisos_escritorio_usuario($this->rol);
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('escritorio/escritorio_liquidacion', $data);
+	}
+
+	public function cambiar_mes($mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("liquidaciones/escritorio/index/$mes", 'refresh');
+	}
+}
+/* End of file Escritorio.php */
+/* Location: ./application/modules/liquidaciones/controllers/Escritorio.php */

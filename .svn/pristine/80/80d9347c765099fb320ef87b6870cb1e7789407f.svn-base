@@ -1,0 +1,127 @@
+<link rel="stylesheet" href="plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css">
+<script src="plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js" type="text/javascript"></script>
+<script src="plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js" type="text/javascript"></script>
+<style>
+	.modal-body input{
+		height:22px;
+	}
+</style>
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title">Asignar servicio a liquidación</h4>
+</div>
+<div class="modal-body">
+	<div class="row text-sm">
+		<h4 class="col-md-12"><?php echo "$persona->apellido, $persona->nombre (CUIL: $persona->cuil)"; ?></h4>
+		<div class="form-group col-md-5">
+			<?php echo $fields['ug']['label']; ?>
+			<?php echo $fields['ug']['form']; ?>
+		</div>
+		<div class="form-group col-md-5">
+			<?php echo $fields['regimen']['label']; ?>
+			<?php echo $fields['regimen']['form']; ?>
+		</div>
+		<div class="form-group col-md-2">
+			<?php echo $fields['diasoblig']['label']; ?>
+			<?php echo $fields['diasoblig']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['REVISTA']['label']; ?>
+			<?php echo $fields['REVISTA']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['liquidacion_s']['label']; ?>
+			<?php echo $fields['liquidacion_s']['form']; ?>
+		</div>
+		<div class="form-group col-md-3">
+			<?php echo $fields['fechaini']['label']; ?>
+			<?php echo $fields['fechaini']['form']; ?>
+		</div>
+		<div class="form-group col-md-3">
+			<?php echo $fields['fechafin']['label']; ?>
+			<?php echo $fields['fechafin']['form']; ?>
+		</div>
+		<div class="col-md-12">
+			<?php if (!empty($servicios)): ?>
+				<?php echo form_hidden(array('vigente' => $liquidacion->vigente, 'tbcab_id' => $liquidacion->id)); ?>
+				<table class="table table-hover table-bordered table-condensed table-responsive dt-responsive dataTable no-footer dtr-inline text-sm" role="grid" id="servicio_table" style="width:100% !important">
+					<thead>
+						<tr style="background-color: #f4f4f4" >
+							<th style="text-align: center;" colspan="9">Servicios</th>
+						</tr>
+						<tr>
+							<th>N°Liquidación</th>
+							<th>S.R.</th>
+							<th>Esc/Área</th>
+							<th>Régimen<br/>Clase</th>
+							<th>Alta</th>
+							<th>Baja</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($servicios as $servicio): ?>
+							<tr>
+								<td><?= $servicio->liquidacion; ?></td>
+								<td><?= $servicio->situacion_revista; ?></td>
+								<td><?= empty($servicio->escuela) ? $servicio->area : $servicio->escuela; ?></td>
+								<td><?= "$servicio->regimen<br/>" . ($servicio->carga_horaria === '0' ? $servicio->puntos : $servicio->carga_horaria); ?></td>
+								<td><?= $servicio->fecha_alta; ?></td>
+								<td><?= $servicio->fecha_baja; ?></td>
+								<td><button type="submit" name="servicio_id" value="<?= $servicio->id; ?>" class="btn btn-success btn-xs"><i class="fa fa-plus"></i> Asig</button></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php else: ?>
+				-- Sin servicios --
+			<?php endif; ?>
+		</div>
+	</div>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+</div>
+
+<script type="text/javascript">
+	$(document).ready(function() {
+		$('#fechaini').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+		//.datepicker("setDate", new Date())
+		$('#fechafin').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+		$('#fecha_alta').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+		$('#fecha_baja').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+	});
+</script>

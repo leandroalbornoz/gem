@@ -1,0 +1,102 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Division_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'division';
+		$this->msg_name = 'División';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'turno_id', 'curso_id', 'division', 'carrera_id', 'fecha_alta', 'fecha_baja', 'modalidad_id', 'calendario_id');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'turno' => array('label' => 'Turno', 'input_type' => 'combo', 'id_name' => 'turno_id', 'required' => TRUE),
+			'curso' => array('label' => 'Curso', 'input_type' => 'combo', 'id_name' => 'curso_id', 'required' => TRUE),
+			'division' => array('label' => 'División', 'maxlength' => '20', 'required' => TRUE),
+			'carrera' => array('label' => 'Carrera', 'input_type' => 'combo', 'id_name' => 'carrera_id', 'required' => TRUE),
+			'fecha_alta' => array('label' => 'Fecha de Alta', 'type' => 'date'),
+			'fecha_baja' => array('label' => 'Fecha de Baja', 'type' => 'date', 'readonly' => TRUE),
+			'modalidad' => array('label' => 'Modalidad', 'input_type' => 'combo', 'id_name' => 'modalidad_id', 'required' => TRUE),
+			'calendario' => array('label' => 'Calendario', 'input_type' => 'combo', 'id_name' => 'calendario_id', 'required' => TRUE),
+		);
+		$this->requeridos = array('escuela_id', 'turno_id', 'curso_id', 'division', 'carrera_id', 'modalidad_id', 'calendario_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso', 'curso.grado_multiple as grado_multiple')),
+			array('carrera', 'carrera.id = division.carrera_id', 'left', array('carrera.descripcion as carrera')),
+			array('escuela', 'escuela.id = division.escuela_id', 'left', array('escuela.nombre as escuela', 'numero')),
+			array('turno', 'turno.id = division.turno_id', 'left', array('turno.descripcion as turno')),
+			array('modalidad', 'modalidad.id = division.modalidad_id', 'left', array('modalidad.descripcion as modalidad')),
+			array('calendario', 'calendario.id = division.calendario_id', 'left', array('calendario.descripcion as calendario', 'calendario.nombre_periodo'))
+		);
+	}
+
+	public function get_by_escuela($escuela_id) {
+		return $this->db->query("SELECT d.id, d.escuela_id, cu.descripcion curso, d.division,
+ division, t.descripcion turno, ca.descripcion carrera, cd.cargos, cd.horas, ad.alumnos
+FROM division d
+LEFT JOIN curso cu ON cu.id = d.curso_id
+LEFT JOIN carrera ca ON ca.id = d.carrera_id
+LEFT JOIN turno t ON t.id = d.turno_id
+LEFT JOIN (
+SELECT c.division_id, COUNT(c.id) cargos, SUM(c.carga_horaria) horas
+FROM cargo c JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id = 1 join division d on c.division_id=d.id where d.escuela_id = ? AND c.fecha_hasta IS NULL
+GROUP BY c.division_id) cd ON cd.division_id = d.id
+LEFT JOIN (
+SELECT ad.division_id, COUNT(DISTINCT ad.alumno_id) alumnos
+FROM alumno_division ad join division d on ad.division_id=d.id where d.escuela_id = ? AND ad.fecha_hasta IS NULL
+GROUP BY ad.division_id) ad ON ad.division_id = d.id
+WHERE d.escuela_id = ? AND d.fecha_baja IS NULL
+ORDER BY cu.descripcion, d.division", array($escuela_id, $escuela_id, $escuela_id)
+			)->result();
+	}
+	
+	public function get_by_divisiones($escuela_id) {
+		return $this->db->select('division.id, division.escuela_id, division.turno_id, division.curso_id, division.division, division.carrera_id, division.fecha_alta, division.fecha_baja, carrera.descripcion as carrera, curso.descripcion as curso, modalidad.descripcion as modalidad, escuela.nombre as escuela, turno.descripcion as turno, COUNT(horario.id) as horarios, division.clave')
+			->from('division')
+			->join('horario', 'horario.division_id = division.id', 'left')
+			->join('carrera', 'carrera.id = division.carrera_id', 'left')
+			->join('curso', 'curso.id = division.curso_id', 'left')
+			->join('escuela', 'escuela.id = division.escuela_id', 'left')
+			->join('turno', 'turno.id = division.turno_id', 'left')
+			->join('modalidad', 'modalidad.id = division.modalidad_id', 'left')
+			->where('division.escuela_id', $escuela_id)
+			->where('division.fecha_baja IS NULL')
+			->order_by('curso.descripcion, division.division')
+			->group_by('division.id')
+			->get()->result();
+	}
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('division_id', $delete_id)->count_all_results('alumno_division') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de division.');
+			return FALSE;
+		}
+		if ($this->db->where('division_id', $delete_id)->count_all_results('cargo') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cargo.');
+			return FALSE;
+		}
+		if ($this->db->where('division_id', $delete_id)->count_all_results('cursada') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cursada.');
+			return FALSE;
+		}
+		if ($this->db->where('division_id', $delete_id)->count_all_results('horario') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga horarios asociados.');
+			return FALSE;
+		}
+		if ($this->db->where('division_id', $delete_id)->count_all_results('division_inasistencia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga asistencia de alumnos asociada.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Division_model.php */
+/* Location: ./application/models/Division_model.php */

@@ -1,0 +1,310 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_titulo extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS, ROL_MODULO, ROL_ADMIN);
+		$this->nav_route = 'titulo/titulo_persona';
+		$this->modulos_permitidos = array(ROL_MODULO_ADMINISTRADOR_DE_JUNTAS);
+	}
+
+	public function modal_agregar($persona_id) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/persona_bono_model');
+		$this->persona_bono_model->set_database($DB1);
+		if (empty($persona_id)) {
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		} else {
+			$persona = $this->persona_bono_model->get_one($persona_id);
+		}
+
+		if (empty($persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		}
+
+		$this->load->model('juntas/persona_titulo_model');
+		$this->load->model('juntas/entidad_emisora_model');
+		$this->load->model('juntas/titulo_tipo_model');
+		$this->load->model('juntas/modalidad_model');
+		$this->load->model('juntas/norma_legal_tipo_model');
+
+		$titulo_tipo = new stdClass();
+		$titulo_tipo->fields = array(
+			'titulo_tipo' => array('label' => 'Tipo de Título', 'input_type' => 'combo', 'id_name' => 'titulo_tipo', 'required' => TRUE)
+		);
+		$this->titulo_tipo_model->set_database($DB1);
+		$this->array_titulo_tipo_control = $array_titulo_tipo = $this->get_array('titulo_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de título --'));
+
+		$this->persona_titulo_model->set_database($DB1);
+		$this->entidad_emisora_model->set_database($DB1);
+		$this->modalidad_model->set_database($DB1);
+		$this->norma_legal_tipo_model->set_database($DB1);
+		$persona_titulos = $this->persona_titulo_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('table' => 'titulo', 'where' => 'persona_titulo.titulo_id=titulo.id', 'type' => 'left', 'columnas' => array("titulo.NomTitLon"))
+			)
+		));
+		$this->array_entidad_emisora_control = $array_entidad_emisora = array('' => '');
+		$this->array_titulo_control = $array_titulo = array('' => '');
+		$this->array_modalidad_control = $array_modalidad = $this->get_array('modalidad', 'descripcion', 'id', null, array('' => '-- Seleccionar modalidad --'));
+		$this->array_norma_legal_tipo_control = $array_norma_legal_tipo = $this->get_array('norma_legal_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de norma legal --'));
+
+		$this->persona_titulo_model->fields['persona']['value'] = "$persona->cuil - $persona->apellido $persona->nombre";
+		unset($this->persona_titulo_model->fields['titulo']['input_type']);
+		unset($this->persona_titulo_model->fields['entidad_emisora']['input_type']);
+		$this->set_model_validation_rules($this->persona_titulo_model);
+		$this->persona_titulo_model->fields['titulo']['input_type'] = 'combo';
+		$this->persona_titulo_model->fields['entidad_emisora']['input_type'] = 'combo';
+		if (isset($_POST) && !empty($_POST)) {
+			if ($persona->id !== $this->input->post('persona_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if (!empty($persona_titulos)) {
+				foreach ($persona_titulos as $persona_titulo) {
+					if ($persona_titulo->titulo_id == $this->input->post('titulo')) {
+						$this->session->set_flashdata('error', 'La persona ya posee asignado este título');
+						redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+					}
+				}
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->load->model('juntas/titulo_model');
+				$this->titulo_model->set_database($DB1);
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_titulo_model->create(array(
+					"titulo_id" => $this->input->post('titulo'),
+					'titulo_tipo_id' => $this->input->post('titulo_tipo'),
+					'persona_id' => $this->input->post('persona_id'),
+					'entidad_emisora_id' => $this->input->post('entidad_emisora'),
+					'postitulo_tipo_id' => $this->input->post('postitulo_tipo'),
+					'posgrado_tipo_id' => $this->input->post('posgrado_tipo'),
+					'modalidad_id' => $this->input->post('modalidad'),
+					'fecha_emision' => $this->get_date_sql('fecha_emision'),
+					'promedio' => $this->input->post('promedio'),
+					'registro' => $this->input->post('registro'),
+					'norma_legal_tipo_id' => $this->input->post('norma_legal_tipo'),
+					'norma_legal_numero' => $this->input->post('norma_legal_numero'),
+					'norma_legal_año' => $this->input->post('norma_legal_año'),
+					'años_cursado' => $this->input->post('años_cursado'),
+					'cantidad_hs_reloj' => $this->input->post('cantidad_hs_reloj')
+					), FALSE);
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_titulo_model->get_msg());
+					redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+					redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+			}
+		}
+
+		$this->persona_titulo_model->fields['titulo']['array'] = $array_titulo;
+		$this->persona_titulo_model->fields['entidad_emisora']['array'] = $array_entidad_emisora;
+		$this->persona_titulo_model->fields['modalidad']['array'] = $array_modalidad;
+		$this->persona_titulo_model->fields['norma_legal_tipo']['array'] = $array_norma_legal_tipo;
+		$titulo_tipo->fields['titulo_tipo']['array'] = $array_titulo_tipo;
+		$data['fields_tt'] = $this->build_fields($titulo_tipo->fields);
+		$data['fields'] = $this->build_fields($this->persona_titulo_model->fields);
+		$data['txt_btn'] = 'Asignar';
+		$data['persona'] = $persona;
+		$data['persona_titulos'] = $persona_titulos;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Asignar título';
+		$this->load->view('juntas/persona_titulo/persona_titulo_modal_agregar', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('juntas/persona_titulo_model');
+		$this->persona_titulo_model->set_database($DB1);
+
+		$persona_titulo = $this->persona_titulo_model->get_one($id);
+		if (empty($persona_titulo)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_titulo_model->update(array(
+				'id' => $this->input->post('id'),
+				'borrado' => '1'
+			));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', 'Registro de Título de persona eliminado');
+				redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+				redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+			}
+		}
+		$data['fields'] = $this->build_fields($this->persona_titulo_model->fields, $persona_titulo, TRUE);
+		$data['persona_titulo'] = $persona_titulo;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar título';
+		$this->load->view('juntas/persona_titulo/persona_titulo_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('juntas/persona_titulo_model');
+		$this->persona_titulo_model->set_database($DB1);
+
+		$persona_titulo = $this->persona_titulo_model->get_one($id);
+		if (empty($persona_titulo)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('juntas/entidad_emisora_model');
+		$this->load->model('juntas/modalidad_model');
+		$this->load->model('juntas/norma_legal_tipo_model');
+
+		$this->entidad_emisora_model->set_database($DB1);
+		$this->modalidad_model->set_database($DB1);
+		$this->norma_legal_tipo_model->set_database($DB1);
+		$this->array_entidad_emisora_control = $array_entidad_emisora = array('' => '');
+		$this->array_titulo_control = $array_titulo = array('' => '');
+		$this->array_modalidad_control = $array_modalidad = $this->get_array('modalidad', 'descripcion', 'id', null, array('' => '-- Seleccionar modalidad --'));
+		$this->array_norma_legal_tipo_control = $array_norma_legal_tipo = $this->get_array('norma_legal_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de norma legal --'));
+
+		unset($this->persona_titulo_model->fields['titulo']['input_type']);
+		unset($this->persona_titulo_model->fields['entidad_emisora']['input_type']);
+		$this->set_model_validation_rules($this->persona_titulo_model);
+		$this->persona_titulo_model->fields['titulo']['input_type'] = 'combo';
+		$this->persona_titulo_model->fields['entidad_emisora']['input_type'] = 'combo';
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->load->model('juntas/titulo_model');
+				$this->titulo_model->set_database($DB1);
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_titulo_model->update(array(
+					'id' => $this->input->post('id'),
+					'titulo_id' => $this->input->post('titulo'),
+					'titulo_tipo_id' => $this->input->post('titulo_tipo'),
+					'persona_id' => $this->input->post('persona_id'),
+					'entidad_emisora_id' => $this->input->post('entidad_emisora'),
+					'postitulo_tipo_id' => $this->input->post('postitulo_tipo'),
+					'posgrado_tipo_id' => $this->input->post('posgrado_tipo'),
+					'modalidad_id' => $this->input->post('modalidad'),
+					'fecha_emision' => $this->get_date_sql('fecha_emision'),
+					'promedio' => $this->input->post('promedio'),
+					'registro' => $this->input->post('registro'),
+					'norma_legal_tipo_id' => $this->input->post('norma_legal_tipo'),
+					'norma_legal_numero' => $this->input->post('norma_legal_numero'),
+					'norma_legal_año' => $this->input->post('norma_legal_año'),
+					'años_cursado' => $this->input->post('años_cursado'),
+					'cantidad_hs_reloj' => $this->input->post('cantidad_hs_reloj')
+					), FALSE);
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_titulo_model->get_msg());
+					redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+					redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+		}
+
+		$this->persona_titulo_model->fields['titulo']['array'] = $array_titulo;
+		$this->persona_titulo_model->fields['entidad_emisora']['array'] = $array_entidad_emisora;
+		$this->persona_titulo_model->fields['modalidad']['array'] = $array_modalidad;
+		$this->persona_titulo_model->fields['norma_legal_tipo']['array'] = $array_norma_legal_tipo;
+		$data['fields'] = $this->build_fields($this->persona_titulo_model->fields, $persona_titulo);
+		$data['txt_btn'] = 'Editar';
+		$data['persona_titulo'] = $persona_titulo;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Editar título';
+		$this->load->view('juntas/persona_titulo/persona_titulo_modal_abm', $data);
+	}
+
+	public function deshacer_borrado($titulo_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $titulo_id == NULL || !ctype_digit($titulo_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('juntas/persona_titulo_model');
+		$this->persona_titulo_model->set_database($DB1);
+
+		$persona_titulo = $this->persona_titulo_model->get_one($titulo_id);
+		if (empty($persona_titulo)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		if ($titulo_id !== $persona_titulo->id) {
+			show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+		}
+		$trans_ok = TRUE;
+		$trans_ok &= $this->persona_titulo_model->update(array(
+			'id' => $titulo_id,
+			'borrado' => '0'
+		));
+
+		if ($trans_ok) {
+			$this->session->set_flashdata('message', 'Registro de Título de persona recuperado');
+			redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+		} else {
+			$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+			redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+		}
+	}
+
+	public function ajax_buscar_titulo() {
+		$this->load->model('juntas/titulo_model');
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->titulo_model->set_database($DB1);
+		$nombre = $this->input->post('titulo');
+		$tipo_titulo = $this->input->post('tipo_titulo');
+		echo json_encode($this->titulo_model->find_titulos($nombre, $tipo_titulo));
+	}
+
+	public function ajax_buscar_entidad_emisora() {
+		$this->load->model('juntas/entidad_emisora_model');
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->entidad_emisora_model->set_database($DB1);
+		$busqueda = $this->input->post('entidad_emisora');
+		echo json_encode($this->entidad_emisora_model->find_entidad_emisora($busqueda));
+	}
+}
+/* End of file Titulo_persona.php */
+/* Location: ./application/modules/titulos/controllers/Titulo_persona.php */

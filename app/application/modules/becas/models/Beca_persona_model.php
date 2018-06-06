@@ -1,0 +1,88 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Beca_persona_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->auditoria = TRUE;
+		$this->aud_table_name = 'aud_beca_persona';
+		$this->table_name = 'beca_persona';
+		$this->msg_name = 'Persona Beca';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'beca_id', 'escuela_id', 'persona_id', 'fecha', 'beca_estado_id');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
+			'persona' => array('label' => 'Docente', 'input_type' => 'combo', 'id_name' => 'persona_id', 'required' => TRUE),
+			'fecha' => array('label' => 'Fecha', 'type' => 'datetime', 'required' => TRUE),
+			'beca_estado' => array('label' => 'Estado Beca', 'input_type' => 'combo', 'id_name' => 'beca_estado_id', 'required' => TRUE)
+		);
+		$this->requeridos = array('beca_id', 'escuela_id', 'persona_id', 'fecha', 'beca_estado_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('beca', 'beca.id = beca_persona.beca_id', 'left', array('beca.descripcion as beca')),
+			array('beca_estado', 'beca_estado.id = beca_persona.beca_estado_id', 'left', array('beca_estado.descripcion as beca_estado', 'beca_estado.clase', 'beca_estado.icono')),
+			array('escuela', 'escuela.id = beca_persona.escuela_id', 'left', array("CONCAT(escuela.numero, CASE WHEN escuela.anexo=0 THEN '' ELSE CONCAT('/',escuela.anexo) END, ' ', escuela.nombre) as escuela")),
+			array('persona', 'persona.id = beca_persona.persona_id', 'left', array('persona.cuil', 'persona.nombre', 'persona.apellido', "CONCAT(persona.cuil, ' ', persona.apellido, ', ', persona.nombre) as persona"))
+		);
+	}
+
+	public function buscar_persona($cuil) {
+		if (empty($cuil)) {
+			return FALSE;
+		}
+		$persona = $this->db->query("SELECT p.id, p.cuil, p.apellido, p.nombre, GROUP_CONCAT(CONCAT_WS(' ', CONCAT(e.numero, CASE WHEN e.anexo=0 THEN '' ELSE CONCAT('/',e.anexo) END), sr.descripcion, r.codigo, r.descripcion, cu.descripcion, d.division, m.descripcion) SEPARATOR '<br>') servicios, GROUP_CONCAT(DISTINCT e.id) escuelas, CONCAT(ep.numero, CASE WHEN ep.anexo=0 THEN '' ELSE CONCAT('/', ep.anexo) END) escuela_postulada, bp.id as beca_persona_id
+			FROM servicio s
+			JOIN persona p ON s.persona_id=p.id
+			JOIN cargo c ON s.cargo_id=c.id
+			JOIN escuela e ON c.escuela_id=e.id
+			JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+			JOIN regimen r ON c.regimen_id=r.id
+			LEFT JOIN beca_persona bp ON p.id=bp.persona_id
+			LEFT JOIN escuela ep ON bp.escuela_id=ep.id
+			LEFT JOIN espacio_curricular ec ON c.espacio_curricular_id=ec.id
+			LEFT JOIN materia m ON ec.materia_id=m.id
+			LEFT JOIN division d ON c.division_id=c.id
+			LEFT JOIN curso cu ON d.curso_id=cu.id
+			WHERE p.cuil = ? AND s.fecha_baja IS NULL
+			GROUP BY p.id", array($cuil))->row();
+		return $persona;
+	}
+
+	public function get_servicios($persona_id) {
+		if (empty($persona_id)) {
+			return FALSE;
+		}
+		$servicios = $this->db->query("SELECT CONCAT(e.numero, CASE WHEN e.anexo=0 THEN '' ELSE CONCAT('/',e.anexo) END) escuela, sr.descripcion situacion_revista, r.codigo regimen, r.descripcion regimen_descripcion, c.carga_horaria, s.fecha_alta, f.descripcion funcion, cu.descripcion curso, d.division division, m.descripcion materia, t.lsignos, t.liquidacion_s, cc.descripcion condicion_cargo
+FROM servicio s 
+LEFT JOIN servicio_funcion sf ON sf.servicio_id=s.id AND sf.fecha_hasta IS NULL
+LEFT JOIN funcion f ON sf.funcion_id=f.id
+JOIN cargo c ON s.cargo_id=c.id
+JOIN condicion_cargo cc ON c.condicion_cargo_id=cc.id
+JOIN escuela e ON c.escuela_id=e.id
+JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+JOIN regimen r ON c.regimen_id=r.id
+LEFT JOIN tbcabh t ON t.servicio_id=s.id AND t.vigente=?
+LEFT JOIN beca_persona bp ON s.persona_id=bp.persona_id
+LEFT JOIN escuela ep ON bp.escuela_id=ep.id
+LEFT JOIN espacio_curricular ec ON c.espacio_curricular_id=ec.id
+LEFT JOIN materia m ON ec.materia_id=m.id
+LEFT JOIN division d ON c.division_id=c.id
+LEFT JOIN curso cu ON d.curso_id=cu.id
+WHERE s.persona_id = ? AND s.fecha_baja IS NULL", array(AMES_LIQUIDACION, $persona_id))->result();
+		return $servicios;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Beca_persona_model.php */
+/* Location: ./application/modules/becas/models/Beca_persona_model.php */

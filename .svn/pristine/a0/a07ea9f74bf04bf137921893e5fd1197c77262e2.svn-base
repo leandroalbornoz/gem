@@ -1,0 +1,198 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_cursada extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('alumno_cursada_model');
+		$this->load->model('cursada_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_GRUPO_ESCUELA_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'par/alumno_cursada';
+	}
+
+	public function agregar_alumnos($cursada_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $cursada_id == NULL || !ctype_digit($cursada_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+		}
+		$cursada = $this->cursada_model->get_one($cursada_id);
+		if (empty($cursada)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$this->load->model('escuela_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$alumnos = $this->alumno_cursada_model->get_alumnos_division($division->id, $cursada->id, $ciclo_lectivo);
+
+		$this->set_model_validation_rules($this->alumno_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($cursada_id !== $this->input->post('cursada_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$alumnos_division = $this->input->post('alumnos');
+				if (empty($alumnos_division)) {
+					$this->session->set_flashdata('error', 'Ninguna opción fue seleccionada');
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				}
+				foreach ($alumnos_division as $key => $alumno_division_ids) {
+					$trans_ok &= $this->alumno_cursada_model->create(array(
+						'alumno_division_id' => $alumno_division_ids,
+						'cursada_id' => $cursada->id), FALSE);
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->alumno_cursada_model->get_msg());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->alumno_cursada_model->get_error());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cursada/escritorio/$cursada->id", 'refresh');
+			}
+		}
+
+		$data['alumnos'] = $alumnos;
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['cursada'] = $cursada;
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar alumnos';
+		$this->load_template('alumno_cursada/alumno_cursada_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$alumno_cursada = $this->alumno_cursada_model->get(array('id' => $id));
+		if (empty($alumno_cursada)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('cursada_model');
+		$this->load->model('division_model');
+		$this->array_cursada_control = $array_cursada = $this->get_array('cursada', 'alumno_id');
+		$this->array_alumno_division_control = $array_alumno_division = $this->get_array('division', 'escuela_id');
+		$this->set_model_validation_rules($this->alumno_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->alumno_cursada_model->update(array(
+					'id' => $this->input->post('id'),
+					'alumno_division_id' => $this->input->post('alumno_division'),
+					'cursada_id' => $this->input->post('cursada')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->alumno_cursada_model->get_msg());
+					redirect('alumno_cursada/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->alumno_cursada_model->get_error() ? $this->alumno_cursada_model->get_error() : $this->session->flashdata('error')));
+
+		$this->alumno_cursada_model->fields['cursada']['array'] = $array_cursada;
+		$this->alumno_cursada_model->fields['alumno_division']['array'] = $array_alumno_division;
+		$data['fields'] = $this->build_fields($this->alumno_cursada_model->fields, $alumno_cursada);
+
+		$data['alumno_cursada'] = $alumno_cursada;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar cursada de alumno';
+		$this->load_template('alumno_cursada/alumno_cursada_abm', $data);
+	}
+
+	public function eliminar($alumno_cursada_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $alumno_cursada_id == NULL || !ctype_digit($alumno_cursada_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$alumno_cursada = $this->alumno_cursada_model->get_one($alumno_cursada_id);
+		if (empty($alumno_cursada)) {
+			return $this->modal_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($alumno_cursada->cursada_id);
+		if (empty($cursada)) {
+			return $this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+		}
+		$this->load->model('division_model');
+		$this->load->model('escuela_model');
+		$division = $this->division_model->get_one($cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			return $this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+		$this->set_model_validation_rules($this->alumno_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($alumno_cursada_id !== $this->input->post('alumno_cursada_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if (!empty($alumno_cursada->cursada_nota_id)) {
+				$this->session->set_flashdata('error', 'No se puede eliminar el registro de alumno, ya que posee notas cargas');
+				redirect("cursada/escritorio/$cursada->id", 'refresh');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->alumno_cursada_model->delete(array(
+					'id' => $alumno_cursada->id
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->alumno_cursada_model->get_msg());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->alumno_cursada_model->get_error());
+					redirect("cursada/escritorio/$cursada->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cursada/escritorio/$cursada->id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->alumno_cursada_model->fields, $alumno_cursada, true);
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['cursada'] = $cursada;
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['alumno_cursada'] = $alumno_cursada;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar alumno de la cursada';
+		$this->load->view('alumno_cursada/alumno_cursada_modal_eliminar', $data);
+	}
+}
+/* End of file Alumno_cursada.php */
+/* Location: ./application/controllers/Alumno_cursada.php */

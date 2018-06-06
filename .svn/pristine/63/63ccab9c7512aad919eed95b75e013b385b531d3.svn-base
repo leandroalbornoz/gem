@@ -1,0 +1,163 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Preinscripcion_alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'preinscripcion_alumno';
+		$this->msg_name = 'Preinscripción de Alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'preinscripcion_id', 'alumno_id', 'preinscripcion_tipo_id', 'estado', 'fecha_carga');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'type' => 'integer', 'readonly' => TRUE),
+			'estado' => array('label' => 'Estado', 'readonly' => TRUE)
+		);
+		$this->fields_alumno = array(
+			'cuil' => array('label' => 'CUIL', 'readonly' => TRUE),
+			'documento_tipo' => array('label' => 'Tipo de documento', 'readonly' => TRUE),
+			'documento' => array('label' => 'Documento', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'readonly' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'readonly' => TRUE),
+			'nacionalidad' => array('label' => 'Nacionalidad', 'id_name' => 'nacionalidad_id', 'readonly' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date', 'readonly' => TRUE),
+			'email_contacto' => array('label' => 'Email de Contacto / Notificaciones', 'type' => 'email', 'maxlength' => '150', 'readonly' => TRUE),
+			'grupo_sanguineo' => array('label' => 'Grupo sanguíneo', 'id_name' => 'grupo_sanguineo_id', 'readonly' => TRUE),
+			'obra_social' => array('label' => 'Obra social', 'id_name' => 'obra_social_id', 'readonly' => TRUE),
+			'observaciones' => array('label' => 'Observaciones', 'readonly' => TRUE),
+			'calle' => array('label' => 'Calle', 'readonly' => TRUE),
+			'calle_numero' => array('label' => 'Número', 'readonly' => TRUE),
+			'localidad' => array('label' => 'Localidad - Departamento', 'id_name' => 'localidad_id', 'readonly' => TRUE),
+			'departamento' => array('label' => 'Depto', 'maxlength' => '5', 'readonly' => TRUE),
+			'piso' => array('label' => 'Piso', 'maxlength' => '5', 'readonly' => TRUE),
+			'barrio' => array('label' => 'Barrio', 'maxlength' => '45', 'readonly' => TRUE),
+			'manzana' => array('label' => 'Manzana', 'maxlength' => '5', 'readonly' => TRUE),
+			'casa' => array('label' => 'Casa', 'type' => 'integer', 'maxlength' => '3', 'readonly' => TRUE),
+		);
+		$this->fields_alumno_preinscripto = array(
+						'id' => array('label' => 'Id', 'readonly' => TRUE),
+            'documento' => array('label' => 'Documento', 'readonly' => TRUE),
+            'persona' => array('label' => 'Nombre', 'readonly' => TRUE),
+            'direccion' => array('label' => 'Dirección', 'readonly' => TRUE),
+            'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date', 'readonly' => TRUE),
+            'sexo' => array('label' => 'Sexo', 'readonly' => TRUE)
+		);
+		$this->requeridos = array('preinscripcion_id', 'alumno_id', 'preinscripcion_tipo_id', 'estado', 'fecha_carga');
+		//$this->unicos = array();
+		$this->default_join = array();
+	}
+
+	public function get_alumnos($preinscripcion_id) {
+		return $this->db->select("pa.id, pa.preinscripcion_tipo_id, al.persona_id, al.observaciones, pa.estado, p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as persona, CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, p.fecha_nacimiento, s.descripcion sexo, dt.descripcion_corta as documento_tipo, GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares, CONCAT((escd.numero), ' - ', (escd.nombre)) as escuela_derivada")
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('preinscripcion_alumno pa', 'pa.alumno_id = al.id')
+				->join('preinscripcion_alumno pad', 'pa.alumno_id = pad.alumno_id AND pad.preinscripcion_id NOT LIKE '.$preinscripcion_id.' ','left')
+				->join('preinscripcion pd','pad.preinscripcion_id = pd.id', 'left')
+				->join('escuela escd','pd.escuela_id = escd.id', 'left')
+				->join('familia f', 'f.persona_id = p.id', 'left')
+				->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+				->join('persona pf', 'f.pariente_id = pf.id', 'left')
+				->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+				->where('pa.preinscripcion_id', $preinscripcion_id)
+				->where('pa.estado !=', 'Anulado')
+				->order_by('pa.fecha_carga, p.apellido, p.nombre')
+				->group_by('al.id')
+				->get()->result();
+	}
+	
+	public function get_alumno_preinscripto($alumno_id) {
+		return $this->db->select("pa.id, CONCAT(COALESCE(dt.descripcion_corta,''),' ',COALESCE(p.documento,'')) as documento, CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as persona, CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, p.fecha_nacimiento, s.descripcion sexo")
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('preinscripcion_alumno pa', 'pa.alumno_id = al.id')
+				->where('pa.alumno_id', $alumno_id)
+				->where('pa.estado !=', 'Anulado')
+				->order_by('pa.fecha_carga, p.apellido, p.nombre')
+				->group_by('al.id')
+				->get()->row();
+	}
+	
+	public function get_alumnos_derivados($preinscripcion_id) {
+		return $this->db->select("pa.id, pa.preinscripcion_tipo_id, al.persona_id, al.observaciones, pa.estado, p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as persona, CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, p.fecha_nacimiento, s.descripcion sexo, dt.descripcion_corta as documento_tipo, GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares, CONCAT((escd.numero), ' - ', (escd.nombre)) as escuela_derivada ")
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('preinscripcion_alumno pa', 'pa.alumno_id = al.id')
+				->join('preinscripcion_alumno pad', 'pa.alumno_id = pad.alumno_id AND pad.preinscripcion_id NOT LIKE '.$preinscripcion_id.' ','left')
+				->join('preinscripcion pd','pad.preinscripcion_id = pd.id', 'left')
+				->join('escuela escd','pd.escuela_id = escd.id', 'left')
+				->join('familia f', 'f.persona_id = p.id', 'left')
+				->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+				->join('persona pf', 'f.pariente_id = pf.id', 'left')
+				->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+				->where('pa.preinscripcion_id', $preinscripcion_id)
+				->where("pa.estado IN ('Derivado', 'Postulante')")
+				->order_by('pa.fecha_carga, p.apellido, p.nombre')
+				->group_by('al.id')
+				->get()->result();
+	}
+	
+	public function get_alumnos_postulantes($preinscripcion_id) {
+		return $this->db->select("pa.id, pa.preinscripcion_tipo_id, al.persona_id, al.observaciones, pa.estado, p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as persona, CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, p.fecha_nacimiento, COALESCE(s.descripcion,'') sexo, dt.descripcion_corta as documento_tipo, GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares")
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('preinscripcion_alumno pa', 'pa.alumno_id = al.id')
+				->join('familia f', 'f.persona_id = p.id', 'left')
+				->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+				->join('persona pf', 'f.pariente_id = pf.id', 'left')
+				->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+				->where('pa.preinscripcion_id', $preinscripcion_id)
+				->where('pa.estado', 'Postulante')
+				->order_by('pa.fecha_carga, p.apellido, p.nombre')
+				->group_by('al.id')
+				->get()->result();
+	}
+
+	public function get_preinscripcion_alumno($alumno_id) {
+		return $this->db
+				->select("e.id, e.numero, e.anexo, e.nombre, pa.alumno_id")
+				->from('preinscripcion_alumno pa')
+				->join('preinscripcion p', 'pa.preinscripcion_id=p.id')
+				->join('escuela e', 'e.id=p.escuela_id')
+				->where('pa.alumno_id', $alumno_id)
+				->where('pa.estado !=', 'Anulado')
+				->where('pa.estado', 'Inscripto')
+				->get()->row();
+	}
+	
+	public function get_consulta_preinscripcion($persona_id) {
+		return $this->db->select("p.id, p.nombre, p.apellido, p.documento, dt.descripcion_corta, (CASE WHEN pa.id IS NULL OR pa.estado = 'Postulante' THEN 0 ELSE 1 END) ya_preinscripto, CONCAT(e.numero, CASE WHEN e.anexo=0 THEN ' ' ELSE CONCAT('/',e.anexo,' ') END, e.nombre) as escuela")
+				->from('persona p')
+				->join('alumno al', 'al.persona_id = p.id', 'left')
+				->join('preinscripcion_alumno pa', "pa.alumno_id = al.id AND estado !='Anulado' AND estado != 'Derivado'", 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('preinscripcion pre', 'pa.preinscripcion_id = pre.id', 'left')
+				->join('escuela e', 'e.id = pre.escuela_id')
+				->where('p.id', $persona_id)
+				->order_by("p.id")
+				->group_by("p.id")
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Preinscripcion_alumno_model.php */
+/* Location: ./application/modules/preinscripciones/models/Preinscripcion_alumno_model.php */

@@ -12,7 +12,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->nav_route = 'par/abono';
 	}
 
-	public function listar() {
+	public function listar($mes = NULL) {
 		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
 			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
 		}
@@ -27,8 +27,15 @@ class Abono_escuela_monto extends MY_Controller {
 				array('label' => '', 'data' => 'edit', 'width' => 16, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
 			),
 			'table_id' => 'abono_escuela_monto_table',
-			'source_url' => 'abono/abono_escuela_monto/listar_data'
+			'source_url' => 'abono/abono_escuela_monto/listar_data/' . $mes
 		);
+		$mes = date('Ym');
+		$mes_anterior = (new DateTime($mes . '01 -1 month'))->format('Ym');
+		$data['mes_id'] = $mes;
+		$data['mes_anterior'] = $mes_anterior;
+		$data['mes'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+		$fecha = DateTime::createFromFormat('Ymd', $mes_anterior . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
 		$data['html_table'] = buildHTML($tableData);
 		$data['js_table'] = buildJS($tableData);
 		$data['error'] = $this->session->flashdata('error');
@@ -40,7 +47,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->load_template('abono/abono_escuela_monto/abono_escuela_monto_listar', $data);
 	}
 
-	public function listar_data() {
+	public function listar_data($mes = NULL) {
 		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
 			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
 		}
@@ -51,6 +58,7 @@ class Abono_escuela_monto extends MY_Controller {
 			->join('escuela', 'escuela.id = abono_escuela_monto.escuela_id', 'left')
 			->join('abono_escuela_estado', 'abono_escuela_estado.id = abono_escuela_monto.abono_escuela_estado_id', 'left')
 			->join('abono_alumno', 'abono_alumno.ames=abono_escuela_monto.ames AND abono_alumno.escuela_id=abono_escuela_monto.escuela_id', 'left')
+			->where('abono_escuela_monto.ames', $mes)
 			->group_by('abono_escuela_monto.id')
 			->add_column('edit', '<a href="abono/abono_escuela_monto/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default" title="Ver"><i class="fa fa-search"></i></a> <a href="abono/abono_escuela_monto/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning" title="Editar"><i class="fa fa-pencil"></i></a> <a href="abono/abono_escuela_monto/modal_eliminar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger" title="Eliminar"><i class="fa fa-remove"></i></a> <a href="abono/abono_escuela_monto/listar_abono_alumno/$1" data-remote="false" class="btn btn-xs btn-default" title="Alumnos"><i class="fa fa-users"></i></a>', 'id');
 		echo $this->datatables->generate();
@@ -312,6 +320,28 @@ class Abono_escuela_monto extends MY_Controller {
 			$this->datatables->where('division.id', $division_id);
 		}
 		echo $this->datatables->generate();
+	}
+
+	public function cambiar_mes($mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes_nuevo = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->load->model('abono/abono_alumno_model');
+			$escuela_ames_monto = $this->abono_alumno_model->get_abonos_escuela_ames($escuela_id, $mes_nuevo);
+			if (!empty($escuela_ames_monto)) {
+				$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+			} else {
+				$this->session->set_flashdata('error', 'No tiene un monto cargado para el mes elegido');
+				redirect("abono/abono_alumno/listar/$escuela_id/$mes", 'refresh');
+			}
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("abono/abono_escuela_monto/listar/$mes_nuevo", 'refresh');
 	}
 }
 /* End of file Abono_escuela_monto.php */

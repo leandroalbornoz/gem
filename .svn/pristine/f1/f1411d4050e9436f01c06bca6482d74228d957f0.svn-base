@@ -1,0 +1,267 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escuela_autoridad extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('escuela_autoridad_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR, ROL_GRUPO_ESCUELA_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'par/escuela_autoridad';
+	}
+
+	public function modal_agregar($escuela_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("escuela/autoridades/$escuela_id");
+		}
+		$this->load->model('autoridad_tipo_model');
+		$this->load->model('persona_model');
+		$this->load->model('documento_tipo_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'p_cuil' => array('label' => 'CUIL', 'maxlength' => '13'),
+			'p_documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'required' => TRUE),
+			'p_documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'p_apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE),
+			'p_nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE),
+			'p_email' => array('label' => 'Email', 'maxlength' => '100'),
+		);
+
+		unset($this->escuela_autoridad_model->fields['persona']);
+		$this->escuela_autoridad_model->fields['escuela']['value'] = $escuela->nombre;
+		$this->escuela_autoridad_model->fields['escuela']['readonly'] = TRUE;
+		$this->array_autoridad_tipo_control = $array_autoridad_tipo = $this->get_array('autoridad_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de autoridad --'));
+		$this->array_p_documento_tipo_control = $array_p_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar tipo de documento --'));
+
+		$this->set_model_validation_rules($this->escuela_autoridad_model);
+		$this->set_model_validation_rules($model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$persona_id = $this->input->post('persona_id');
+
+				if ($escuela_id !== $this->input->post('escuela_id')) {
+					$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+					return;
+				}
+				if (empty($persona_id)) {
+					$trans_ok &= $this->persona_model->create(array(
+						'cuil' => $this->input->post('p_cuil'),
+						'documento_tipo_id' => $this->input->post('p_documento_tipo_id'),
+						'documento' => $this->input->post('p_documento'),
+						'apellido' => $this->input->post('p_apellido'),
+						'nombre' => $this->input->post('p_nombre'),
+						'email' => $this->input->post('p_email')
+						), FALSE);
+					$persona_id = $this->persona_model->get_row_id();
+				}
+				if ($trans_ok) {
+					$trans_ok &= $this->escuela_autoridad_model->create(array(
+						'autoridad_tipo_id' => $this->input->post('autoridad_tipo'),
+						'escuela_id' => $this->input->post('escuela_id'),
+						'persona_id' => $persona_id,
+						), FALSE);
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->escuela_autoridad_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar guardar.';
+					if ($this->persona_model->get_error())
+						$errors .= '<br>' . $this->persona_model->get_error();
+					if ($this->escuela_autoridad_model->get_error())
+						$errors .= '<br>' . $this->escuela_autoridad_model->get_error();
+					$this->session->set_flashdata('error', $errors);
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("escuela/autoridades/$escuela->id", 'refresh');
+		}
+		$model->fields['p_documento_tipo']['array'] = $array_p_documento_tipo;
+		$model->fields['p_documento_tipo']['value'] = 1;
+		$this->escuela_autoridad_model->fields['autoridad_tipo']['array'] = $array_autoridad_tipo;
+		$data['fields_persona'] = $this->build_fields($model->fields);
+		$data['fields'] = $this->build_fields($this->escuela_autoridad_model->fields);
+
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = 'Agregar autoridad de escuela';
+		$this->load->view('escuela_autoridad/escuela_autoridad_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$escuela_autoridad = $this->escuela_autoridad_model->get_one($id);
+		if (empty($escuela_autoridad)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("escuela/autoridades/$escuela_autoridad->escuela_id");
+		}
+		$escuela = $this->escuela_model->get_one($escuela_autoridad->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get_one($escuela_autoridad->persona_id);
+		if (empty($persona)) {
+			$this->modal_error('No se encontró el registro de persona', 'Registro no encontrado');
+			return;
+		}
+		$persona->autoridad_tipo = $escuela_autoridad->autoridad_tipo;
+		$persona->autoridad_tipo_id = $escuela_autoridad->autoridad_tipo_id;
+		$persona->documento = "$persona->documento_tipo $persona->documento";
+
+		$this->load->model('autoridad_tipo_model');
+		$this->load->model('documento_tipo_model');
+		$this->escuela_autoridad_model->fields['cuil'] = array('label' => 'CUIL', 'readonly' => TRUE);
+		$this->escuela_autoridad_model->fields['documento'] = array('label' => 'Documento', 'readonly' => TRUE);
+		$this->escuela_autoridad_model->fields['apellido'] = array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE);
+		$this->escuela_autoridad_model->fields['nombre'] = array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE);
+		$this->escuela_autoridad_model->fields['email'] = array('label' => 'Email', 'maxlength' => '100');
+		$this->escuela_autoridad_model->fields['telefono_fijo'] = array('label' => 'Teléfono Fijo', 'maxlength' => '40');
+		$this->escuela_autoridad_model->fields['telefono_movil'] = array('label' => 'Celular', 'maxlength' => '40');
+
+		unset($this->escuela_autoridad_model->fields['persona']);
+		unset($this->escuela_autoridad_model->fields['escuela']);
+		$this->array_autoridad_tipo_control = $array_autoridad_tipo = $this->get_array('autoridad_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar tipo de autoridad --'));
+		$this->array_documento_tipo_control = $array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar tipo de documento --'));
+
+		$this->set_model_validation_rules($this->escuela_autoridad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				if ($id !== $this->input->post('id')) {
+					show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+				}
+				$trans_ok &= $this->persona_model->update(array(
+					'id' => $escuela_autoridad->persona_id,
+					'cuil' => $this->input->post('cuil'),
+					'apellido' => $this->input->post('apellido'),
+					'nombre' => $this->input->post('nombre'),
+					'telefono_fijo' => $this->input->post('telefono_fijo'),
+					'telefono_movil' => $this->input->post('telefono_movil'),
+					'email' => $this->input->post('email')
+					), FALSE);
+				if ($trans_ok) {
+					$trans_ok &= $this->escuela_autoridad_model->update(array(
+						'id' => $escuela_autoridad->id,
+						'autoridad_tipo_id' => $this->input->post('autoridad_tipo'),
+						), FALSE);
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->escuela_autoridad_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar guardar.';
+					if ($this->persona_model->get_error()) {
+						$errors .= '<br>' . $this->persona_model->get_error();
+					}
+					if ($this->escuela_autoridad_model->get_error()) {
+						$errors .= '<br>' . $this->escuela_autoridad_model->get_error();
+					}
+					$this->session->set_flashdata('error', $errors);
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("escuela/autoridades/$escuela->id", 'refresh');
+		}
+		$this->escuela_autoridad_model->fields['autoridad_tipo']['array'] = $array_autoridad_tipo;
+		$data['fields'] = $this->build_fields($this->escuela_autoridad_model->fields, $persona);
+
+		$data['escuela'] = $escuela;
+		$data['escuela_autoridad'] = $escuela_autoridad;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar autoridad de escuela';
+		$this->load->view('escuela_autoridad/escuela_autoridad_modal_editar', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$escuela_autoridad = $this->escuela_autoridad_model->get_one($id);
+		if (empty($escuela_autoridad)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("escuela/autoridades/$escuela_autoridad->escuela_id");
+		}
+		$escuela = $this->escuela_model->get_one($escuela_autoridad->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->escuela_autoridad_model->delete(array('id' => $this->input->post('id')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->escuela_autoridad_model->get_msg());
+			} else {
+				$errors = 'Ocurrió un error al intentar eliminar.';
+				if ($this->escuela_autoridad_model->get_error())
+					$errors .= '<br>' . $this->escuela_autoridad_model->get_error();
+				$this->session->set_flashdata('error', $errors);
+			}
+			redirect("escuela/autoridades/$escuela_autoridad->escuela_id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($this->escuela_autoridad_model->fields, $escuela_autoridad, TRUE);
+		$data['escuela_autoridad'] = $escuela_autoridad;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar autoridad de escuela';
+		$this->load->view('escuela_autoridad/escuela_autoridad_modal_eliminar', $data);
+	}
+}
+/* End of file Escuela_autoridad.php */
+/* Location: ./application/controllers/Escuela_autoridad.php */

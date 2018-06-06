@@ -1,0 +1,212 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Mensaje masivo a Escuelas
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="mensaje/bandeja">Mensajes</a></li>
+			<li class="active">Mensaje masivo a escuelas</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header whit-border">
+						<h3 class="box-title">Selección de filtros</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="form-group col-sm-3">
+								<?php echo $fields['dependencia']['label']; ?>
+								<?php echo $fields['dependencia']['form']; ?>
+							</div>
+							<div class="form-group col-sm-3">
+								<?php echo $fields['linea']['label']; ?>
+								<?php echo $fields['linea']['form']; ?>
+							</div>
+							<div class="form-group col-sm-3">
+								<?php echo $fields['nivel']['label']; ?>
+								<?php echo $fields['nivel']['form']; ?>
+							</div>
+							<div class="form-group col-sm-3">
+								<?php echo $fields['supervision']['label']; ?>
+								<?php echo $fields['supervision']['form']; ?>
+							</div>
+						</div>
+						<div class="form-group pull-left">
+							<label>&nbsp;</label><br/>
+							<button class="btn btn-primary" id="btn-search" type="button">
+								<i class="fa fa-search"></i> Buscar Escuelas
+							</button>
+						</div>
+						<div class="pull-right">
+							<label style="width:100%">&nbsp;</label>
+							<a class="btn btn-sm btn-primary" href="javascript:seleccionar_todo()" title="Marcar todos">Marcar todos</a>
+							<a class="btn btn-sm btn-danger"  href="javascript:deseleccionar_todo()" title="Desmarcar todos">Desmarcar todos</a>
+						</div>
+						<?php echo form_open(uri_string(), array('name' => 'form_mensaje', 'id' => 'form_mensaje')); ?>
+						<table class="table table-hover table-bordered table-condensed no-footer" role="grid" id="tbl_listar_escuelas">
+							<thead>
+								<tr style="background-color: #f4f4f4" >
+									<th style="text-align: center;" colspan="8">Lista de escuelas filtradas</th>
+								</tr>
+								<tr>
+									<th style="width: 5%;">Número</th>
+									<th style="width: 5%;">Anexo</th>
+									<th style="width: 30%;">Nombre</th>
+									<th style="width: 15%;">Dependencia</th>
+									<th style="width: 10%;">Nivel</th>
+									<th style="width: 15%;">Línea</th>
+									<th style="width: 15%;">Supervisión</th>
+									<th style="width: 5%;"></th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+						<div class="modal fade" id="modal_enviar"  role="dialog" aria-labelledby="Modal" aria-hidden="true">
+							<div class="modal-dialog">
+								<div class="modal-content">
+									<div class="modal-header">
+										<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+										<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?></h4>
+									</div>
+									<div class="modal-body">
+										<div class="row">
+											<div class="form-group col-md-12">
+												<?php echo $fields_mensaje['de']['label']; ?>
+												<?php echo $fields_mensaje['de']['form']; ?>
+											</div>
+											<div class="form-group col-md-12">
+												<label>Para</label>
+												<input type="text" class="form-control" value="0 escuelas seleccionadas" readonly id="para_escuelas">
+											</div>
+											<div class="form-group col-md-12">
+												<?php echo $fields_mensaje['asunto']['label']; ?>
+												<?php echo $fields_mensaje['asunto']['form']; ?>
+											</div>
+											<div class="form-group col-md-12">
+												<?php echo $fields_mensaje['mensaje']['label']; ?>
+												<?php echo $fields_mensaje['mensaje']['form']; ?>
+											</div>
+										</div>
+									</div>
+									<div class="modal-footer">
+										<button type="button" class="btn btn-default pull-left" data-dismiss="modal">Cancelar</button>
+										<button class="btn btn-primary pull-right" type="submit" id="enviar" title="Enviar mensaje">Enviar mensaje</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<?php echo form_close(); ?>
+						<div class="box-footer">
+							<a class="btn btn-default" href="mensaje/bandeja" title="Cancelar">Cancelar</a>
+							<button class="btn btn-primary pull-right" data-toggle="modal" data-target="#modal_enviar" id="seleccionar" title="Enviar mensaje">Seleccionar escuelas</button>
+							<div class="row pull-right hidden" style="padding-right: 5%;"  id="cartel">
+								<div class="bg-red text-bold" style="border-radius: 2px;"><h5>Debe seleccionar al menos una escuela</h5></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	function seleccionar_todo() {
+		for (i = 0; i < document.form_mensaje.elements.length; i++)
+			if (document.form_mensaje.elements[i].type == "checkbox")
+				document.form_mensaje.elements[i].checked = 1
+//		$('#form_mensaje').find('input[type="checkbox"]').prop('checked', true);
+//		$('#form_mensaje').find('input[type="checkbox"]').change();
+	}
+	function deseleccionar_todo() {
+		for (i = 0; i < document.form_mensaje.elements.length; i++)
+			if (document.form_mensaje.elements[i].type == "checkbox")
+				document.form_mensaje.elements[i].checked = 0
+//		$('#form_mensaje').find('input[type="checkbox"]').prop('checked', false);
+//		$('#form_mensaje').find('input[type="checkbox"]').change();
+	}
+	var table_escuelas;
+	$(document).ready(function() {
+		table_escuelas = $('#tbl_listar_escuelas').DataTable({dom: 'tp', autoWidth: false, paging: false, pagingType: 'simple_numbers', language: {url: 'plugins/datatables/spanish.json'}, pageLength: 10, lengthMenu: [10], columnDefs: [{orderable: false, targets: [1, 4, 5]}]});
+		$('#btn-search').click(function() {
+			table_escuelas.clear();
+			var nivel = $('#nivel').val();
+			var dependencia = $('#dependencia').val();
+			var linea = $('#linea').val();
+			var supervision = $('#supervision').val();
+			$('#tbl_listar_escuelas tbody').html('');
+			$.ajax({
+				type: 'POST',
+				url: 'mensaje/mensaje_masivo_listar_escuelas?',
+				data: {nivel: nivel, dependencia: dependencia, linea: linea, supervision: supervision},
+				dataType: 'json',
+				success: function(result) {
+					if (result.status === 'success') {
+						for (var idx in result.escuelas) {
+							var escuela = result.escuelas[idx];
+							table_escuelas.row.add([
+								escuela.numero,
+								escuela.anexo,
+								escuela.nombre,
+								escuela.dependencia,
+								escuela.nivel,
+								escuela.linea,
+								escuela.supervision,
+								'<input type="checkbox" align="center" name="escuela[]" value=' + escuela.id + '>'
+							]);
+						}
+						table_escuelas.draw();
+					} else {
+						table_escuelas.row.add([
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-',
+							'-']);
+						table_escuelas.draw();
+					}
+				}
+			});
+		});
+		$('#form_mensaje').change('input[type="checkbox"]', function() {
+			$('#cartel').addClass('hidden');
+			$('#seleccionar').prop('disabled', false);
+			var cantidad = $('#form_mensaje').find('input[type="checkbox"]:checked').size();
+			$('#para_escuelas').val(cantidad + ' escuelas seleccionadas');
+		});
+		$("#seleccionar").on("click", function() {
+			var cantidad = $('#form_mensaje').find('input[type="checkbox"]:checked').size();
+			if (cantidad === 0) {
+				$('#seleccionar').prop('disabled', true);
+				$('#cartel').removeClass('hidden');
+			} else {
+				$('#cartel').addClass('hidden');
+				$('#seleccionar').prop('disabled', false);
+			}
+		});
+	});
+</script>

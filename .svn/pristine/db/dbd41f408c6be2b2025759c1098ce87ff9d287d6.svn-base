@@ -1,0 +1,49 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_apoyo_especial_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_apoyo_especial';
+		$this->msg_name = 'Apoyo de modalidad especial';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'escuela_origen_id','escuela_id', 'cud', 'trayectoria_compartida', 'fecha_grabacion');
+		$this->fields = array(
+			'alumno' => array('label' => 'Alumno', 'readonly' => TRUE),
+			'escuela' => array('label' => 'Escuela que brinda apoyo', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
+			'cud' => array('label' => 'Cud', 'input_type' => 'combo', 'id_name' => 'cud', 'required' => TRUE, 'array' => array('Si' => 'Si', 'No' => 'No', 'En Tramite' => 'En tramite')),
+			'trayectoria_compartida' => array('label' => 'Trayectoria compartida', 'input_type' => 'combo', 'id_name' => 'trayectoria_compartida', 'required' => TRUE, 'array' => array('Si' => 'Si', 'No' => 'No')),
+		);
+		$this->requeridos = array('alumno_id', 'escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = alumno_apoyo_especial.alumno_id', 'left'),
+			array('persona', 'persona.id = alumno.persona_id', 'left', array("CONCAT(persona.apellido, ', ', persona.nombre) as alumno")),
+			array('escuela', 'escuela.id = alumno_apoyo_especial.escuela_id', 'left', array("CONCAT(escuela.numero, ' - ', escuela.nombre) as escuela"))
+		);
+	}
+
+	public function get_alumno_apoyo($alumno_id) {
+		return $this->db->select('ap.id, ap.cud,ap.trayectoria_compartida,ap.fecha_grabacion, CONCAT(COALESCE(es.numero, \'\'), \' - \', COALESCE(es.nombre, \'\')) as escuela, CONCAT(COALESCE(es2.numero, \'\'), \' - \', COALESCE(es2.nombre, \'\')) as escuela2')
+				->from('alumno_apoyo_especial ap')
+				->join('alumno al', 'al.id = ap.alumno_id', 'left')
+				->join('escuela es', 'es.id=ap.escuela_id', 'left')
+				->join('escuela es2', 'es2.id=ap.escuela_origen_id', 'left')
+				->where('al.id', $alumno_id)
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Alumno_apoyo_especial_model.php */
+/* Location: ./application/models/Alumno_apoyo_especial_model.php */

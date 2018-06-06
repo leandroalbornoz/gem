@@ -1,0 +1,210 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Reportes_estaticos extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		$this->modulos_permitidos = array(ROL_LINEA,ROL_ADMIN);
+		$this->load->model('reportes_estaticos_model');
+	}
+
+	public function escritorio() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = 'Reportes estáticos';
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_escritorio', $data);
+	}
+
+	public function reportes_asistencia_calendario() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			$data['supervision'] = $this->input->post('supervision');
+			$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+			$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+			$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+			$data['escuela'] = $this->input->post('escuela');
+
+			$numero_escuelas = $this->reportes_estaticos_model->get_numero_escuelas($data);
+			$numero_supervisiones = $this->reportes_estaticos_model->get_numero_supervisiones($data);
+			$data['numero_escuelas'] = $numero_escuelas;
+			$data['numero_supervisiones'] = $numero_supervisiones;
+
+			$reporte_mes = array();
+			if ($data['tipo_reporte'] === '1') {
+				//Por escuela
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_escuela($data);
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->calendario][$data_reporte->periodo][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_escuela', $data);
+			} else if ($data['tipo_reporte'] === '2') {
+				//Por supevision
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_supervision($data);
+				$reporte_mes = array();
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->calendario][$data_reporte->periodo][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_supervision', $data);
+			} else {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'tipo_reporte' => array('label' => 'Tipo de reporte', 'input_type' => 'combo', 'id_name' => 'tipo_reporte', 'required' => TRUE, 'array' => array('1' => 'Reporte por escuela', '2' => 'Reporte por supervisión')),
+			'supervision' => array('label' => 'Supervisión', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'desde' => array('label' => 'Desde', 'type' => 'text', 'required' => true),
+			'hasta' => array('label' => 'Hasta', 'type' => 'text', 'required' => true)
+		);
+
+		$this->load->model('supervision_model');
+		$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+			'sort_by' => 'id',
+			'join' => array(array('linea', 'supervision.linea_id=linea.id AND linea.id=4'))
+			), array('' => 'Todas'));
+
+		$this->load->model('escuela_model');
+		$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+			'join' => array(
+				array('nivel', 'escuela.nivel_id=nivel.id'),
+				array('linea', 'nivel.linea_id = linea.id AND linea.id = 4 ')
+			),
+			'sort_by' => 'escuela.numero, escuela.anexo',
+			), array('' => 'Todas'));
+		$model->fields['supervision']['array'] = $array_supervision;
+		$model->fields['escuela']['array'] = $array_escuela;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['txt_btn'] = "Generar reporte";
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_calendario', $data);
+	}
+
+	public function reportes_asistencia_carrera() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			$data['supervision'] = $this->input->post('supervision');
+			$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+			$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+			$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+			$data['escuela'] = $this->input->post('escuela');
+			$data['carrera'] = $this->input->post('carrera');
+			$data['reporte_carrera'] = $this->input->post('reporte_carrera');
+
+			$numero_escuelas = $this->reportes_estaticos_model->get_numero_escuelas($data);
+			$numero_supervisiones = $this->reportes_estaticos_model->get_numero_supervisiones($data);
+			$data['numero_escuelas'] = $numero_escuelas;
+			$data['numero_supervisiones'] = $numero_supervisiones;
+			$reporte_mes = array();
+			if ($data['tipo_reporte'] === '1') {
+				//Por escuela
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_escuela($data);
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->carrera][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_escuela_carrera', $data);
+			} else if ($data['tipo_reporte'] === '2') {
+				//Por supervision
+				$reporte = $this->reportes_estaticos_model->get_reporte_asitencias_supervision($data);
+				$reporte_mes = array();
+				foreach ($reporte as $data_reporte) {
+					$reporte_mes[$data_reporte->carrera][$data_reporte->mes][] = $data_reporte;
+				}
+				$data['reporte_mes'] = $reporte_mes;
+				$this->load_template('consultas/reportes_estaticos/reportes_estaticos_asistencia_supervision_carrera', $data);
+			} else {
+				show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+			}
+			return;
+		}
+
+		$model = new stdClass();
+		$model->fields = array(
+			'tipo_reporte' => array('label' => 'Tipo de reporte', 'input_type' => 'combo', 'id_name' => 'tipo_reporte', 'required' => TRUE, 'array' => array('1' => 'Reporte por escuela', '2' => 'Reporte por supervisión')),
+			'supervision' => array('label' => 'Supervisión', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'carrera' => array('label' => 'Carrera', 'input_type' => 'combo', 'class' => 'selectize', 'type' => 'multiple'),
+			'desde' => array('label' => 'Desde', 'type' => 'text', 'required' => true),
+			'hasta' => array('label' => 'Hasta', 'type' => 'text', 'required' => true)
+		);
+
+		$this->load->model('supervision_model');
+		$array_supervision = $this->get_array('supervision', 'nombre', 'id', array(
+			'sort_by' => 'id',
+			'join' => array(array('linea', 'supervision.linea_id=linea.id AND linea.id=4'))
+			), array('' => 'Todas'));
+
+		$this->load->model('escuela_model');
+		$array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+			'join' => array(
+				array('nivel', 'escuela.nivel_id=nivel.id'),
+				array('linea', 'nivel.linea_id = linea.id AND linea.id = 4 ')
+			),
+			'sort_by' => 'escuela.numero, escuela.anexo',
+			), array('' => 'Todas'));
+		$this->load->model('carrera_model');
+		$array_carrera = $this->get_array('carrera', 'descripcion', 'id', array(
+			'join' => array(
+				array('nivel', 'carrera.nivel_id=nivel.id'),
+				array('linea', 'nivel.linea_id = linea.id AND linea.id = 4 ')
+			),
+			'sort_by' => 'carrera.id',
+			), array('' => 'Todas'));
+		$model->fields['supervision']['array'] = $array_supervision;
+		$model->fields['escuela']['array'] = $array_escuela;
+		$model->fields['carrera']['array'] = $array_carrera;
+
+		$data['fields'] = $this->build_fields($model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['txt_btn'] = 'Generar reporte';
+		$this->load_template('consultas/reportes_estaticos/reportes_estaticos_carrera', $data);
+	}
+
+	public function excel_asistencia_calendario() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['supervision'] = $this->input->post('supervision');
+		$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+		$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+		$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+		$data['escuela'] = $this->input->post('escuela');
+	}
+
+	public function excel_asistencia_carrera() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$data['supervision'] = $this->input->post('supervision');
+		$data['desde'] = $this->get_date_sql('desde', 'm/Y', 'Ym');
+		$data['hasta'] = $this->get_date_sql('hasta', 'm/Y', 'Ym');
+		$data['tipo_reporte'] = $this->input->post('tipo_reporte');
+		$data['escuela'] = $this->input->post('escuela');
+		$data['carrera'] = $this->input->post('carrera');
+	}
+}

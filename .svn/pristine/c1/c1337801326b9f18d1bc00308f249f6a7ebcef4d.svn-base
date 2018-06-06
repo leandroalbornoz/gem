@@ -1,0 +1,541 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Llamado extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('llamados/llamado_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_DIR_ESCUELA, ROL_SDIR_ESCUELA, ROL_SEC_ESCUELA, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_SUPERVISION, ROL_DOCENTE);
+		$this->nav_route = 'lla/llamado';
+	}
+
+	public function listar($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'N°', 'data' => 'id', 'class' => 'dt-body-right', 'width' => 5),
+				array('label' => 'Cargado', 'data' => 'fecha_carga', 'render' => 'short_datetime', 'width' => 10),
+				array('label' => 'Régimen', 'data' => 'regimen', 'width' => 30),
+				array('label' => 'Lugar Trabajo', 'data' => 'lugar_trabajo', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Llamado', 'data' => 'fecha_llamado', 'render' => 'short_datetime', 'width' => 10),
+				array('label' => '1° Llamado', 'data' => 'fecha_llamado_1', 'render' => 'short_datetime', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => '2° Llamado', 'data' => 'fecha_llamado_2', 'render' => 'short_datetime', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => '3° Llamado', 'data' => 'fecha_llamado_3', 'render' => 'short_datetime', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => '4° Llamado', 'data' => 'fecha_llamado_4', 'render' => 'short_datetime', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Publicado', 'data' => 'publicar', 'width' => 10),
+				array('label' => 'Artículo', 'data' => 'articulo', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'División', 'data' => 'division', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Materia', 'data' => 'materia', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Turno', 'data' => 'turno', 'width' => 13),
+				array('label' => 'Horario', 'data' => 'horario', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Presentarse En', 'data' => 'presentarse_en', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Movilidad', 'data' => 'movilidad', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Prioridad', 'data' => 'prioridad', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Condiciones Adicionales', 'data' => 'condiciones_adicionales', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Observaciones Adicionales', 'data' => 'observaciones_adicionales', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'Estado', 'data' => 'estado', 'width' => 10),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'llamado_table',
+			'source_url' => "llamados/llamado/listar_data/$escuela_id/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_llamado_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['escuela'] = $escuela;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Llamados - Llamados';
+		$this->load_template('llamados/llamado/llamado_listar', $data);
+	}
+
+	public function listar_data($escuela_id, $rol_codigo, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select('llamado.id, llamado.servicio_novedad_id, llamado.cargo_id, e.numero escuela, llamado.fecha_carga, llamado.regimen, llamado.lugar_trabajo, llamado.direccion, llamado.localidad, llamado.departamento, COALESCE(llamado.fecha_llamado_1, llamado.fecha_llamado_2, llamado.fecha_llamado_3, llamado.fecha_llamado_4) fecha_llamado, llamado.fecha_llamado_1, llamado.fecha_llamado_2, llamado.fecha_llamado_3, llamado.fecha_llamado_4, llamado.publicar, llamado.motivo_no_publica, llamado.articulo, llamado.division, llamado.materia, llamado.turno, llamado.horario, llamado.presentarse_en, llamado.movilidad, llamado.prioridad, llamado.condiciones_adicionales, llamado.observaciones_adicionales, llamado.estado')
+			->unset_column('id')
+			->from('llamado')
+			->join('cargo c', 'llamado.cargo_id=c.id')
+			->join('escuela e', 'c.escuela_id=e.id')
+			->where('c.escuela_id', $escuela_id);
+		if ($this->edicion) {
+			$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="llamados/llamado/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="llamados/llamado/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '</ul></div>', 'id');
+		} else {
+			$this->datatables->add_column('edit', '<a class="btn btn-xs btn-default" href="llamados/llamado/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	private function agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->set_model_validation_rules($this->llamado_model);
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->llamado_model->create(array(
+				'servicio_novedad_id' => $this->input->post('servicio_novedad'),
+				'cargo_id' => $this->input->post('cargo'),
+				'fecha_carga' => $this->input->post('fecha_carga'),
+				'regimen' => $this->input->post('regimen'),
+				'lugar_trabajo' => $this->input->post('lugar_trabajo'),
+				'direccion' => $this->input->post('direccion'),
+				'localidad' => $this->input->post('localidad'),
+				'departamento' => $this->input->post('departamento'),
+				'fecha_llamado_1' => $this->input->post('fecha_llamado_1'),
+				'fecha_llamado_2' => $this->input->post('fecha_llamado_2'),
+				'fecha_llamado_3' => $this->input->post('fecha_llamado_3'),
+				'fecha_llamado_4' => $this->input->post('fecha_llamado_4'),
+				'publicar' => $this->input->post('publicar'),
+				'motivo_no_publica' => $this->input->post('motivo_no_publica'),
+				'articulo' => $this->input->post('articulo'),
+				'division' => $this->input->post('division'),
+				'materia' => $this->input->post('materia'),
+				'turno' => $this->input->post('turno'),
+				'horario' => $this->input->post('horario'),
+				'presentarse_en' => $this->input->post('presentarse_en'),
+				'movilidad' => $this->input->post('movilidad'),
+				'prioridad' => $this->input->post('prioridad'),
+				'condiciones_adicionales' => $this->input->post('condiciones_adicionales'),
+				'observaciones_adicionales' => $this->input->post('observaciones_adicionales'),
+				'estado' => 'Pendiente'));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+				redirect('llamados/llamado/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = 'Llamados - Agregar llamado';
+		$this->load_template('llamados/llamado/llamado_abm', $data);
+	}
+
+	public function agregar_novedad($novedad_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $novedad_id == NULL || !ctype_digit($novedad_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$llamado = $this->llamado_model->armar_novedad($novedad_id);
+		if (empty($llamado)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		} else {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->llamado_model->create(array(
+				'servicio_novedad_id' => $llamado->id,
+				'cargo_id' => $llamado->cargo_id,
+				'fecha_carga' => $llamado->fecha_carga,
+				'regimen' => $llamado->regimen,
+				'lugar_trabajo' => $llamado->lugar_trabajo,
+				'direccion' => $llamado->direccion,
+				'localidad' => $llamado->localidad,
+				'departamento' => $llamado->departamento,
+				'fecha_llamado_1' => $llamado->fecha_llamado_1,
+				'fecha_llamado_2' => $llamado->fecha_llamado_2,
+				'fecha_llamado_3' => $llamado->fecha_llamado_3,
+				'fecha_llamado_4' => $llamado->fecha_llamado_4,
+				'publicar' => $llamado->publicar,
+				'motivo_no_publica' => $llamado->motivo_no_publica,
+				'articulo' => $llamado->articulo,
+				'fin_estimado' => $llamado->fin_estimado,
+				'division' => $llamado->division,
+				'materia' => $llamado->materia,
+				'turno' => $llamado->turno,
+				'horario' => $llamado->horario,
+				'presentarse_en' => $llamado->presentarse_en,
+				'movilidad' => $llamado->movilidad,
+				'prioridad' => $llamado->prioridad,
+				'condiciones_adicionales' => $llamado->condiciones_adicionales,
+				'observaciones_adicionales' => $llamado->observaciones_adicionales,
+				'estado' => $llamado->estado));
+			$llamado_id = $this->llamado_model->get_row_id();
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+				redirect("llamados/llamado/vista_previa/$llamado_id", 'refresh');
+			}
+		}
+//		$escuela = $this->escuela_model->get_one($llamado->escuela_id);
+//		if (empty($escuela)) {
+//			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+//		}
+//		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+//			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+//		}
+//		$data_llamado = $this->llamado_model->get_one($llamado_id);
+//		if (empty($data_llamado)) {
+//			show_error('No se encontró el registro del llamado', 500, 'Registro no encontrado');
+//		}
+//
+//		$this->array_publicar_control = $this->llamado_model->fields['publicar']['array'];
+//		$this->array_motivo_no_publica_control = $this->llamado_model->fields['motivo_no_publica']['array'];
+//		$this->set_model_validation_rules($this->llamado_model);
+//		if ($this->input->post('publicar') === 'No') {
+//			unset($this->array_motivo_no_publica_control['']);
+//		}
+//		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+//
+//		$data['fields'] = $this->build_fields($this->llamado_model->fields, $data_llamado);
+//		$data['escuela'] = $escuela;
+//		$data['llamado'] = $data_llamado;
+//		$data['txt_btn'] = 'Agregar';
+//		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+//		$data['title'] = 'Llamados - Agregar llamado por Novedad';
+//		$this->load_template('llamados/llamado/llamado_vista_previa', $data);
+	}
+
+	public function agregar_cargo($cargo_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $cargo_id == NULL || !ctype_digit($cargo_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$llamado = $this->llamado_model->armar_cargo($cargo_id);
+		if (empty($llamado)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($llamado->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->array_publicar_control = $this->llamado_model->fields['publicar']['array'];
+		$this->array_motivo_no_publica_control = $this->llamado_model->fields['motivo_no_publica']['array'];
+		$this->set_model_validation_rules($this->llamado_model);
+		if ($this->input->post('publicar') === 'No') {
+			unset($this->array_motivo_no_publica_control['']);
+		}
+		if (!$this->input->post('fecha_llamado_1') && !$this->input->post('fecha_llamado_2') && !$this->input->post('fecha_llamado_3') && !$this->input->post('fecha_llamado_4')) {
+			$this->form_validation->set_rules('fecha_llamado_1', 'Fecha Llamado', 'required');
+		}
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->llamado_model->create(array(
+				'cargo_id' => $llamado->id,
+				'fecha_carga' => date('Y-m-d H:i:s'),
+				'regimen' => $this->input->post('regimen'),
+				'lugar_trabajo' => $this->input->post('lugar_trabajo'),
+				'direccion' => $this->input->post('direccion'),
+				'localidad' => $this->input->post('localidad'),
+				'departamento' => $this->input->post('departamento'),
+				'fecha_llamado_1' => $this->get_datetime_sql('fecha_llamado_1', 'd/m/Y H:i'),
+				'fecha_llamado_2' => $this->get_datetime_sql('fecha_llamado_2', 'd/m/Y H:i'),
+				'fecha_llamado_3' => $this->get_datetime_sql('fecha_llamado_3', 'd/m/Y H:i'),
+				'fecha_llamado_4' => $this->get_datetime_sql('fecha_llamado_4', 'd/m/Y H:i'),
+				'publicar' => $this->input->post('publicar'),
+				'motivo_no_publica' => $this->input->post('motivo_no_publica'),
+				'articulo' => $this->input->post('articulo'),
+				'fin_estimado' => $this->input->post('fin_estimado'),
+				'division' => $this->input->post('division'),
+				'materia' => $this->input->post('materia'),
+				'turno' => $this->input->post('turno'),
+				'horario' => $this->input->post('horario'),
+				'presentarse_en' => $this->input->post('presentarse_en'),
+				'movilidad' => $this->input->post('movilidad'),
+				'prioridad' => $this->input->post('prioridad'),
+				'condiciones_adicionales' => $this->input->post('condiciones_adicionales'),
+				'observaciones_adicionales' => $this->input->post('observaciones_adicionales'),
+				'estado' => 'Pendiente'));
+			$llamado_id = $this->llamado_model->get_row_id();
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+				redirect("llamados/llamado/vista_previa/$llamado_id", 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields, $llamado);
+
+		$data['escuela'] = $escuela;
+		$data['llamado'] = $llamado;
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = 'Llamados - Agregar llamado por Cargo';
+		$this->load_template('llamados/llamado/llamado_abm', $data);
+	}
+
+	private function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$llamado = $this->llamado_model->get(array('id' => $id));
+		if (empty($llamado)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->set_model_validation_rules($this->llamado_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->llamado_model->update(array(
+					'id' => $this->input->post('id'),
+					'servicio_novedad_id' => $this->input->post('servicio_novedad'),
+					'cargo_id' => $this->input->post('cargo'),
+					'fecha_carga' => $this->input->post('fecha_carga'),
+					'regimen' => $this->input->post('regimen'),
+					'lugar_trabajo' => $this->input->post('lugar_trabajo'),
+					'direccion' => $this->input->post('direccion'),
+					'localidad' => $this->input->post('localidad'),
+					'departamento' => $this->input->post('departamento'),
+					'fecha_llamado_1' => $this->input->post('fecha_llamado_1'),
+					'fecha_llamado_2' => $this->input->post('fecha_llamado_2'),
+					'fecha_llamado_3' => $this->input->post('fecha_llamado_3'),
+					'fecha_llamado_4' => $this->input->post('fecha_llamado_4'),
+					'publicar' => $this->input->post('publicar'),
+					'motivo_no_publica' => $this->input->post('motivo_no_publica'),
+					'articulo' => $this->input->post('articulo'),
+					'division' => $this->input->post('division'),
+					'materia' => $this->input->post('materia'),
+					'turno' => $this->input->post('turno'),
+					'horario' => $this->input->post('horario'),
+					'presentarse_en' => $this->input->post('presentarse_en'),
+					'movilidad' => $this->input->post('movilidad'),
+					'prioridad' => $this->input->post('prioridad'),
+					'condiciones_adicionales' => $this->input->post('condiciones_adicionales'),
+					'observaciones_adicionales' => $this->input->post('observaciones_adicionales'),
+					'estado' => 'Pendiente'));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+					redirect('llamados/llamado/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields, $llamado);
+
+		$data['llamado'] = $llamado;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = 'Llamados - Editar llamado';
+		$this->load_template('llamados/llamado/llamado_abm', $data);
+	}
+
+	private function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$llamado = $this->llamado_model->get(array('id' => $id));
+		if (empty($llamado)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->llamado_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+				redirect('llamados/llamado/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields, $llamado, TRUE);
+
+		$data['llamado'] = $llamado;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = 'Llamados - Eliminar llamado';
+		$this->load_template('llamados/llamado/llamado_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$llamado = $this->llamado_model->get_one($id);
+		if (empty($llamado)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($llamado->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields, $llamado, TRUE);
+
+		$data['escuela'] = $escuela;
+		$data['llamado'] = $llamado;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = 'Llamados - Ver llamado';
+		$this->load_template('llamados/llamado/llamado_abm', $data);
+	}
+
+	public function vista_previa($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$llamado = $this->llamado_model->get_one($id);
+		if (empty($llamado)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($llamado->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$this->array_publicar_control = $this->llamado_model->fields['publicar']['array'];
+		$this->array_motivo_no_publica_control = $this->llamado_model->fields['motivo_no_publica']['array'];
+		$this->set_model_validation_rules($this->llamado_model);
+		if ($this->input->post('publicar') === 'No') {
+			unset($this->array_motivo_no_publica_control['']);
+		}
+		if (!$this->input->post('fecha_llamado_1') && !$this->input->post('fecha_llamado_2') && !$this->input->post('fecha_llamado_3') && !$this->input->post('fecha_llamado_4')) {
+			$this->form_validation->set_rules('fecha_llamado_1', 'Fecha Llamado', 'required');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->llamado_model->update(array(
+					'id' => $this->input->post('id'),
+					'servicio_novedad_id' => $this->input->post('servicio_novedad'),
+					'cargo_id' => $this->input->post('cargo'),
+					'fecha_carga' => $this->get_datetime_sql('fecha_carga', 'd/m/Y H:i'),
+					'regimen' => $this->input->post('regimen'),
+					'lugar_trabajo' => $this->input->post('lugar_trabajo'),
+					'direccion' => $this->input->post('direccion'),
+					'localidad' => $this->input->post('localidad'),
+					'departamento' => $this->input->post('departamento'),
+					'fecha_llamado_1' => $this->get_datetime_sql('fecha_llamado_1', 'd/m/Y H:i'),
+					'fecha_llamado_2' => $this->get_datetime_sql('fecha_llamado_2', 'd/m/Y H:i'),
+					'fecha_llamado_3' => $this->get_datetime_sql('fecha_llamado_3', 'd/m/Y H:i'),
+					'fecha_llamado_4' => $this->get_datetime_sql('fecha_llamado_4', 'd/m/Y H:i'),
+					'publicar' => $this->input->post('publicar'),
+					'motivo_no_publica' => $this->input->post('motivo_no_publica'),
+					'articulo' => $this->input->post('articulo'),
+					'division' => $this->input->post('division'),
+					'materia' => $this->input->post('materia'),
+					'turno' => $this->input->post('turno'),
+					'horario' => $this->input->post('horario'),
+					'presentarse_en' => $this->input->post('presentarse_en'),
+					'movilidad' => $this->input->post('movilidad'),
+					'prioridad' => $this->input->post('prioridad'),
+					'condiciones_adicionales' => $this->input->post('condiciones_adicionales'),
+					'observaciones_adicionales' => $this->input->post('observaciones_adicionales'),
+					'estado' => $this->input->post('estado')));
+				$llamado_id = $this->input->post('id');
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->llamado_model->get_msg());
+					if ($this->input->post('estado') == 'Confirmado') {
+						redirect("llamados/llamado/listar/" . $this->input->post('escuela_id'), 'refresh');
+					} else {
+						redirect("llamados/llamado/vista_previa/$llamado_id", 'refresh');
+					}
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->llamado_model->get_error() ? $this->llamado_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->llamado_model->fields, $llamado);
+		$data['escuela'] = $escuela;
+		$data['llamado'] = $llamado;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = 'Llamados - Vista previa';
+		$this->load_template('llamados/llamado/llamado_vista_previa', $data);
+	}
+
+	public function llamado_modal_no_publica($llamado_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $llamado_id == NULL || !ctype_digit($llamado_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$llamado = $this->llamado_model->get_one($llamado_id);
+		if (empty($llamado)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($llamado->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$data['llamado'] = $llamado;
+		$data['txt_btn'] = 'Aceptar';
+		$data['title'] = 'Cargar motivo de no publica';
+		$this->load->view('llamados/llamado/llamado_modal_no_publica', $data);
+	}
+
+	public function crea_texto_plano($llamado) {
+		$texto_plano = "Se llama a concurso para cubrir el cargo ";
+		$texto_plano .= empty($llamado->regimen) ? '' : $llamado->regimen . " en la institución ";
+		$texto_plano .= empty($llamado->lugar_trabajo) ? '' : $llamado->lugar_trabajo . " ubicada en ";
+		$texto_plano .= empty($llamado->direccion) ? '' : $llamado->direccion . " - ";
+		$texto_plano .= empty($llamado->departamento) ? '' : $llamado->departamento . ". Ofrece: ";
+		$texto_plano .= empty($llamado->fecha_llamado_1) ? '' : "1° llamado el " . (new DateTime($llamado->fecha_llamado_1))->format('d/m/Y') . " a las " . (new DateTime($llamado->fecha_llamado_1))->format('H:i. ');
+		$texto_plano .= empty($llamado->fecha_llamado_2) ? '' : "2° llamado el " . (new DateTime($llamado->fecha_llamado_2))->format('d/m/Y') . " a las " . (new DateTime($llamado->fecha_llamado_2))->format('H:i. ');
+		$texto_plano .= empty($llamado->fecha_llamado_3) ? '' : "3° llamado el " . (new DateTime($llamado->fecha_llamado_3))->format('d/m/Y') . " a las " . (new DateTime($llamado->fecha_llamado_3))->format('H:i. ');
+		$texto_plano .= empty($llamado->fecha_llamado_4) ? '' : "4° llamado el " . (new DateTime($llamado->fecha_llamado_4))->format('d/m/Y') . " a las " . (new DateTime($llamado->fecha_llamado_4))->format('H:i. ');
+		$texto_plano .= empty($llamado->materia) ? '' : "Para " . $llamado->materia . ", ";
+		$texto_plano .= empty($llamado->division) ? '' : $llamado->division . ", ";
+		$texto_plano .= empty($llamado->turno) ? '' : "Turno: " . $llamado->turno . ", ";
+		$texto_plano .= empty($llamado->horario) ? '' : "Horario: " . $llamado->horario . ", ";
+		$texto_plano .= empty($llamado->articulo) ? '' : "Art: " . $llamado->articulo . ". ";
+		$texto_plano .= empty($llamado->fin_estimado) ? '' : "Fin estimado: " . $llamado->fin_estimado . ". ";
+		$texto_plano .= empty($llamado->presentarse_en) ? '' : "A presentarse en: " . $llamado->presentarse_en . ". ";
+
+		return $texto_plano;
+	}
+}
+/* End of file Llamado.php */
+/* Location: ./application/modules/llamados/controllers/Llamado.php */

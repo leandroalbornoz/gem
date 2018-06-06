@@ -1,0 +1,435 @@
+<?php if ($txt_btn === 'Agregar' || $txt_btn === 'Editar'): ?>
+	<script>
+		$(document).ready(function() {
+			var xhr_regimen;
+			var select_regimen, $select_regimen;
+
+			$('.div_carga_horaria').hide();
+			if ($('select#regimen').length > 0) {
+				$select_regimen = $('#regimen').selectize({
+					plugins: {
+						'clear_selection': {}
+					},
+					onChange: actualizar_carga_horaria
+				});
+				select_regimen = $select_regimen[0].selectize;
+				if (select_regimen.getValue() !== '') {
+					actualizar_carga_horaria();
+				}
+			}
+
+			function actualizar_carga_horaria() {
+				$('.div_carga_horaria').hide();
+				$('#tipo_regimen').val('');
+
+				xhr_regimen && xhr_regimen.abort();
+				var regimen_id = select_regimen.getValue();
+				if (regimen_id !== '') {
+					xhr_regimen = $.ajax({
+						url: 'ajax/get_tipo_cargo/' + regimen_id,
+						dataType: 'json',
+						success: function(results) {
+							if (results === 'Hora') {
+								$('.div_carga_horaria').show();
+							}
+							$('#tipo_regimen').val(results);
+						},
+						error: function() {
+							callback();
+						}
+					});
+				}
+			}
+
+	<?php //if ($txt_btn === 'Agregar'):                      ?>
+			var xhr_espacio_curricular, xhr_carrera, xhr_turno;
+			var select_division, $select_division;
+			var select_carrera, $select_carrera;
+			var select_espacio_curricular, $select_espacio_curricular;
+			var select_turno, $select_turno;
+
+			$select_division = $('#division').selectize({
+				plugins: {
+					'clear_selection': {}
+				},
+				onChange: actualizar_carrera,
+			});
+
+			$select_turno = $('#turno').selectize({
+				plugins: {
+					'clear_selection': {}
+				}
+			});
+
+			$select_carrera = $('#carrera').selectize({
+				plugins: {
+					'clear_selection': {}
+				},
+				valueField: 'id',
+				labelField: 'descripcion',
+				searchField: ['descripcion'],
+				onChange: actualizar_espacio_curricular
+			});
+
+			$select_espacio_curricular = $('#espacio_curricular').selectize({
+				plugins: {
+					'clear_selection': {}
+				},
+				preload: false,
+				valueField: 'id',
+				labelField: 'descripcion',
+				searchField: ['descripcion']
+			});
+
+			select_division = $select_division[0].selectize;
+			select_espacio_curricular = $select_espacio_curricular[0].selectize;
+			select_carrera = $select_carrera[0].selectize;
+			select_turno = $select_turno[0].selectize;
+
+			var valor_espacio_curricular = select_espacio_curricular.getValue();
+			if (select_division.getValue() !== '') {
+				actualizar_carrera(select_division.getValue());
+			}
+
+			function actualizar_espacio_curricular(carrera) {
+				select_espacio_curricular.disable();
+				select_espacio_curricular.clearOptions();
+				select_espacio_curricular.load(function(callback) {
+					xhr_espacio_curricular && xhr_espacio_curricular.abort();
+					var division = select_division.getValue();
+					xhr_espacio_curricular = $.ajax({
+						url: 'ajax/get_materias/<?php echo $escuela->nivel_id; ?>/' + (division === '' ? '0' : division) + '/' + (carrera === '' ? '0' : carrera),
+						dataType: 'json',
+						success: function(results) {
+							select_espacio_curricular.enable();
+							callback(results);
+							select_espacio_curricular.setValue(valor_espacio_curricular);
+						},
+						error: function() {
+							callback();
+						}
+					})
+				});
+			}
+
+			function actualizar_carrera(division) {
+				select_carrera.enable();
+				var valor = select_carrera.getValue();
+				valor_espacio_curricular = select_espacio_curricular.getValue();
+				select_carrera.disable();
+				select_carrera.clearOptions();
+				select_carrera.load(function(callback) {
+					xhr_carrera && xhr_carrera.abort();
+					xhr_carrera = $.ajax({
+						url: 'ajax/get_carreras/<?php echo $escuela->id; ?>/' + division,
+						dataType: 'json',
+						success: function(results) {
+							select_carrera.enable();
+							callback(results);
+							if (results.length === 1 && division !== '') {
+								select_carrera.setValue(results[0].id);
+								select_carrera.disable();
+							} else {
+								select_carrera.setValue(valor);
+							}
+						},
+						error: function() {
+							callback();
+						}
+					});
+				});
+
+				var valor_division = select_division.getValue();
+				if (valor_division !== '') {
+					select_turno.load(function(callback) {
+						xhr_turno && xhr_turno.abort();
+						xhr_turno = $.ajax({
+							url: 'ajax/get_turno/' + valor_division,
+							dataType: 'json',
+							success: function(results) {
+								select_turno.enable();
+								callback(results);
+								if (results.turno_id !== '') {
+									select_turno.setValue(results.turno_id);
+								}
+							},
+							error: function() {
+								callback();
+							}
+						});
+					});
+				}
+			}
+	<?php //endif;                      ?>
+		});
+	</script>
+<?php endif; ?>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Cargos
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id ?>"><?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li><a href="cargo/listar/<?= $escuela->id ?>">Cargos</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['agregar']; ?>" href="cargo/agregar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-plus"></i> Agregar
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="cargo/ver/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="cargo/editar/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['horarios']; ?>" href="cargo/horarios/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+							<i class="fa fa-clock-o"></i> Horarios
+						</a>
+						<?php if ($edicion): ?>
+							<?php if (($txt_btn === 'Editar' || $txt_btn === NULL) && FALSE): ?>
+								<a class="btn btn-app btn-app-zetta" data-remote="false" data-toggle="modal"  data-target="#remote_modal" href="cargo/modal_editar/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>" title="Editar turno/división/espacio curricular">
+									<i class="fa fa-exchange"></i> Reubicar cargo
+								</a>
+							<?php endif; ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['horarios']; ?>" href="cargo/compartir/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+								<i class="fa fa-share"></i> Compartir
+							</a>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['eliminar']; ?>" href="cargo/eliminar/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+								<i class="fa fa-ban"></i> Eliminar
+							</a>
+							<?php if ($txt_btn === NULL): ?>
+								<?php if (empty($cargo->fecha_hasta)): ?>
+									<a class="btn btn-app btn-app-zetta <?php echo $class['cerrar_abrir']; ?>" data-remote="false" data-toggle="modal"  data-target="#remote_modal" href="cargo/modal_cerrar_cargo/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+										<i class="fa fa-lock"></i> Cerrar Cargo
+									</a>
+								<?php else: ?>
+									<a class="btn btn-app btn-app-zetta <?php echo $class['cerrar_abrir']; ?>" data-remote="false" data-toggle="modal"  data-target="#remote_modal" href="cargo/modal_abrir_cargo/<?php echo (!empty($cargo->id)) ? $cargo->id : ''; ?>">
+										<i class="fa fa-unlock"></i> Reabrir cargo
+									</a>
+								<?php endif ?>
+							<?php endif ?>
+						<?php endif; ?>
+						<div class="row">
+							<div class="form-group col-md-4">
+								<?php echo $fields['division']['label']; ?>
+								<?php if ($txt_btn == null && !empty($cargo->division_id)): ?>
+									<div class="input-group">
+										<?php echo $fields['division']['form']; ?>
+										<span class="input-group-btn">
+											<a class="btn btn-secondary btn-default" style="padding: 7px 12px;" href="division/ver/<?php echo $cargo->division_id; ?>"><i class="fa fa-search"></i></a>
+										</span>
+									</div>
+								<?php else: ?>
+									<?php echo $fields['division']['form']; ?>
+								<?php endif; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['carrera']['label']; ?>
+								<?php echo $fields['carrera']['form']; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['espacio_curricular']['label']; ?>
+								<?php echo $fields['espacio_curricular']['form']; ?>
+							</div>
+							<div class="form-group col-md-6">
+								<?php echo $fields['regimen']['label']; ?>
+								<?php echo $fields['regimen']['form']; ?>
+							</div>
+							<?php if ($txt_btn === 'Agregar' || $txt_btn === 'Editar' || $cargo->regimen_tipo_id === '2'): ?>
+								<div class="form-group col-md-3 div_carga_horaria">
+									<?php echo $fields['carga_horaria']['label']; ?>
+									<?php echo $fields['carga_horaria']['form']; ?>
+								</div>
+							<?php endif; ?>
+							<div class="form-group col-md-3">
+								<?php echo $fields['condicion_cargo']['label']; ?>
+								<?php echo $fields['condicion_cargo']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['turno']['label']; ?>
+								<?php echo $fields['turno']['form']; ?>
+							</div>
+							<div class="form-group col-md-6">
+								<?php echo $fields['resolucion_alta']['label']; ?>
+								<?php echo $fields['resolucion_alta']['form']; ?>
+							</div>
+							<div class="form-group col-md-6">
+								<?php echo $fields['codigo_junta']['label']; ?>
+								<?php echo $fields['codigo_junta']['form']; ?>
+							</div>
+							<?php if ($escuela->nivel_id == 7): ?>
+								<div class="form-group col-md-3">
+									<?php echo $fields['cuatrimestre']['label']; ?>
+									<?php echo $fields['cuatrimestre']['form']; ?>
+								</div>
+							<?php endif; ?>
+							<div class="form-group col-md-9">
+								<?php echo $fields['observaciones']['label']; ?>
+								<?php echo $fields['observaciones']['form']; ?>
+							</div>
+							<?php if (isset($fields['aportes'])): ?>
+								<div class="form-group col-md-3">
+									<?php echo $fields['aportes']['label']; ?>
+									<?php echo $fields['aportes']['form']; ?>
+								</div>
+							<?php endif; ?>
+							<input type="hidden" name="tipo_regimen" id="tipo_regimen" value="">
+							<?php if (ENVIRONMENT !== 'production'): ?>
+								<?php if (!empty($cargo)): ?>
+									<div class="form-group col-md-12">
+										<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+											<thead>
+												<tr style="background-color: #f4f4f4" >
+													<?php if ($rol->codigo === ROL_ADMIN || $this->rol->codigo === ROL_USI): ?>
+														<th style="text-align: center; padding-left:110px ;" colspan="6">Cursadas
+															<a href="cargo_cursada/modal_agregar/<?php echo $cargo->id; ?>" class="btn btn-xs btn-success pull-right" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Agregar cursada"><i class="fa fa-plus"></i>&nbsp;Agregar cursada</a></th>
+													<?php endif; ?>	
+												</tr>
+												<tr>
+													<th style="width: 15%;">Curso/División</th>
+													<th style="width: 40%;">Materia</th>
+													<th style="width: 20%;">Grupo</th>
+													<th style="width: 10%;">Horas cubiertas</th>
+													<th style="width: 15%;"></th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php if (!empty($cargos_cursada)): ?>
+													<?php foreach ($cargos_cursada as $cargo_cursada): ?>
+														<tr>
+															<td><?php echo empty($cargo_cursada->division) ? '' : $cargo_cursada->division; ?></td>
+															<td><?php echo empty($cargo_cursada->espacio_curricular) ? '' : $cargo_cursada->espacio_curricular; ?></td>
+															<td><?php echo empty($cargo_cursada->grupo) ? '' : $cargo_cursada->grupo; ?></td>
+															<td title="<?= (!empty($cargo_cursada->comparte_horario)) ? "$cargo_cursada->division_compatida - $cargo_cursada->espacio_curricular_compartido" : ''; ?>"><?php echo empty($cargo_cursada->carga_horaria) ? '' : $cargo_cursada->carga_horaria . ((!empty($cargo_cursada->comparte_horario)) ? ' (Compartido)' : ''); ?></td>
+															<td>
+																<div class="btn-group" style="margin-left: 30%;" role="group">
+																	<?php if (!empty($cargo_cursada)):; ?>
+																		<a class="btn btn-xs btn-default" href="cursada/listar/<?php echo $cargo_cursada->division_id; ?>" title="Ver"><i class="fa fa-search"></i> Ver</a>
+																		<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span>
+																		</button>
+																		<ul class="dropdown-menu dropdown-menu-right">
+																			<li><a href="cargo_cursada/modal_editar/<?php echo $cargo_cursada->id; ?>" class="dropdown-item btn-warning" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Editar"><i class="fa fa-pencil"></i>Editar</a></li>
+																			<li><a href="cargo_cursada/modal_eliminar/<?php echo $cargo_cursada->id; ?>" class="dropdown-item btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Eliminar"><i class="fa fa-remove"></i>Eliminar</a></li>
+																			<?php if (empty($cargo_cursada->comparte_horario)): ?>
+																				<li><a href="cargo_cursada/modal_agregar_compartido/<?php echo $cargo_cursada->id; ?>" class="dropdown-item btn-primary" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Agregar compartido"><i class="fa fa-plus"></i>&nbsp;Agregar compartido</a></li>
+																			<?php endif; ?>
+																		</ul>
+																	<?php endif; ?>
+																</div>
+															</td>
+														</tr>
+													<?php endforeach; ?>
+												<?php else: ?>
+													<tr style="text-align: center;">
+														<td colspan="5">-- Sin cursadas cargadas para este cargo --</td>
+													</tr>
+												<?php endif; ?>
+											</tbody>
+										</table>
+									</div>
+								<?php endif; ?>
+							<?php endif; ?>
+							<?php if (!empty($servicios)): ?>
+								<div class="form-group col-md-12">
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="6">Servicios</th>
+											</tr>
+											<tr>
+												<th>Revista</th>
+												<th>Liquidación</th>
+												<th>Persona</th>
+												<th>Alta</th>
+												<th>Baja</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach ($servicios as $servicio): ?>
+												<tr>
+													<td><?= $servicio->situacion_revista; ?></td>
+													<td><?= $servicio->liquidacion ?></td>
+													<td><?= "$servicio->apellido, $servicio->nombre" ?></td>
+													<td><?= empty($servicio->fecha_alta) ? '' : (new DateTime($servicio->fecha_alta))->format('d/m/Y'); ?></td>
+													<td><?= empty($servicio->fecha_baja) ? '' : (new DateTime($servicio->fecha_baja))->format('d/m/Y'); ?></td>
+													<th>
+														<a class="pull-right btn btn-xs btn-default" href="servicio/ver/<?= $servicio->id ?>"><i class="fa fa-search"></i></a>
+													</th>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								</div>
+							<?php endif; ?>
+							<?php if (!empty($historial) && FALSE): ?>
+								<div class="form-group col-md-12">
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="6">Historial Cargo</th>
+											</tr>
+											<tr>
+												<th>Turno</th>
+												<th>División</th>
+												<th>Carrera</th>
+												<th>Materia</th>
+												<th>Hasta</th>
+												<th>Observaciones</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach ($historial as $historia): ?>
+												<tr>
+													<td><?= $historia->turno; ?></td>
+													<td><?= $historia->division; ?></td>
+													<td><?= $historia->carrera; ?></td>
+													<td><?= $historia->espacio_curricular; ?></td>
+													<td><?= (new DateTime($historia->fecha_hasta))->format('d/m/Y'); ?></td>
+													<td><?= $servicio->observaciones ?></td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								</div>
+							<?php endif; ?>
+						</div>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="cargo/listar/<?= $escuela->id; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+						<?php echo zetta_form_submit($txt_btn); ?>
+						<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $cargo->id) : ''; ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>

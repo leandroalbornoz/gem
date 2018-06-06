@@ -1,0 +1,175 @@
+<style>
+	.table-striped>tbody>tr:nth-of-type(odd) {
+    background-color: #d9d9d9;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Auditoría de Bajas - <label class="label label-default"><?php echo empty($escuela->departamento) ? 'N/D' : $escuela->departamento; ?></label> <label class="label label-default"><?php echo $mes; ?></label>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href="liquidaciones/escritorio"><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="liquidaciones/escritorio/index/<?php echo $mes; ?>">Auditoría Bajas <?php echo $mes; ?></a></li>
+			<li><a href="liquidaciones/bajas/departamento/<?php echo $mes . '/' . (empty($escuela->departamento_id) ? '0' : $escuela->departamento_id); ?>"><?php echo empty($escuela->departamento) ? 'N/D' : $escuela->departamento; ?></a></li>
+			<li class="active"><?php echo "Esc. $escuela->nombre_corto"; ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-header with-border">
+						<h3 class="box-title"><label>Escuela</label> <?php echo "$escuela->nombre_largo" . (empty($escuela->cue) ? '' : " - <label>CUE:</label> $escuela->cue") . (empty($escuela->cue) ? '' : " - <label>Repa:</label> $escuela->reparticion"); ?></h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-sm-6"><label>Nivel:</label> <?php echo $escuela->nivel; ?></div>
+							<div class="col-sm-6"><label>Supervisión:</label> <?php echo $escuela->supervision; ?></div>
+							<div class="col-sm-12"><label>Domicilo:</label> <?php echo "$escuela->calle $escuela->calle_numero $escuela->localidad"; ?></div>
+							<div class="col-sm-6"><label>Telefono:</label> <?php echo $escuela->telefono; ?></div>
+							<div class="col-sm-6"><label>Email:</label> <?php echo "$escuela->email/$escuela->email2"; ?></div>
+						</div>
+						<?php $estados = array('cargadas' => 'Cargado', 'aprobadas' => 'Auditado', 'rechazadas' => 'Rechazado'); ?>
+						<?php foreach ($estados as $estado_id => $estado): ?>
+							<h2 style="border-top: #0044cc medium double">Bajas <?php echo $estado_id; ?></h2>
+							<table class="table table-condensed table-bordered table-striped">
+								<thead>
+									<tr>
+										<th>Persona</th>
+										<th style="min-width: 300px;">Cargo</th>
+										<th>Baja/Baja</th>
+										<th>Reemplaza</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($bajas as $baja): ?>
+										<?php if ($baja->estado === $estado): ?>
+											<tr>
+												<td>
+													<?= $baja->cuil; ?>
+													<?php if ($baja->estado === 'Cargado'): ?>
+														<a class="text-sm btn btn-xs btn-warning" target="_blank" href="persona/editar/<?= $baja->persona_id; ?>"><i class="fa fa-edit"></i> Editar</a>
+													<?php endif; ?>
+													<br>
+													<?= $baja->persona; ?>
+													<br>
+													<?= (empty($baja->fecha_nacimiento) ? '--Sin Fecha Nac.--' : (new DateTime($baja->fecha_nacimiento))->format('d/m/Y')); ?>
+												</td>
+												<td>
+													<?= $baja->regimen; ?>
+													<span class="text-sm"><?= $baja->regimen_desc; ?></span>-<?= $baja->clase === '0000' ? $baja->puntos : $baja->clase; ?>
+													<br>
+													<span class="text-sm"><?= $baja->division; ?></span>
+													<br>
+													<span class="text-sm"><?= $baja->materia; ?></span>
+													<br>
+													<?php if (!empty($baja->observaciones)): ?>
+														<br>
+														Obs.Serv.:<span class="text-sm"><?= $baja->observaciones; ?></span>
+													<?php endif; ?>
+													<?php if (!empty($baja->observaciones_c)): ?>
+														<br>
+														Obs.Cargo:<span class="text-sm"><?= $baja->observaciones_c; ?></span>
+													<?php endif; ?>
+												</td>
+												<td>
+													Baja: <?= (new DateTime($baja->fecha_baja))->format('d/m/Y'); ?>
+													<br>
+													<?php if ($baja->regimen_tipo_id === '1'): ?>
+														Días: <?= min(array($baja->dias, 30)); ?>
+													<?php else: ?>
+														Oblig: <?= min(array($baja->obligaciones, $baja->carga_horaria * 4)); ?>
+													<?php endif; ?>
+													<?php if ($estado === 'Cargado'): ?>
+														<a class="text-sm btn btn-xs btn-warning" href="liquidaciones/bajas/modal_editar/<?php echo $escuela->id . '/' . $mes . '/' . $baja->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Editar"><i class="fa fa-edit"></i></a>
+													<?php endif; ?>
+													<a class="text-sm btn btn-xs btn-primary" href="liquidaciones/bajas/modal_ver_auditoria/<?php echo $escuela->id . '/' . $mes . '/' . $baja->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" title="Ver modificaciones"><i class="fa fa-eye"></i></a>
+													<br>
+													Art: <?= "$baja->articulo-$baja->inciso $baja->novedad"; ?>
+												</td>
+												<td>
+													<?= $baja->reemplaza_cuil; ?>
+													<?= empty($baja->reemplaza_liquidacion) ? '' : '(' . substr($baja->reemplaza_liquidacion, -2) . ')'; ?>
+													<br>
+													<?= $baja->reemplaza_persona; ?>
+													<br>
+													<?= $baja->reemplaza_articulo; ?>
+													<span class="text-sm"><?= $baja->reemplaza_articulo_desc; ?></span>
+												</td>
+												<td>
+													<?php if ($estado === 'Cargado'): ?>
+														<button class="btn btn-xs btn-success" type="submit" name="aprobar" value="<?php echo $baja->id; ?>"><i class="fa fa-check"></i> Aprobar</button>
+														<br>
+														<a class="btn btn-xs btn-danger" href="liquidaciones/bajas/modal_rechazar/<?php echo $escuela->id . '/' . $mes . '/' . $baja->id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Rechazar</a>
+													<?php elseif ($estado === 'Auditado'): ?>
+														<button class="btn btn-xs btn-danger" type="submit" name="revertir" value="<?php echo $baja->id; ?>"><i class="fa fa-ban"></i> Revertir aprobación</button>
+													<?php elseif ($estado === 'Rechazado'): ?>
+														<button class="btn btn-xs btn-danger" type="submit" name="revertir" value="<?php echo $baja->id; ?>"><i class="fa fa-ban"></i> Revertir rechazo</button>
+														<br><b>Motivo: </b><?php echo $baja->motivo_rechazo; ?>
+													<?php endif; ?>
+												</td>
+											</tr>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+							<br>
+							<br>
+						<?php endforeach; ?>
+						<?php if (!empty($autoridades)): ?>
+							<hr>
+							<h3>Autoridades</h3>
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr>
+										<th>Tipo de autoridad</th>
+										<th>CUIL</th>
+										<th>Nombre</th>
+										<th>Tél. Fijo</th>
+										<th>Celular</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($autoridades as $autoridad): ?>
+										<tr>
+											<td><?= $autoridad->autoridad; ?></td>
+											<td><?= $autoridad->cuil; ?></td>
+											<td><?= $autoridad->persona; ?></td>
+											<td><?= $autoridad->telefono_fijo; ?></td>
+											<td><?= $autoridad->telefono_movil; ?></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						<?php endif; ?>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="liquidaciones/bajas/aud_escuelas/<?php echo $mes; ?>" title="Volver">Volver</a>
+						<?php echo form_hidden('id', $escuela->id); ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>

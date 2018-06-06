@@ -1,0 +1,7 @@
+insert into espacio_curricular(descripcion, carrera_id, carga_horaria, materia_id, curso_id, fecha_desde, fecha_hasta)
+select replace(ec.descripcion, '- Idem para todas las modalidades -', c.descripcion), c.id, ec.carga_horaria, ec.materia_id, ec.curso_id, ec.fecha_desde, ec.fecha_hasta
+from carrera c join espacio_curricular ec on c.id<>ec.carrera_id and ec.carrera_id=1;
+
+delete from espacio_curricular where carrera_id=1;
+
+delete from carrera where id=1;

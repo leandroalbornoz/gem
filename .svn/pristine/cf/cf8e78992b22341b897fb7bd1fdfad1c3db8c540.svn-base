@@ -1,0 +1,509 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Servicio_altas extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('servicio_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL, ROL_ESCUELA_ALUM, ROL_ASISTENCIA_DIVISION, ROL_DOCENTE_CURSADA));
+		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_GRUPO_ESCUELA_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/servicio';
+	}
+
+	public function listar($escuela_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			$this->load->model('planilla_asisnov_model');
+			$mes = $this->planilla_asisnov_model->get_mes_actual();
+			redirect("servicio_altas/listar/$escuela_id/$mes", 'refresh');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 21, 'class' => 'text-sm'),
+				array('label' => 'S.R.', 'data' => 'situacion_revista', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'Cur', 'data' => 'curso', 'width' => 3, 'class' => 'dt-body-center'),
+				array('label' => 'Div', 'data' => 'division', 'width' => 9, 'class' => 'dt-body-center'),
+				array('label' => 'Régimen/Materia', 'data' => 'regimen_materia', 'width' => 22, 'class' => 'text-sm'),
+				array('label' => 'Hs.', 'data' => 'carga_horaria', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Alta', 'data' => 'fecha_alta', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Baja', 'data' => 'fecha_baja', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Días', 'data' => 'dias', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Oblig.', 'data' => 'obligaciones', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Observaciones', 'data' => 'observaciones', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => '', 'data' => 'menu', 'width' => 10, 'class' => 'dt-body-center', 'sortable' => 'false', 'searchable' => 'false', 'responsive_class' => 'all'),
+				array('label' => 'F.Detalle', 'data' => 'funcion_detalle', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'F.Destino', 'data' => 'funcion_destino', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'F.Norma', 'data' => 'funcion_norma', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'F.Tarea', 'data' => 'funcion_tarea', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'F.Hs.', 'data' => 'funcion_carga_horaria', 'width' => 10, 'responsive_class' => 'none'),
+				array('label' => 'F.Desde', 'data' => 'funcion_desde', 'width' => 10, 'responsive_class' => 'none'),
+			),
+			'table_id' => 'servicio_table',
+			'source_url' => "servicio_altas/listar_data/$escuela_id/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(5, 'asc'), array(6, 'asc'), array(7, 'asc')),
+			'details_format' => 'servicio_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_servicio_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+
+		$data['escuela'] = $escuela;
+		$data['mes_id'] = $mes;
+		$data['mes'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+		$fecha = DateTime::createFromFormat('Ymd', $mes . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Servicios';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('servicio_altas/servicio_altas_listar', $data);
+	}
+
+	public function listar_data($escuela_id = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->helper('datatables_functions_helper');
+		$this->datatables
+			->select(
+				'servicio.id, servicio.persona_id, servicio.cargo_id, servicio.fecha_alta,'
+				. 'servicio.fecha_baja, servicio.liquidacion, servicio.reemplazado_id, '
+				. 'servicio.situacion_revista_id, cargo.carga_horaria, '
+				. 'CONCAT(COALESCE(persona.cuil, \'\'), \'<br>\', COALESCE(persona.apellido, \'\'), \', \', COALESCE(persona.nombre, \'\')) as persona, situacion_revista.descripcion as situacion_revista, '
+				. 'division.division, curso.descripcion as curso, CONCAT(regimen.descripcion, \'<br>\', COALESCE(materia.descripcion, \'\')) as regimen_materia, regimen.descripcion as regimen, materia.descripcion as materia, escuela.id as escuela_id, cargo.observaciones, servicio_novedad.id as novedad_id, servicio_novedad.dias, servicio_novedad.obligaciones, '
+				. 'COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion_detalle, servicio_funcion.destino as funcion_destino, servicio_funcion.norma as funcion_norma, '
+				. 'servicio_funcion.tarea as funcion_tarea, servicio_funcion.carga_horaria as funcion_carga_horaria, servicio_funcion.fecha_desde as funcion_desde')
+			->unset_column('id')
+			->from('servicio')
+			->join('servicio_novedad', 'servicio_novedad.servicio_id=servicio.id AND servicio_novedad.novedad_tipo_id=1')
+			->join('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id')
+			->join('planilla_tipo', 'planilla_tipo.id = situacion_revista.planilla_tipo_id AND planilla_tipo.planilla_modalidad_id = 1')
+			->join('persona', 'persona.id = servicio.persona_id')
+			->join('cargo', 'cargo.id = servicio.cargo_id')
+			->join('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1')
+			->join('escuela', 'cargo.escuela_id = escuela.id')
+			->join('servicio_funcion', 'servicio_funcion.servicio_id=servicio.id AND servicio_funcion.fecha_hasta IS NULL', 'left')
+			->join('funcion', 'funcion.id = servicio_funcion.funcion_id', 'left')
+			->join('espacio_curricular', 'espacio_curricular.id = cargo.espacio_curricular_id', 'left')
+			->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+			->join('division', 'cargo.division_id = division.id', 'left')
+			->join('curso', 'division.curso_id = curso.id', 'left')
+			->where('escuela.id', $escuela_id)
+			->where('servicio_novedad.ames', $mes)
+			->group_by('servicio.id')
+			->add_column('', '', 'id');
+		if ($this->edicion) {
+			$this->datatables->add_column('menu', '$1', 'dt_column_servicio_altas_menu(\'' . $mes . '\', escuela_id, novedad_id, id)');
+		} else {
+			$this->datatables->add_column('menu', '<a class="btn btn-xs btn-default" href="servicio/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_editar($escuela_id = NULL, $mes = NULL, $alta_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$mes == NULL || $alta_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($alta_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		if (!$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('planilla_asisnov_model');
+		$meses_habilitados = $this->planilla_asisnov_model->get_meses();
+		if (!in_array($mes, $meses_habilitados)) {
+			$this->modal_error('No se puede editar altas fuera del periodo actual', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('servicio_novedad_model');
+		unset($this->servicio_novedad_model->fields['estado']);
+		unset($this->servicio_novedad_model->fields['novedad_tipo']);
+		unset($this->servicio_novedad_model->fields['fecha_desde']['readonly']);
+		unset($this->servicio_novedad_model->fields['fecha_hasta']['required']);
+		unset($this->servicio_novedad_model->fields['fecha_hasta']['readonly']);
+		$this->servicio_novedad_model->fields['dias']['type'] = 'number';
+		$alta = $this->servicio_novedad_model->get_one($alta_id);
+		if (empty($alta)) {
+			$this->modal_error('No se encontró el registro del alta', 'Registro no encontrado');
+			return;
+		}
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($alta->servicio_id);
+		if (empty($servicio) || $escuela->id !== $servicio->escuela_id) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->set_model_validation_rules($this->servicio_novedad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				if ($trans_ok) {
+					$trans_ok &= $this->servicio_novedad_model->update(array(
+						'id' => $alta->id,
+						'fecha_desde' => $this->get_date_sql('fecha_desde'),
+						'fecha_hasta' => $this->input->post('fecha_hasta') ? $this->get_date_sql('fecha_hasta') : $this->get_date_sql('fecha_desde'),
+						'dias' => $this->input->post('dias'),
+						'obligaciones' => $servicio->regimen_tipo_id === '1' ? '0' : $this->input->post('obligaciones'),
+						), FALSE);
+					if (empty($servicio->fecha_baja) || (new DateTime($servicio->fecha_baja))->format('Ym') === $mes) {
+						$trans_ok &= $this->servicio_model->update(array(
+							'id' => $servicio->id,
+							'fecha_alta' => $this->get_date_sql('fecha_desde'),
+							'fecha_baja' => $this->get_date_sql('fecha_hasta'),
+							'motivo_baja' => $this->input->post('fecha_hasta') ? '02-4 BAJA DE SERVICIO' : ''
+							), FALSE);
+					} else {
+						$trans_ok &= $this->servicio_model->update(array(
+							'id' => $servicio->id,
+							'fecha_alta' => $this->get_date_sql('fecha_desde'),
+							), FALSE);
+					}
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_novedad_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_novedad_model->get_error());
+				}
+				redirect("servicio_altas/listar/$escuela_id/$mes", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("servicio_altas/listar/$escuela_id/$mes", 'refresh');
+			}
+		}
+		$novedades = $this->servicio_novedad_model->get(array(
+			'join' => $this->servicio_novedad_model->default_join,
+			'servicio_id' => $servicio->id,
+			'ames' => $mes,
+			'id !=' => $alta->id,
+			'where' => array('planilla_baja_id IS NULL'),
+		));
+
+		$fechas_inhabilitadas = array();
+		if (!empty($novedades)) {
+			foreach ($novedades as $novedad) {
+				$desde = new DateTime($novedad->fecha_desde);
+				$hasta = new DateTime($novedad->fecha_hasta);
+				for ($fecha = $desde; $fecha <= $hasta; $fecha->modify('+1 day')) {
+					$fechas_inhabilitadas[] = $fecha->format('d/m/Y');
+				}
+			}
+		}
+
+		$data['servicio'] = $servicio;
+		if ($servicio->regimen_tipo_id !== '1') {
+			$this->load->model('horario_model');
+			$data['horarios'] = $this->horario_model->get_horarios($servicio->cargo_id);
+		}
+
+		if (!empty($servicio->fecha_alta)) {
+			$f1 = $mes . '01';
+			$f2 = (new DateTime($servicio->fecha_alta))->format('Ymd');
+			$data['fecha_desde'] = (new DateTime(max(array($f1, $f2))))->format('d/m/Y');
+		} else {
+			$data['fecha_desde'] = (new DateTime($mes . '01'))->format('d/m/Y');
+		}
+
+		$data['fecha_hasta'] = (new DateTime($mes . '01 +1 month -1 day'))->format('d/m/Y');
+		$data['novedades'] = $novedades;
+		$data['mes'] = $mes;
+		$data['alta'] = $alta;
+		$data['fechas_inhabilitadas'] = $fechas_inhabilitadas;
+		$alta->dias = number_format($alta->dias, 0);
+		if (empty($servicio->fecha_baja)) {
+			$this->servicio_novedad_model->fields['fecha_hasta']['readonly'] = TRUE;
+			$alta->fecha_hasta = '';
+		} elseif ((new DateTime($servicio->fecha_baja))->format('Ym') > $mes) {
+			$this->servicio_novedad_model->fields['fecha_hasta']['readonly'] = TRUE;
+			$alta->fecha_hasta = '';
+		}
+		$this->servicio_novedad_model->fields['dias'] = array('label' => 'Días a cumplir en mes', 'type' => 'number', 'max' => '30', 'min' => '1');
+		$this->servicio_novedad_model->fields['obligaciones'] = array('label' => 'Oblig. a cumplir en mes', 'type' => 'number', 'step' => '0.5', 'max' => $servicio->carga_horaria ? $servicio->carga_horaria * 4 : '0', 'min' => $servicio->carga_horaria ? '1' : '0');
+		$data['fields'] = $this->build_fields($this->servicio_novedad_model->fields, $alta);
+		if (empty($servicio->fecha_baja) || (new DateTime($servicio->fecha_baja))->format('Ym') === $mes) {
+			$data['fields']['fecha_hasta']['form'] = '			<div class="input-group">
+				' . $data['fields']['fecha_hasta']['form'] . '
+				<span class="input-group-addon">
+					<input type="checkbox" id="check_fecha_hasta"' . (empty($servicio->fecha_baja) ? '' : ' checked') . '>
+				</span>
+			</div>
+';
+		}
+
+		$data['title'] = "Editar alta de <b>$servicio->apellido, $servicio->nombre</b> ($servicio->cuil)";
+		$this->load->view('servicio_altas/servicio_altas_modal_editar', $data);
+	}
+
+	public function modal_eliminar($mes = NULL, $novedad_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$mes == NULL || $novedad_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($novedad_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		if (!$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('servicio_novedad_model');
+		$novedad = $this->servicio_novedad_model->get_one($novedad_id);
+		if (empty($novedad)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+
+		$servicio = $this->servicio_model->get_one($novedad->servicio_id);
+		if (empty($servicio)) {
+			$this->modal_error('No se encontró el servicio', 'Registro no encontrado');
+			return;
+		}
+
+		if ($servicio->escuela_id !== $escuela_id) {
+			$this->modal_error('El servicio no pertenece a la escuela.', 'Acción no autorizada');
+			return;
+		}
+
+		$data['servicio'] = $servicio;
+		$data['novedades'] = $this->servicio_novedad_model->get(array(
+			'join' => $this->servicio_novedad_model->default_join,
+			'servicio_id' => $novedad->servicio_id,
+			'id !=' => $novedad->id,
+			'ames' => $mes,
+			'where' => array('planilla_baja_id IS NULL'),
+		));
+		$data['fields'] = $this->build_fields($this->servicio_novedad_model->fields, $novedad, TRUE);
+
+		$data['servicio_novedad'] = $novedad;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar novedad de servicio';
+		if ($novedad->novedad === 'A') {
+			$this->load->model('planilla_asisnov_model');
+			$planilla = $this->planilla_asisnov_model->get_planilla($escuela->id, $novedad->ames, $servicio->planilla_tipo_id);
+			$data['permitido'] = $planilla->id === $novedad->planilla_alta_id && empty($planilla->fecha_cierre);
+			$this->load->view('servicio_altas/servicio_altas_modal_eliminar_servicio', $data);
+		} else {
+			$this->modal_error('La novedad no es un alta.', 'Acción no autorizada');
+			return;
+		}
+	}
+
+	public function modal_agregar_novedad($mes = NULL, $servicio_id = NULL, $escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$mes == NULL || $servicio_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($servicio_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		if (!$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio) || $escuela_id !== $servicio->escuela_id) {
+			$this->modal_error('No se encontró el servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('novedad_tipo_model');
+		$tipos_novedades = $this->novedad_tipo_model->get_tipos_novedades('N', TRUE);
+		$array_novedad_tipo = $tipos_novedades[0];
+		$this->array_novedad_tipo_control = $array_novedad_tipo;
+		$this->load->model('servicio_novedad_model');
+		unset($this->servicio_novedad_model->fields['estado']);
+
+		$this->set_model_validation_rules($this->servicio_novedad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+
+				$this->load->model('planilla_asisnov_model');
+				$planilla_id = $this->planilla_asisnov_model->get_planilla_abierta($escuela_id, $mes, $servicio->planilla_tipo_id);
+				$trans_ok &= $planilla_id > 0;
+
+				if ($trans_ok) {
+					$trans_ok &= $this->servicio_novedad_model->create(array(
+						'servicio_id' => $servicio->id,
+						'ames' => $mes,
+						'novedad_tipo_id' => $this->input->post('novedad_tipo'),
+						'fecha_desde' => $this->get_date_sql('fecha_desde'),
+						'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+						'dias' => $this->input->post('dias'),
+						'obligaciones' => $servicio->regimen_tipo_id === '1' ? '0' : $this->input->post('obligaciones'),
+						'estado' => 'Cargado',
+						'planilla_alta_id' => $planilla_id
+						), FALSE);
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_novedad_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar agregar.';
+					if ($this->planilla_asisnov_model->get_error()) {
+						$errors .= '<br>' . $this->planilla_asisnov_model->get_error();
+					}
+					if ($this->servicio_novedad_model->get_error()) {
+						$errors .= '<br>' . $this->servicio_novedad_model->get_error();
+					}
+					$this->session->set_flashdata('error', $errors);
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("servicio_altas/listar/$escuela_id/$mes", 'refresh');
+		}
+		$novedades = $this->servicio_novedad_model->get(array(
+			'join' => $this->servicio_novedad_model->default_join,
+			'servicio_id' => $servicio->id,
+			'ames' => $mes,
+			'where' => array('planilla_baja_id IS NULL'),
+		));
+
+		$fechas_inhabilitadas = array();
+		if (!empty($novedades)) {
+			foreach ($novedades as $novedad) {
+				if ($novedad->concomitante === 'N') {
+					$desde = new DateTime($novedad->fecha_desde);
+					$hasta = new DateTime($novedad->fecha_hasta);
+					for ($fecha = $desde; $fecha <= $hasta; $fecha->modify('+1 day')) {
+						$fechas_inhabilitadas[] = $fecha->format('d/m/Y');
+					}
+				}
+			}
+		}
+
+		$this->servicio_novedad_model->fields['novedad_tipo']['array'] = $array_novedad_tipo;
+		$data['servicio'] = $servicio;
+		if ($servicio->regimen_tipo_id !== '1') {
+			$this->load->model('horario_model');
+			$data['horarios'] = $this->horario_model->get_horarios($servicio->cargo_id);
+		}
+		$fecha_inicio_mes = new DateTime($mes . '01');
+		$fecha_fin_mes = new DateTime($mes . '01 +1 month -1 day');
+		$data['fecha_desde'] = $fecha_inicio_mes->format('d/m/Y');
+		$data['fecha_hasta'] = '';
+		if (!empty($servicio->fecha_alta)) {
+			$fecha_alta = new DateTime($servicio->fecha_alta);
+			if ($fecha_alta >= $fecha_inicio_mes) {
+				$data['fecha_desde'] = $fecha_alta->format('d/m/Y');
+			}
+		}
+		if (!empty($servicio->fecha_baja)) {
+			$fecha_baja = new DateTime($servicio->fecha_baja);
+			if ($fecha_baja <= $fecha_fin_mes) {
+				$data['fecha_hasta'] = $fecha_baja->format('d/m/Y');
+			}
+		}
+		$this->servicio_novedad_model->fields['dias'] = array('label' => 'Días a cumplir en mes', 'type' => 'number', 'max' => '30', 'min' => '1');
+		$this->servicio_novedad_model->fields['obligaciones'] = array('label' => 'Oblig. a cumplir en mes', 'type' => 'number', 'step' => '0.5', 'max' => $servicio->carga_horaria ? $servicio->carga_horaria * 4 : '0', 'min' => $servicio->carga_horaria ? '1' : '0');
+
+		$data['ames'] = $mes;
+		$data['novedades'] = $novedades;
+		$data['fechas_inhabilitadas'] = $fechas_inhabilitadas;
+		$data['novedades_concomitantes'] = $tipos_novedades[1];
+		$data['fields'] = $this->build_fields($this->servicio_novedad_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = "Agregar novedad a <b>$servicio->apellido, $servicio->nombre</b> ($servicio->cuil <b>" . substr($servicio->liquidacion, -2) . "</b>)";
+		$data['operacion'] = 'Agregar';
+		$this->load->view('servicio_altas/servicio_altas_modal_abm_novedad', $data);
+	}
+
+	public function cambiar_mes($escuela_id, $mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("servicio_altas/listar/$escuela_id/$mes", 'refresh');
+	}
+}
+/* End of file Servicio_altas.php */
+/* Location: ./application/controllers/Servicio_altas.php */

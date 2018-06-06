@@ -1,0 +1,95 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_derivacion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_derivacion';
+		$this->msg_name = 'Derivación Hospitalaria/Domiciliaria';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'escuela_origen_id', 'escuela_id', 'ingreso', 'egreso', 'diagnostico_id', 'fecha_grabacion');
+		$this->fields = array(
+			'alumno' => array('label' => 'Alumno', 'readonly' => TRUE),
+			'escuela' => array('label' => 'Escuela Hosp./Dom.', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
+			'ingreso' => array('label' => 'Ingreso', 'type' => 'date', 'required' => TRUE),
+			'egreso' => array('label' => 'Egreso', 'type' => 'date'),
+			'diagnostico' => array('label' => 'Diagnóstico', 'input_type' => 'combo', 'id_name' => 'diagnostico_id', 'required' => TRUE),
+			'fecha_grabacion' => array('label' => 'Fecha de Grabacion', 'type' => 'date')
+		);
+		$this->requeridos = array('alumno_id', 'escuela_id', 'ingreso', 'diagnostico_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = alumno_derivacion.alumno_id', 'left'),
+			array('persona', 'persona.id = alumno.persona_id', 'left', array("CONCAT(persona.apellido, ', ', persona.nombre) as alumno")),
+			array('escuela', 'escuela.id = alumno_derivacion.escuela_id', 'left', array("CONCAT(escuela.numero, ' - ', escuela.nombre) as escuela")),
+			array('diagnostico', 'diagnostico.id = alumno_derivacion.diagnostico_id', 'left', array('diagnostico.detalle as diagnostico'))
+		);
+	}
+
+	public function get_vista_linea($data) {
+		$data_db['linea'] = $data['linea'];
+		$data_db['cant_escuelas_d_h']=$data['cant_escuelas_d_h'];
+		$data_db['cant_cargos_d_h']=$data['cant_cargos_d_h'];
+		$data_db['cant_alumnos']=$data['cant_alumnos'];
+		$data_db['cant_alumnos_baja']=$data['cant_alumnos_baja'];
+		$data_db['cant_alumnos_alta']=$data['cant_alumnos_alta'];
+		return $data_db;
+	}
+
+	public function get_alumno_derivacion($alumno_id) {
+		return $this->db->select('ad.id, ad.ingreso,ad.egreso,ad.fecha_grabacion, di.detalle as diagnostico, CONCAT(COALESCE(es.numero, \'\'), \' - \', COALESCE(es.nombre, \'\')) as escuela, CONCAT(COALESCE(es2.numero, \'\'), \' - \', COALESCE(es2.nombre, \'\')) as escuela2')
+				->from('alumno_derivacion ad')
+				->join('alumno al', 'al.id = ad.alumno_id', 'left')
+				->join('escuela es', 'es.id=ad.escuela_id', 'left')
+				->join('escuela es2', 'es2.id=ad.escuela_origen_id', 'left')
+				->join('diagnostico di', 'di.id=ad.diagnostico_id', 'left')
+				->where('al.id', $alumno_id)
+				->get()->result();
+	}
+
+	public function get_cant_alumnos() {
+		return $this->db->select('COUNT(DISTINCT ad.id) as cantidad')
+				->from('alumno_derivacion ad')
+				->join('alumno', 'alumno.id = ad.alumno_id', 'left')
+				->join('persona', 'persona.id = alumno.persona_id', 'left')
+				->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left')
+				->join('alumno_division', 'alumno_division.alumno_id = alumno.id', 'left')
+				->join('division', 'division.id = alumno_division.division_id', 'left')
+				->join('escuela es3', 'es3.id = division.escuela_id', 'left')
+				->join('nivel', 'nivel.id = es3.nivel_id', 'left')
+				->join('curso', 'division.curso_id = curso.id', 'left')
+				->join('diagnostico', 'ad.diagnostico_id = diagnostico.id', 'left')
+				->join('escuela', 'escuela.id = ad.escuela_id', 'left')
+				->join('escuela es2', 'es2.id = ad.escuela_origen_id', 'left')
+				->where("COALESCE(nivel.formal, 'Si')=", 'Si')
+				->get()->row();
+	}
+
+	public function get_cant_alumnos_baja() {
+		return $this->db->select('COUNT(DISTINCT ad.id) as cantidad')
+				->from('alumno_derivacion ad')
+				->where('ad.egreso is not NULL')
+				->get()->row();
+	}
+
+	public function get_cant_alumnos_alta() {
+		return $this->db->select('COUNT(DISTINCT ad.id) as cantidad')
+				->from('alumno_derivacion ad')
+				->where('ad.egreso is NULL')
+				->get()->row();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Alumno_derivacion_model.php */
+/* Location: ./application/models/Alumno_derivacion_model.php */

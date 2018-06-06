@@ -1,0 +1,564 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Reportes extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('consultas/reportes_model');
+		$this->roles_permitidos = explode(',', ROLES);
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$data['error'] = $this->session->flashdata('error');
+		$this->load_template('reportes/reportes_listar', $data);
+	}
+
+	public function iniciar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		if (!empty($_POST)) {
+			$tabla = $this->input->post('tabla');
+			$rules = $this->input->post('rules');
+			if (!empty($tabla) && $this->reportes_model->get_tabla($tabla)) {
+				return $this->paso2($tabla);
+			} else {
+				if ($_POST['rules'] !== 'null') {
+					$parametros = array();
+					$where = array();
+					$parametros['from'] = $this->input->post('from');
+
+					if (!empty($this->input->post('columnas'))) {
+						foreach ($_POST as $n => $input) {
+							if (substr($n, 0, 13) === 'builder_rule_') {
+								$n = substr($n, 13);
+								$ns = explode('_', $n);
+								switch ($ns[1]) {
+									case 'filter':
+										if ($input !== '-1') {
+											$where[$ns[0]]['filter'] = $input;
+										}
+										break;
+									case 'operator':
+										$where[$ns[0]]['operator'] = $input;
+										break;
+									case 'value':
+										$where[$ns[0]]['value'] = explode(',', $input);
+										break;
+								}
+							}
+						}
+						$validation = TRUE;
+						$tabla = $this->reportes_model->get_tabla($parametros['from']);
+						$columnas = array();
+						foreach ($tabla['columnas'] as $columna) {
+							if (isset($columna['plugin_config']['options'])) {
+								foreach ($columna['plugin_config']['options'] as $option) {
+									$columna['valid_options'][] = $option->id;
+								}
+							}
+							$columnas[$columna['id']] = $columna;
+						}
+						if (!empty($where)) {
+							foreach ($where as $rule) {
+								if (isset($columnas[$rule['filter']]['plugin']) && $columnas[$rule['filter']]['plugin'] === 'selectize') {
+									foreach ($rule['value'] as $value) {
+										$validation &= in_array($value, $columnas[$rule['filter']]['valid_options']);
+									}
+								}
+							}
+						}
+						if (!$validation) {
+							return $this->paso2($tabla['id']);
+						}
+						$parametros['where'] = $where;
+						$parametros['columnas'] = $this->input->post('columnas');
+						$parametros['filtros'] = $this->input->post('filtros');
+						$registros = $this->reportes_model->get_reporte_previo($parametros);
+						$actualizar = $this->input->post('reporte_id');
+						return $this->paso3($parametros['from'], $registros, $parametros, $rules, $actualizar);
+					} else {
+						return $this->paso2($parametros['from']);
+					}
+				}
+			}
+		}
+		$data['tablas_reportes'] = $this->reportes_model->get_tablas_reportes();
+		$data['error'] = $this->session->flashdata('error');
+		$this->load_template('reportes/reportes_iniciar', $data);
+	}
+
+	public function paso2($tabla_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $tabla_id === NULL) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$tabla = $this->reportes_model->get_tabla($tabla_id);
+		$data['tablas'] = $this->reportes_model->get_tablas();
+		$data['tablas_reportes'] = $this->reportes_model->get_tablas_reportes();
+		$data['tabla'] = $tabla;
+		$data['filtros'] = $this->reportes_model->get_filtros($tabla_id);
+		$data['error'] = $this->session->flashdata('error');
+		$data['js'][] = 'plugins/querybuilder/js/query-builder.standalone.min.js';
+		$data['js'][] = 'plugins/querybuilder/i18n/query-builder.es.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/bootstrap-select.min.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/i18n/defaults-es_ES.min.js';
+		$data['css'][] = 'plugins/querybuilder/css/query-builder.default.min.css';
+		$data['css'][] = 'plugins/bootstrap-select-1.12.2/css/bootstrap-select.min.css';
+		$this->load_template('reportes/reportes_paso2', $data);
+	}
+
+	public function paso3($tabla_id = NULL, $registros = NULL, $parametros = NULL, $rules = NULL, $actualizar = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $tabla_id === NULL || $parametros === NULL || $rules === NULL || $actualizar === NULL) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->reportes_model->get_error() ? $this->reportes_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+		$tabla = $this->reportes_model->get_tabla($tabla_id);
+		$data['reporte_id'] = $actualizar;
+		$data['tablas'] = $this->reportes_model->get_tablas();
+		$data['tablas_reportes'] = $this->reportes_model->get_tablas_reportes();
+		$data['tabla'] = $tabla;
+		$data['columnas'] = $parametros['columnas'];
+		$data['checked'] = $parametros['checked'];
+		$data['registros'] = $registros;
+		$data['rules'] = $rules;
+		$data['parametros'] = json_encode($parametros);
+		$data['filtros'] = $this->reportes_model->get_filtros($tabla_id);
+		$data['fields'] = $this->build_fields($this->reportes_model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['js'][] = 'plugins/querybuilder/js/query-builder.standalone.min.js';
+		$data['js'][] = 'plugins/querybuilder/i18n/query-builder.es.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/bootstrap-select.min.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/i18n/defaults-es_ES.min.js';
+		$data['css'][] = 'plugins/querybuilder/css/query-builder.default.min.css';
+		$data['css'][] = 'plugins/bootstrap-select-1.12.2/css/bootstrap-select.min.css';
+		$this->load_template('reportes/reportes_paso3', $data);
+	}
+
+	public function exportar_reporte_excel() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || empty($_POST)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->library('PHPExcel');
+		$parametros = json_decode($this->input->post('parametros'), true);
+		$tabla = $this->reportes_model->get_tabla($parametros['from']);
+		$registros = $this->reportes_model->get_reporte_previo($parametros, 1);
+
+		$campos = array();
+		foreach ($parametros['columnas'] as $c => $columna_id) {
+			$campos[PHPExcel_Cell::stringFromColumnIndex($c)] = array($tabla['columnas'][$columna_id]['label'], '30');
+		}
+
+		if (!empty($registros)) {
+			$trans_ok = TRUE;
+			if (!empty($this->input->post('reporte_id'))) {
+				$reporte = $this->reportes_model->get(array('id' => $this->input->post('reporte_id')));
+				if (empty($reporte)) {
+					show_error('No se encontró el reporte', 500, 'Registro no encontrado');
+				}
+				$trans_ok &= $this->reportes_model->update(array(
+					'id' => $reporte->id,
+					'ultima_ejecucion' => date("Y-m-d H:i:s")));
+			}
+			if ($trans_ok) {
+				$this->exportar_excel(array('title' => 'Reporte'), $campos, $registros);
+			}
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('consultas/reportes/iniciar', 'refresh');
+		}
+	}
+
+	public function modal_guardar_reporte() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || empty($_POST)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$parametros = json_decode($this->input->post('reporte'), TRUE);
+		$rules = json_decode($this->input->post('reporte'), TRUE);
+		$registros = $this->reportes_model->get_reporte_previo($parametros);
+
+		unset($parametros['condition']);
+		unset($parametros['rules']);
+		unset($parametros['valid']);
+
+		unset($rules['from']);
+		unset($rules['where']);
+		unset($rules['columnas']);
+		$rules = json_encode($rules);
+
+		$this->set_model_validation_rules($this->reportes_model);
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->reportes_model->create(array(
+				'nombre' => $this->input->post('nombre'),
+				'reporte' => $this->input->post('reporte'),
+				'usuario_id' => $this->usuario
+			));
+
+			$reported_id = $this->reportes_model->get_row_id();
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->reportes_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', $this->reportes_model->get_error());
+			}
+		} else {
+			$this->session->set_flashdata('error', validation_errors());
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->reportes_model->get_error() ? $this->reportes_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+
+		redirect("consultas/reportes/reporte_guardado/$reported_id");
+	}
+
+	public function actualizar_reporte($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+
+		$reporte = $this->reportes_model->get(array('id' => $id));
+		if (empty($reporte)) {
+			show_error('No se encontró el reporte a actualizar', 500, 'Registro no encontrado');
+		}
+		if ($reporte->usuario_id != $this->usuario) {
+			show_error('Esta solicitud no pasó el control de seguridad.');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->reportes_model->update(array(
+				'id' => $this->input->post('id'),
+				'reporte' => $this->input->post('reporte_actualizar')
+			));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->reportes_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', $this->reportes_model->get_error());
+			}
+		}
+		redirect("consultas/reportes/reporte_guardado/$reporte->id");
+	}
+
+	public function listar_guardados() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$usuario_id = $this->usuario;
+		$reportes = $this->reportes_model->get_reportes_guardados($usuario_id);
+
+		$data['error'] = $this->reportes_model->get_error() ? $this->reportes_model->get_error() : $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['reportes'] = $reportes;
+		$data['error'] = $this->session->flashdata('error');
+		$this->load_template('reportes/reportes_guardados_listar', $data);
+	}
+
+	public function reporte_guardado($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$reporte = $this->reportes_model->get(array('id' => $id));
+		if (empty($reporte)) {
+			show_error('No se encontró el reporte a cargar', 500, 'Registro no encontrado');
+		}
+		if ($reporte->usuario_id != $this->usuario) {
+			show_error('Esta solicitud no pasó el control de seguridad.');
+		}
+
+		$parametros = json_decode($reporte->reporte, TRUE);
+		$rules = json_decode($reporte->reporte, TRUE);
+		$registros = $this->reportes_model->get_reporte_previo($parametros);
+
+		unset($parametros['condition']);
+		unset($parametros['rules']);
+		unset($parametros['valid']);
+
+		unset($rules['from']);
+		unset($rules['where']);
+		unset($rules['columnas']);
+		$rules = json_encode($rules);
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->reportes_model->get_error() ? $this->reportes_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+
+		return $this->paso3($parametros['from'], $registros, $parametros, $rules, $id);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+
+		$reporte = $this->reportes_model->get(array('id' => $id));
+		if (empty($reporte)) {
+			show_error('No se encontró el reporte a cargar', 500, 'Registro no encontrado');
+		}
+		if ($reporte->usuario_id != $this->usuario) {
+			show_error('Esta solicitud no pasó el control de seguridad.');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->reportes_model->delete(array('id' => $this->input->post('id')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->reportes_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', $this->reportes_model->get_error());
+			}
+			redirect('consultas/reportes/listar_guardados');
+		}
+
+		$parametros = json_decode($reporte->reporte, TRUE);
+		$rules = json_decode($reporte->reporte, TRUE);
+		$registros = $this->reportes_model->get_reporte_previo($parametros);
+
+		unset($parametros['condition']);
+		unset($parametros['rules']);
+		unset($parametros['valid']);
+
+		unset($rules['from']);
+		unset($rules['where']);
+		unset($rules['columnas']);
+
+		for ($i = 0; $i < count($rules['rules']); $i++) {
+			$rules['rules'][$i]['flags']['no_delete'] = true;
+			$rules['rules'][$i]['flags']['no_add_rule'] = true;
+			$rules['rules'][$i]['flags']['no_add_group'] = true;
+
+			$rules['rules'][$i]['flags']['filter_readonly'] = true;
+			$rules['rules'][$i]['flags']['operator_readonly'] = true;
+			$rules['rules'][$i]['flags']['value_readonly'] = true;
+		}
+
+		$rules = json_encode($rules);
+		$tabla = $this->reportes_model->get_tabla($parametros['from']);
+		$data['error'] = $this->reportes_model->get_error() ? $this->reportes_model->get_error() : $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['tablas'] = $this->reportes_model->get_tablas();
+		$data['tabla'] = $tabla;
+		$data['reporte_id'] = $reporte->id;
+		$data['columnas'] = $parametros['columnas'];
+		$data['registros'] = $registros;
+		$data['rules'] = $rules;
+		$data['parametros'] = json_encode($parametros);
+		$data['filtros'] = $this->reportes_model->get_filtros($parametros['from']);
+		$data['rules2'] = json_decode($data['rules'], TRUE);
+		$data['fields'] = $this->build_fields($this->reportes_model->fields);
+		$data['error'] = $this->session->flashdata('error');
+		$data['js'][] = 'plugins/querybuilder/js/query-builder.standalone.min.js';
+		$data['js'][] = 'plugins/querybuilder/i18n/query-builder.es.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/bootstrap-select.min.js';
+		$data['js'][] = 'plugins/bootstrap-select-1.12.2/js/i18n/defaults-es_ES.min.js';
+		$data['css'][] = 'plugins/querybuilder/css/query-builder.default.min.css';
+		$data['css'][] = 'plugins/bootstrap-select-1.12.2/css/bootstrap-select.min.css';
+		$this->load_template('reportes/reportes_eliminar', $data);
+	}
+
+	public function supervision() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$this->load->model('supervision_model');
+		$supervision = $this->supervision_model->get(array('id' => $this->rol->entidad_id));
+		$data['supervision'] = $supervision;
+		$data['error'] = $this->session->flashdata('error');
+		$this->load_template('reportes/reportes_supervision_listar', $data);
+	}
+
+	public function escuelas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Número', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('CUE', 10),
+			'D' => array('SubCUE', 10),
+			'E' => array('Nombre', 10),
+			'F' => array('Calle', 10),
+			'G' => array('N°', 10),
+			'H' => array('Barrio', 10),
+			'I' => array('Localidad', 10),
+			'J' => array('Departamento', 10),
+			'K' => array('C.P.', 10),
+			'L' => array('Nivel', 10),
+			'M' => array('Regímenes', 10),
+			'N' => array('Repartición', 10),
+			'O' => array('Supervisión', 10),
+			'P' => array('Regional', 10),
+			'Q' => array('Gestión', 10),
+			'R' => array('Zona', 10),
+			'S' => array('Fecha Creación', 10),
+			'T' => array('Año Resolución', 10),
+			'U' => array('Número Resolución', 10),
+			'V' => array('Teléfono', 10),
+			'W' => array('Email', 10)
+		);
+		$escuelas = $this->db->select('e.numero, e.anexo, e.cue, e.subcue, e.nombre, e.calle, e.calle_numero, e.barrio, lo.descripcion localidad, ld.descripcion departamento, '
+					. 'e.codigo_postal, n.descripcion nivel, rl.descripcion regimen_lista, CONCAT(j.codigo, \' \', r.codigo) reparticion, s.nombre supervision, rg.descripcion regional, d.descripcion dependencia, '
+					. 'z.descripcion zona, e.fecha_creacion, e.anio_resolucion, e.numero_resolucion, e.telefono, e.email')
+				->from('escuela e')
+				->join('dependencia d', 'd.id = e.dependencia_id', 'left')
+				->join('localidad lo', 'lo.id = e.localidad_id', 'left')
+				->join('departamento ld', 'ld.id = lo.departamento_id', 'left')
+				->join('nivel n', 'n.id = e.nivel_id', 'left')
+				->join('regimen_lista rl', 'rl.id = e.regimen_lista_id', 'left')
+				->join('linea l', 'l.id = n.linea_id', 'left')
+				->join('regional rg', 'rg.id = e.regional_id', 'left')
+				->join('reparticion r', 'r.id = e.reparticion_id', 'left')
+				->join('jurisdiccion j', 'j.id = r.jurisdiccion_id', 'left')
+				->join('supervision s', 's.id = e.supervision_id', 'left')
+				->join('zona z', 'z.id = e.zona_id', 'left')
+				->where('supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($escuelas)) {
+			$this->exportar_excel(array('title' => "Escuelas_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $escuelas);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function cargos() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona actual', 50),
+		);
+		$cargos = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona')
+				->from('cargo c')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+				->join('servicio sp', "sp.id = (SELECT id FROM servicio s WHERE s.cargo_id = c.id AND ((NOW() BETWEEN s.fecha_alta AND s.fecha_baja) OR NOW() >= s.fecha_alta AND s.fecha_baja IS NULL ) ORDER BY s.fecha_alta DESC LIMIT 1)", 'left')
+				->join('persona p', 'p.id = sp.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($cargos)) {
+			$this->exportar_excel(array('title' => "Cargos_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $cargos);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function servicios() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona', 50),
+			'H' => array('Liquidación', 15),
+			'I' => array('Alta', 11),
+			'J' => array('Baja', 11),
+		);
+		$servicios = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona, s.liquidacion, s.fecha_alta, s.fecha_baja')
+				->from('servicio s')
+				->join('cargo c', 'c.id = s.cargo_id')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+				->join('persona p', 'p.id = s.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($servicios)) {
+			$this->exportar_excel(array('title' => "Servicios_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $servicios);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function novedades() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona', 50),
+			'H' => array('Liquidación', 15),
+			'I' => array('Artículo', 11),
+			'J' => array('Desde', 11),
+			'K' => array('Hasta', 11),
+			'L' => array('Alta', 11),
+			'M' => array('Baja', 11),
+		);
+		$novedades = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona, '
+					. 's.liquidacion, CONCAT(nt.articulo, \'-\', nt.inciso, \' \', nt.descripcion), sn.fecha_desde, sn.fecha_hasta, s.fecha_alta, s.fecha_baja')
+				->from('servicio_novedad sn')
+				->join('novedad_tipo nt', 'nt.id = sn.novedad_tipo_id')
+				->join('servicio s', 's.id = sn.servicio_id')
+				->join('cargo c', 'c.id = s.cargo_id')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+				->join('persona p', 'p.id = s.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->where('sn.planilla_baja_id IS NULL')
+				->get()->result_array();
+
+		if (!empty($novedades)) {
+			$this->exportar_excel(array('title' => "Novedades_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $novedades);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+}

@@ -1,0 +1,54 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Comedor_presupuesto_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'comedor_presupuesto';
+		$this->msg_name = 'Comedor presupuesto';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'mes', 'monto_presupuestado', 'monto_entregado', 'dias_albergado', 'alumnos_media_racion', 'alumnos_racion_completa');
+		$this->fields = array(
+			'monto_presupuestado' => array('label' => 'Monto presupuestado', 'type' => 'number', 'step' => '.01'),
+			'monto_entregado' => array('label' => 'Monto entregado', 'type' => 'number', 'step' => '.01'),
+			'dias_albergado' => array('label' => 'Días albergado', 'type' => 'number'),
+			'alumnos_media_racion' => array('label' => 'Alumnos con media racion', 'type' => 'number'),
+			'alumnos_racion_completa' => array('label' => 'Alumnos con racion completa', 'type' => 'number')
+		);
+		$this->requeridos = array('escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+		);
+	}
+
+	public function buscar($escuela_id = NULL, $mes = NULL) {
+		return $this->db->select('id')
+				->from('comedor_presupuesto')
+				->where('escuela_id', $escuela_id)
+				->where('mes', $mes)
+				->get()->row();
+	}
+
+	public function get_comedor_divisiones($escuela_id, $mes) {
+		$ciclo_lectivo = substr($mes, 0, 4);
+		return $this->db->select("d.id, cu.descripcion curso, d.division, t.descripcion turno,cp.id as comedor_presuspuesto_id,cp.mes as mes, COUNT(DISTINCT ad.alumno_id) alumnos, 
+COUNT(DISTINCT CASE WHEN ca.comedor_racion_id=1 THEN  ad.alumno_id ELSE NULL END) alumnos_r1, 
+COUNT(DISTINCT CASE WHEN ca.comedor_racion_id=2 THEN  ad.alumno_id ELSE NULL END) alumnos_r2,
+COUNT(DISTINCT CASE WHEN ca.comedor_racion_id IS NULL THEN  ad.alumno_id ELSE NULL END) alumnos_sr")
+				->from('division d')
+				->join('curso cu', 'cu.id = d.curso_id')
+				->join('turno t', 't.id = d.turno_id', 'left')
+				->join('alumno_division ad', 'ad.division_id = d.id', 'left')
+				->join('comedor_presupuesto cp', "cp.escuela_id = d.escuela_id and cp.mes = $mes", 'left')
+				->join('comedor_alumno ca', 'ad.id = ca.alumno_division_id AND cp.id = ca.comedor_presupuesto_id', 'left')
+				->where('d.escuela_id', $escuela_id)
+				->where('d.fecha_baja IS NULL')
+				->where("(ad.fecha_hasta IS NULL OR DATE_FORMAT(ad.fecha_hasta,'%Y%m') >= $mes)")
+				->where("ad.ciclo_lectivo", $ciclo_lectivo)
+				->group_by('d.id, cp.mes')
+				->order_by('cu.descripcion, d.division')
+				->get()->result();
+	}
+}

@@ -1,0 +1,491 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Recepcion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_BONO_SECUNDARIO);
+	}
+
+	public function listar_personas_data_precepcion($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('inscripcion.id, escuela.numero as escuela, persona.PerCuil, CONCAT(persona.PerApe, \', \', persona.PerNom) as persona, CONCAT(persona.PerDomClle, \' \', persona.PerDomNro, \' \', persona.PerDomPiso) domicilio, CONCAT(persona.PerDomTel, \' \', persona.PerDomTel2) telefonos, persona.PerDomEmai, inscripcion.fecha_cierre as fecha_inscripcion, inscripcion.fecha_recepcion')
+			->unset_column('id')
+			->from('inscripcion')
+			->join('persona', 'inscripcion.persona_id = persona.id')
+			->join('escuela', 'escuela.id = inscripcion.escuela_id', 'left')
+			->where("inscripcion.fecha_recepcion is NULL AND inscripcion.fecha_cierre IS NOT NULL AND inscripcion.escuela_id = $escuela_id")
+			->add_column('edit', '<a href="bono_secundario/recepcion/recibir/$1" title="Administrar"><i class="fa fa-download"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function listar_personas_data_recibidos($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('inscripcion.id, escuela.numero as escuela, persona.PerCuil, CONCAT(persona.PerApe, \', \', persona.PerNom) as persona, CONCAT(persona.PerDomClle, \' \', persona.PerDomNro, \' \', persona.PerDomPiso) domicilio, CONCAT(persona.PerDomTel, \' \', persona.PerDomTel2) telefonos, persona.PerDomEmai, inscripcion.fecha_cierre as fecha_inscripcion, inscripcion.fecha_recepcion')
+			->unset_column('id')
+			->from('inscripcion')
+			->join('persona', 'inscripcion.persona_id = persona.id')
+			->join('escuela', 'escuela.id = inscripcion.escuela_id', 'left')
+			->where("inscripcion.fecha_recepcion is NOT NULL AND inscripcion.escuela_id = $escuela_id")
+			->add_column('edit', '<a href="bono_secundario/recepcion/recibir/$1" title="Administrar"><i class="fa fa-download"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function recibir($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+		if ($inscripcion->fecha_recepcion != '') {
+			$this->session->set_flashdata('error', "Está persona ya fue auditada anteriormente");
+			redirect("bono_secundario/recepcion/pendientes/$inscripcion->escuela_id", 'refresh');
+		}
+
+		$this->load->model('bono_secundario/persona_model');
+		$persona = $this->persona_model->get_persona($inscripcion->persona_id);
+
+
+		$tableData_titulo = array(
+			'columns' => array(
+				array('label' => 'Fecha de Emisión', 'data' => 'fecha_emision', 'render' => 'date', 'width' => 3),
+				array('label' => 'Título | Entidad', 'data' => 'titulo', 'width' => 15),
+				array('label' => 'Promedio', 'data' => 'promedio', 'width' => 5),
+				array('label' => 'Modalidad', 'data' => 'modalidad', 'width' => 5),
+				array('label' => 'Norma legal', 'data' => 'norma_legal', 'width' => 5),
+				array('label' => 'Años de cursado', 'data' => 'años_cursado', 'width' => 5),
+				array('label' => 'Horas Reloj', 'data' => 'cantidad_hs_reloj', 'width' => 5),
+				array('label' => 'Registro', 'data' => 'registro', 'width' => 5),
+				array('label' => 'Aceptar', 'data' => 'edit', 'width' => 2, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'titulos_table',
+			'source_url' => "bono_secundario/recepcion/titulos_table_data/$inscripcion_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$tableData_postitulo = array(
+			'columns' => array(
+				array('label' => 'Fecha de Emisión', 'data' => 'fecha_emision', 'render' => 'date', 'width' => 3),
+				array('label' => 'Título | Entidad', 'data' => 'titulo', 'width' => 15),
+				array('label' => 'Promedio', 'data' => 'promedio', 'width' => 5),
+				array('label' => 'Modalidad', 'data' => 'modalidad', 'width' => 5),
+				array('label' => 'Norma legal', 'data' => 'norma_legal', 'width' => 5),
+				array('label' => 'Horas Reloj', 'data' => 'cantidad_hs_reloj', 'width' => 5),
+				array('label' => 'Registro', 'data' => 'registro', 'width' => 5),
+				array('label' => 'Aceptar', 'data' => 'edit', 'width' => 2, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'postitulos_table',
+			'source_url' => "bono_secundario/recepcion/postitulos_table_data/$inscripcion_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$tableData_posgrado = array(
+			'columns' => array(
+				array('label' => 'Fecha de Emisión', 'data' => 'fecha_emision', 'render' => 'date', 'width' => 3),
+				array('label' => 'Título | Entidad', 'data' => 'titulo', 'width' => 15),
+				array('label' => 'Promedio', 'data' => 'promedio', 'width' => 5),
+				array('label' => 'Modalidad', 'data' => 'modalidad', 'width' => 5),
+				array('label' => 'Norma legal', 'data' => 'norma_legal', 'width' => 5),
+				array('label' => 'Horas Reloj', 'data' => 'cantidad_hs_reloj', 'width' => 5),
+				array('label' => 'Registro', 'data' => 'registro', 'width' => 5),
+				array('label' => 'Aceptar', 'data' => 'edit', 'width' => 2, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'posgrado_table',
+			'source_url' => "bono_secundario/recepcion/posgrado_table_data/$inscripcion_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$model1 = new stdClass();
+		$model1->fields = array(
+			'titulo_estado[]' => array('label' => 'titulo_id'),
+		);
+
+		$tableData_antiguedad = array(
+			'columns' => array(
+				array('label' => 'Tipo', 'data' => 'tipo', 'width' => 12),
+				array('label' => 'Fecha desde', 'data' => 'fecha_desde', 'width' => 5, 'render' => 'date'),
+				array('label' => 'Fecha hasta', 'data' => 'fecha_hasta', 'width' => 5, 'render' => 'date',),
+				array('label' => 'Aceptar', 'data' => 'edit', 'width' => 2, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'antiguedad_table',
+			'source_url' => "bono_secundario/recepcion/antiguedad_table_data/$inscripcion_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$model2 = new stdClass();
+		$model2->fields = array(
+			'antiguedad_estado[]' => array('label' => 'antiguedad_id'),
+		);
+
+		$tableData_antecedente = array(
+			'columns' => array(
+				array('label' => 'Fecha de Emisión', 'data' => 'fecha_emision', 'width' => 3, 'render' => 'date'),
+				array('label' => 'Antecedente', 'data' => 'antecedente', 'width' => 11),
+				array('label' => 'Institución', 'data' => 'institucion', 'width' => 4),
+				array('label' => 'N° Resolución', 'data' => 'numero_resolucion', 'width' => 2),
+				array('label' => 'Duración', 'data' => 'duracion', 'width' => 4),
+				array('label' => 'Aceptar', 'data' => 'edit', 'width' => 2, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'antecedente_table',
+			'source_url' => "bono_secundario/recepcion/antecedente_table_data/$inscripcion_id",
+			'reuse_var' => TRUE,
+			'dom' => 'rt'
+		);
+
+		$model3 = new stdClass();
+		$model3->fields = array(
+			'antecedente_estado[]' => array('label' => 'antecedente_id'),
+		);
+		$this->load->model('bono_secundario/recepcion_model');
+		$this->recepcion_model->set_database($DB1);
+		$this->load->model('bono_secundario/persona_titulo_model');
+		$this->persona_titulo_model->set_database($DB1);
+		$this->load->model('bono_secundario/persona_antiguedad_model');
+		$this->persona_antiguedad_model->set_database($DB1);
+		$this->load->model('bono_secundario/persona_antecedente_model');
+		$this->persona_antecedente_model->set_database($DB1);
+		$this->set_model_validation_rules($this->recepcion_model);
+		$this->set_model_validation_rules($model1);
+		$this->set_model_validation_rules($model2);
+		$this->set_model_validation_rules($model3);
+		if ($this->form_validation->run() === TRUE) {
+			$this->recepcion_model->set_database($DB1);
+			$DB1->trans_begin();
+			$trans_ok = TRUE;
+			if (isset($_POST) && !empty($_POST)) {
+				if ($inscripcion_id !== $this->input->post('id')) {
+					show_error('Esta solicitud no pasó el control de seguridad.');
+				}
+				$trans_ok &= $this->recepcion_model->update(array(
+					'id' => $inscripcion->id,
+					'fecha_recepcion' => date("Y-m-d"),
+					'observaciones_recepcion' => $this->input->post('observaciones_recepcion')
+					), FALSE);
+				$titulo_estado_ids = $this->input->post('titulo_estado');
+
+				$count = count($titulo_estado_ids);
+				for ($i = 0; $i < $count; $i++) {
+					if ($trans_ok) {
+						$trans_ok &= $this->persona_titulo_model->update(array(
+							'id' => $titulo_estado_ids[$i],
+							'estado' => 1
+							), FALSE);
+					}
+				}
+
+				$antecedente_estado_ids = $this->input->post('antecedente_estado');
+				$count = count($antecedente_estado_ids);
+				for ($i = 0; $i < $count; $i++) {
+					if ($trans_ok) {
+						$trans_ok &= $this->persona_antecedente_model->update(array(
+							'id' => $antecedente_estado_ids[$i],
+							'estado' => 1
+							), FALSE);
+					}
+				}
+
+				$antiguedad_estado_ids = $this->input->post('antiguedad_estado');
+				$count = count($antiguedad_estado_ids);
+				for ($i = 0; $i < $count; $i++) {
+					if ($trans_ok) {
+						$trans_ok &= $this->persona_antiguedad_model->update(array(
+							'id' => $antiguedad_estado_ids[$i],
+							'estado' => 1
+							), FALSE);
+					}
+				}
+
+				if ($DB1->trans_status() && $trans_ok) {
+					$DB1->trans_commit();
+					$this->session->set_flashdata('message', $this->recepcion_model->get_msg());
+				} else {
+					$DB1->trans_rollback();
+					$errors = 'Ocurrió un error al intentar actualizar.';
+					if ($this->recepcion_model->get_error())
+						$errors .= '<br>' . $this->recepcion_model->get_error();
+					if ($this->persona_titulo_model->get_error())
+						$errors .= '<br>' . $this->persona_titulo_model->get_error();
+					if ($this->persona_antecedente_model->get_error())
+						$errors .= '<br>' . $this->persona_antecedente_model->get_error();
+					if ($this->persona_antiguedad_model->get_error())
+						$errors .= '<br>' . $this->persona_antiguedad_model->get_error();
+
+					$this->session->set_flashdata('error', $errors);
+				}
+				redirect("bono_secundario/recepcion/pendientes/$inscripcion->escuela_id", 'refresh');
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->recepcion_model->get_error() ? $this->recepcion_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+		$data['inscripcion'] = $inscripcion;
+		$data['persona'] = $persona;
+		$this->load->model('bono_secundario/inscripcion_model');
+		$persona->observaciones_recepcion = '';
+
+		$data['fields'] = $this->build_fields($this->recepcion_model->fields, $persona);
+		$data['html_table_titulo'] = buildHTML($tableData_titulo);
+		$data['js_table_titulo'] = buildJS($tableData_titulo);
+		$data['html_table_postitulo'] = buildHTML($tableData_postitulo);
+		$data['js_table_postitulo'] = buildJS($tableData_postitulo);
+		$data['html_table_posgrado'] = buildHTML($tableData_posgrado);
+		$data['js_table_posgrado'] = buildJS($tableData_posgrado);
+		$data['html_table_antiguedad'] = buildHTML($tableData_antiguedad);
+		$data['js_table_antiguedad'] = buildJS($tableData_antiguedad);
+		$data['html_table_antecedente'] = buildHTML($tableData_antecedente);
+		$data['js_table_antecedente'] = buildJS($tableData_antecedente);
+		$data['txt_btn'] = "Recibir y aceptar seleccionado";
+		$data['class'] = array('precepcion' => '', 'recibidos' => '', 'cambiar_rol' => '');
+		$data['title'] = 'Bono Secundario - Ver persona';
+		$this->load_template('bono_secundario/recepcion/recepcion_recibir', $data);
+	}
+
+	public function titulos_table_data($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('concat(titulo.NomTitLon, "<br>", entidad_emisora.entidad) as titulo, persona_titulo.fecha_emision as fecha_emision, persona_titulo.promedio as promedio, persona_titulo.id,modalidad.descripcion as modalidad, persona_titulo.registro, persona_titulo.años_cursado, persona_titulo. cantidad_hs_reloj, concat(coalesce(norma_legal_tipo.descripcion, \'\'), \'  \', coalesce(persona_titulo.norma_legal_numero, \'\'), \'/\', coalesce(persona_titulo.norma_legal_año, \'\')) as norma_legal')
+			->unset_column('id')
+			->from('persona_titulo')
+			->join('titulo', 'persona_titulo.titulo_id = titulo.id', 'left')
+			->join('modalidad', 'modalidad.id=persona_titulo.modalidad_id', 'left', array('modalidad.descripcion as modalidad'))
+			->join('norma_legal_tipo', 'norma_legal_tipo.id=persona_titulo.norma_legal_tipo_id', 'left', array('norma_legal_tipo.descripcion as norma_legal_tipo'))
+			->join('entidad_emisora', 'entidad_emisora.id=persona_titulo.entidad_emisora_id', 'left', array('entidad as entidad_emisora'))
+			->where('persona_titulo.persona_id', $inscripcion->persona_id)
+			->where('persona_titulo.titulo_tipo_id', 1);
+		$this->datatables->add_column('edit', '<input type="checkbox" name="titulo_estado[]" value="$1">', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function postitulos_table_data($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('concat(titulo.NomTitLon, "<br>", entidad_emisora.entidad) as titulo, persona_titulo.fecha_emision as fecha_emision, persona_titulo.promedio as promedio, persona_titulo.id,modalidad.descripcion as modalidad, persona_titulo.registro, persona_titulo. cantidad_hs_reloj, concat(coalesce(norma_legal_tipo.descripcion, \'\'), \'  \', coalesce(persona_titulo.norma_legal_numero, \'\'), \'/\', coalesce(persona_titulo.norma_legal_año, \'\')) as norma_legal')
+			->unset_column('id')
+			->from('persona_titulo')
+			->join('titulo', 'persona_titulo.titulo_id = titulo.id', 'left')
+			->join('modalidad', 'modalidad.id=persona_titulo.modalidad_id', 'left', array('modalidad.descripcion as modalidad'))
+			->join('norma_legal_tipo', 'norma_legal_tipo.id=persona_titulo.norma_legal_tipo_id', 'left', array('norma_legal_tipo.descripcion as norma_legal_tipo'))
+			->join('entidad_emisora', 'entidad_emisora.id=persona_titulo.entidad_emisora_id', 'left', array('entidad as entidad_emisora'))
+			->where('persona_titulo.persona_id', $inscripcion->persona_id)
+			->where('persona_titulo.titulo_tipo_id', 2);
+		$this->datatables->add_column('edit', '<input type="checkbox" name="titulo_estado[]" value="$1">', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function posgrado_table_data($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('concat(titulo.NomTitLon, "<br>", entidad_emisora.entidad) as titulo, persona_titulo.fecha_emision as fecha_emision, persona_titulo.promedio as promedio, persona_titulo.id,modalidad.descripcion as modalidad, persona_titulo.registro, persona_titulo. cantidad_hs_reloj, concat(coalesce(norma_legal_tipo.descripcion, \'\'), \'  \', coalesce(persona_titulo.norma_legal_numero, \'\'), \'/\', coalesce(persona_titulo.norma_legal_año, \'\')) as norma_legal')
+			->unset_column('id')
+			->from('persona_titulo')
+			->join('titulo', 'persona_titulo.titulo_id = titulo.id', 'left')
+			->join('modalidad', 'modalidad.id=persona_titulo.modalidad_id', 'left', array('modalidad.descripcion as modalidad'))
+			->join('norma_legal_tipo', 'norma_legal_tipo.id=persona_titulo.norma_legal_tipo_id', 'left', array('norma_legal_tipo.descripcion as norma_legal_tipo'))
+			->join('entidad_emisora', 'entidad_emisora.id=persona_titulo.entidad_emisora_id', 'left', array('entidad as entidad_emisora'))
+			->where('persona_titulo.persona_id', $inscripcion->persona_id)
+			->where('persona_titulo.titulo_tipo_id', 3);
+		$this->datatables->add_column('edit', '<input type="checkbox" name="titulo_estado[]" value="$1">', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function antiguedad_table_data($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('antiguedad_tipo.descripcion as tipo, persona_antiguedad.fecha_desde, persona_antiguedad.fecha_hasta, persona_antiguedad.id')
+			->unset_column('id')
+			->from('persona_antiguedad')
+			->join('antiguedad_tipo', 'antiguedad_tipo.id = persona_antiguedad.tipo_id', 'left')
+			->where('persona_antiguedad.persona_id', $inscripcion->persona_id);
+		$this->datatables->add_column('edit', '<input type="checkbox" name="antiguedad_estado[]" value="$1">', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function antecedente_table_data($inscripcion_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $inscripcion_id == NULL || !ctype_digit($inscripcion_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/inscripcion_model');
+		$this->inscripcion_model->set_database($DB1);
+		$inscripcion = $this->inscripcion_model->get_one($inscripcion_id);
+		if (empty($inscripcion)) {
+			show_error('No se encontró la inscripción a recibir', 500, 'Registro no encontrado');
+		}
+
+		$this->datatables->set_database('bono_secundario');
+		$this->datatables
+			->select('persona_antecedente.id, antecedente, fecha_emision,institucion, numero_resolucion, CONCAT(duracion, \' \', tipo_duracion) as duracion')
+			->unset_column('id')
+			->from('persona_antecedente')
+			->where('persona_antecedente.persona_id', $inscripcion->persona_id);
+		$this->datatables->add_column('edit', '<input type="checkbox" name="antecedente_estado[]" value="$1">', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	function pendientes($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/escuela_model');
+		$this->escuela_model->set_database($DB1);
+		$escuela = $this->escuela_model->get_escuela_bono($this->rol->entidad_id);
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'N° Trámite', 'data' => 'id', 'class' => 'dt-body-right', 'width' => 5),
+				array('label' => 'Escuela', 'data' => 'escuela', 'width' => 5),
+				array('label' => 'CUIL', 'data' => 'PerCuil', 'width' => 10),
+				array('label' => 'Nombre', 'data' => 'persona', 'width' => 11),
+				array('label' => 'Domicilio', 'data' => 'domicilio', 'width' => 10),
+				array('label' => 'Teléfonos', 'data' => 'telefonos', 'width' => 10),
+				array('label' => 'Email', 'data' => 'PerDomEmai', 'width' => 10),
+				array('label' => 'Fecha Inscripción', 'data' => 'fecha_inscripcion', 'render' => 'date', 'width' => 10),
+				array('label' => 'Fecha Recepción', 'data' => 'fecha_recepcion', 'render' => 'date', 'width' => 10),
+				array('label' => '', 'data' => 'edit', 'width' => 5, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'persona_table',
+			'source_url' => "bono_secundario/recepcion/listar_personas_data_precepcion/$escuela_id",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_persona_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$this->load->model('bono_secundario/recepcion_model');
+		$precepcion = $this->recepcion_model->get_precepcion($escuela_id);
+		$recibidos = $this->recepcion_model->get_recibidos($escuela_id);
+
+		$data['escuela'] = $escuela;
+		$data['cantidad_bonos'] = array('precepcion' => $precepcion, 'recibidos' => $recibidos);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['class'] = array('pendientes' => 'active btn-app-zetta-active', 'recibidos' => '', 'escuelas' => '');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Personas';
+		$this->load_template('bono_secundario/persona/persona_listar', $data);
+	}
+
+	function recibidos($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('bono_secundario/escuela_model');
+		$escuela = $this->escuela_model->get_escuela_bono($this->rol->entidad_id);
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'N° Trámite', 'data' => 'id', 'class' => 'dt-body-right', 'width' => 5),
+				array('label' => 'Escuela', 'data' => 'escuela', 'width' => 5),
+				array('label' => 'CUIL', 'data' => 'PerCuil', 'width' => 10),
+				array('label' => 'Nombre', 'data' => 'persona', 'width' => 10),
+				array('label' => 'Domicilio', 'data' => 'domicilio', 'width' => 10),
+				array('label' => 'Teléfonos', 'data' => 'telefonos', 'width' => 10),
+				array('label' => 'Email', 'data' => 'PerDomEmai', 'width' => 10),
+				array('label' => 'Fecha Inscripción', 'data' => 'fecha_inscripcion', 'render' => 'date', 'width' => 10),
+				array('label' => 'Fecha Recepción', 'data' => 'fecha_recepcion', 'render' => 'date', 'width' => 10),
+			),
+			'table_id' => 'persona_table',
+			'source_url' => "bono_secundario/recepcion/listar_personas_data_recibidos/$escuela_id",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_persona_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$this->load->model('bono_secundario/recepcion_model');
+		$precepcion = $this->recepcion_model->get_precepcion($escuela_id);
+		$recibidos = $this->recepcion_model->get_recibidos($escuela_id);
+
+		$data['escuela'] = $escuela;
+		$data['cantidad_bonos'] = array('precepcion' => $precepcion, 'recibidos' => $recibidos);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['class'] = array('pendientes' => '', 'recibidos' => 'active btn-app-zetta-active', 'escuelas' => '');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Bono Secundario - Personas';
+		$this->load_template('bono_secundario/persona/persona_listar', $data);
+	}
+}
+/* End of file Recepcion.php */
+/* Location: ./application/modules/bono/controllers/Recepcion.php */

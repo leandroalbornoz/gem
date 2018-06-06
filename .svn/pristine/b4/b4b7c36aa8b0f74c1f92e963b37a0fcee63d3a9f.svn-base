@@ -1,0 +1,165 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Personas
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="juntas/<?php echo $controlador; ?>/listar_personas">Lista de personas</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<div class="row">
+								<div class="col-md-12">
+									<h4>
+										<b>
+											<?php echo "$persona->apellido, $persona->nombre (CUIL: $persona->cuil)"; ?>
+										</b>
+										<?php if ($this->usuario == '37' || $this->usuario == '3460'): ?>
+											<?php if (!empty($inscripcion)): ?>
+												<a class="btn btn-xs btn-default" href="juntas/inscripcion/modal_abrir_inscripcion/<?= $inscripcion->persona_id ?>" title="Abrir inscripción" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-envelope-open-o"></i> Abrir inscripción</a>
+											<?php endif; ?>
+										<?php endif; ?>
+									</h4>
+								</div>
+							</div>
+						</h3>
+					</div>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<div class="row">
+							<div class="form-group col-md-8">
+								<?php echo $fields['email']['label']; ?>
+								<?php echo $fields['email']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-8">
+								<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+									<thead>
+										<tr style="background-color: #f4f4f4" >
+											<th style="text-align: center;" <?= ($this->usuario == '3460' ? 'colspan="5"' : 'colspan="4"') ?> >
+												Titulos											
+												<a class="pull-left btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="juntas/persona_titulo/modal_agregar/<?php echo $persona->id; ?>"><i class="fa fa-plus"></i></a>									
+											</th>
+										</tr>
+										<tr>
+											<th>Denominación</th>
+											<th>Entidad</th>
+											<th></th>
+											<th></th>
+											<?= ($this->usuario == '3460' ? '<th></th>' : '') ?>
+										</tr>
+									</thead>
+									<tbody>
+										<?php if (!empty($persona_titulos)): ?>
+											<?php foreach ($persona_titulos as $titulo): ?>
+												<tr <?= ($titulo->borrado == '1' ? 'style="background-color: #FBE2D0;"' : '') ?>>
+													<td><?= $titulo->NomTitLon; ?></td>
+													<td><?= (!empty($titulo->entidad_emisora)) ? $titulo->entidad_emisora : ''; ?> </td>
+													<td width="20">
+														<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="juntas/persona_titulo/modal_eliminar/<?php echo $titulo->id ?>/"><i class="fa fa-remove"></i></a>
+													</td>
+													<td width="20">
+														<a class="btn btn-xs btn-primary" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="juntas/persona_titulo/modal_editar/<?php echo $titulo->id ?>/"><i class="fa fa-pencil"></i></a>
+													</td>
+													<?php if ($this->usuario == '3460'): ?>
+														<td width="20">
+															<a class="btn btn-xs btn-warning" href="juntas/persona_titulo/deshacer_borrado/<?php echo $titulo->id ?>/"><i class="fa fa-reply"></i></a>
+														</td>
+													<?php endif; ?>
+												</tr>
+											<?php endforeach; ?>
+										<?php else : ?>
+											<tr>
+												<td style="text-align: center;" colspan="4">
+													-- No posee títulos asociados  --
+												</td>
+											</tr>
+										<?php endif; ?>
+									</tbody>
+								</table>
+							</div>
+							<div class="form-group col-md-4">
+								<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+									<thead>
+										<tr style="background-color: #f4f4f4" >
+											<th style="text-align: center;" colspan="2">
+												Cargos
+												<?php if ($this->rol->codigo == ROL_JUNTAS && $this->rol->entidad_id == '4'): ?>	
+													<a class="pull-left btn btn-xs btn-success"  href="juntas/persona_cargo/agregar/<?php echo $persona->id; ?>"><i class="fa fa-plus"></i></a>	
+												<?php else: ?>
+													<a class="pull-left btn btn-xs btn-success" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="juntas/persona_cargo/modal_agregar/<?php echo $persona->id; ?>"><i class="fa fa-plus"></i></a>	
+												<?php endif; ?>
+											</th>
+										</tr>
+										<tr>
+											<th>Nombre</th>
+											<th></th>
+
+										</tr>
+									</thead>
+									<tbody>
+										<?php if (!empty($persona_cargos)): ?>
+											<?php foreach ($persona_cargos as $cargo): ?>
+												<tr>
+													<td><?= ucwords($cargo->cargo); ?></td>
+													<td width="20">
+														<a class="btn btn-xs btn-danger" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="juntas/persona_cargo/modal_eliminar/<?php echo $cargo->id ?>/"><i class="fa fa-remove"></i></a>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										<?php else : ?>
+											<tr>
+												<td style="text-align: center;" colspan="2">
+													-- No tiene cargos asociados --
+												</td>
+											</tr>
+										<?php endif; ?>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<div class="box-footer">
+							<?php if ($txt_btn === 'ver' || $txt_btn === 'Editar'): ?>
+								<a class="btn btn-default" href="<?php echo ($txt_btn === 'ver') ? "titulos/titulo_persona/listar" : "titulos/titulo_persona/ver/$persona->id"; ?>" title="<?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?>"><?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?></a>
+								<?php echo ($txt_btn === 'Editar') ? '<input type="submit" value="Guardar" class="btn btn-primary pull-right" title="Guardar" id="Guardar">' : ''; ?>
+								<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $persona->id) : ''; ?>
+							<?php else: ?>
+								<a class="btn btn-default" href="juntas/escritorio/listar_personas" title="Volver">Volver</a>
+							<?php endif; ?>
+						</div>
+						<?php echo form_close(); ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	var personas_table;
+	function complete_personas_table() {
+		agregar_filtros('personas_table', personas_table, 6);
+	}
+</script>

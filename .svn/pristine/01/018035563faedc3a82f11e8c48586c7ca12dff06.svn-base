@@ -1,0 +1,80 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Division_inasistencia_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'division_inasistencia';
+		$this->msg_name = 'Inasistencia Mensual de División';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'division_id', 'ciclo_lectivo', 'periodo', 'mes', 'resumen_mensual', 'dias', 'fecha_cierre');
+		$this->fields = array(
+			'division' => array('label' => 'División', 'readonly' => TRUE),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'readonly' => TRUE),
+			'periodo' => array('label' => 'Periodo', 'readonly' => TRUE),
+			'mes' => array('label' => 'Mes', 'readonly' => TRUE),
+			'dias' => array('label' => 'Días de Cursado', 'type' => 'integer', 'maxlength' => '2'),
+			'resumen_mensual' => array('label' => 'Tipo de Carga', 'input_type' => 'combo', 'array' => array('Si' => 'Resumen Mensual', 'No' => 'Detallado por Día'))
+		);
+		$this->requeridos = array('division_id', 'ciclo_lectivo', 'mes');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('division', 'division.id = division_inasistencia.division_id', 'left', array('division.division as division', 'division.escuela_id')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso')),
+			array('calendario', 'calendario.id = division.calendario_id', 'left', array('calendario.nombre_periodo')),
+			array('calendario_periodo', 'calendario_periodo.calendario_id = calendario.id AND calendario_periodo.ciclo_lectivo =  division_inasistencia.ciclo_lectivo AND calendario_periodo.periodo = division_inasistencia.periodo ', 'left', array('calendario_periodo.inicio as fecha_inicio', 'calendario_periodo.fin as fecha_fin')),
+		);
+	}
+
+	public function get_registro($division_id, $ciclo_lectivo, $periodo, $mes) {
+		return $this->db->select('id')->from('division_inasistencia')->where(array('division_id' => $division_id, 'ciclo_lectivo' => $ciclo_lectivo, 'periodo' => $periodo, 'mes' => $mes))->get()->row();
+	}
+
+	public function get_registros($division_id, $ciclo_lectivo) {
+		$registros_bd = $this->db->select('id, periodo, mes, resumen_mensual, fecha_cierre, dias')->from('division_inasistencia')->where(array('division_id' => $division_id, 'ciclo_lectivo' => $ciclo_lectivo))->get()->result();
+		$registros = array();
+		if (!empty($registros_bd)) {
+			foreach ($registros_bd as $registro_bd) {
+				$registros[$registro_bd->periodo][$registro_bd->mes] = $registro_bd;
+			}
+		}
+		return $registros;
+	}
+
+	public function get_estadisticas_inasistencias($division_id, $ciclo_lectivo) {
+		return $this->db->select('di.periodo, di.mes, di.dias, di.fecha_cierre, COALESCE(ai.alumnos,0) alumnos, COALESCE(ai.dias_nc,0) dias_nc, COALESCE(ai.dias_falta, 0) dias_falta,
+	COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) asistencia_ideal,
+    COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) - COALESCE(ai.dias_falta, 0) asistencia_real,
+    (COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) - COALESCE(ai.dias_falta, 0))/(COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0))*100 asistencia_media')
+				->from('division_inasistencia di')
+				->join("(SELECT di.id, COUNT(DISTINCT ad.id) alumnos, SUM(CASE WHEN justificada='NC' THEN falta ELSE 0 END) dias_nc, SUM(CASE WHEN justificada='NC' THEN 0 ELSE falta END) dias_falta
+	FROM alumno_division ad
+	JOIN division_inasistencia di ON ad.division_id=di.division_id AND ad.ciclo_lectivo=di.ciclo_lectivo AND di.mes BETWEEN DATE_FORMAT(ad.fecha_desde, '%Y%m') AND COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes)
+		LEFT JOIN division_inasistencia_dia did ON di.id=did.division_inasistencia_id
+    LEFT JOIN alumno_inasistencia ai ON did.id=ai.division_inasistencia_dia_id AND ad.id=ai.alumno_division_id
+    WHERE di.division_id=$division_id AND di.ciclo_lectivo=$ciclo_lectivo
+    GROUP BY di.id) ai", 'di.id = ai.id')
+				->where('di.fecha_cierre IS NOT NULL')
+				->where('di.division_id', $division_id)
+				->where('di.ciclo_lectivo', $ciclo_lectivo)
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('division_inasistencia_id', $delete_id)->count_all_results('division_inasistencia_dia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga cargas asociadas.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Division_inasistencia_model.php */
+/* Location: ./application/models/Division_inasistencia_model.php */

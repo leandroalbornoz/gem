@@ -1,0 +1,86 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Mail_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'mail';
+		$this->msg_name = 'Mail';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'mail_remitente', 'nombre_remitente', 'mail_destinatario', 'nombre_destinatario', 'asunto', 'mensaje', 'fecha_envio', 'fecha_carga');
+		$this->fields = array(
+			'mail_remitente' => array('label' => 'Mail remitente'),
+			'nombre_remitente' => array('label' => 'Nombre remitente'),
+			'mail_destinatario' => array('label' => 'Mail destinatario'),
+			'nombre_destinatario' => array('label' => 'Nombre destinario'),
+			'asunto' => array('label' => 'Asunto'),
+			'mensaje' => array('label' => 'Mensaje'),
+			'fecha_envio' => array('label' => 'Fecha_envio'),
+			'fecha_carga' => array('label' => 'Fecha_carga')
+		);
+
+		$this->requeridos = array();
+		//$this->unicos = array();
+		$this->default_join = array(
+		);
+	}
+
+	public function get_mails_escuela($escuela_id, $ciclo_lectivo) {
+		return $this->db->select('a.email_contacto')
+				->from('alumno a')
+				->join('persona p', 'p.id = a.persona_id', 'left')
+				->join('alumno_division ad', 'ad.alumno_id = a.id', 'left')
+				->join('division d', 'd.id = ad.division_id', 'left')
+				->join('curso c', 'd.curso_id = c.id', 'left')
+				->join('documento_tipo dt', 'p.documento_tipo_id = dt.id', 'left')
+				->where('d.escuela_id', $escuela_id)
+				->where('ad.fecha_hasta IS NULL')
+				->where('ciclo_lectivo', $ciclo_lectivo)
+				->order_by('a.id')
+				->get()->result();
+	}
+
+	public function get_divison_mes_cerrado($mes) {
+		return $this->db->select('d.*, e.numero, e.anexo, e.nombre')
+				->from('division d')
+				->join('escuela e', 'd.escuela_id=e.id')
+				->join('division_inasistencia di', 'di.division_id = d.id')
+				->where('di.mes', $mes)
+				->where('di.fecha_cierre IS NOT NULL')
+				->order_by('d.id')
+				->group_by('d.id')
+				->get()->result();
+	}
+
+	public function get_alumnos($division_id, $mes) {
+		return $this->db->select('ad.id')
+				->from('alumno_division ad')
+				->join('alumno a', 'a.id = ad.alumno_id')
+				->where('ad.division_id', $division_id)
+				->where("a.email_contacto != ''")
+				->where("COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),$mes) >= $mes AND COALESCE(DATE_FORMAT(ad.fecha_desde,'%Y%m'),$mes)<=$mes")
+				->where('ad.ciclo_lectivo', substr($mes, 0, 4))
+				->get()->result();
+	}
+
+	function update_envio_email($email_id = "") {
+		$this->db
+			->set('fecha_envio', date('Y-m-d H:i:s'))
+			->where('id', $email_id)
+			->update('mail');
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Alumno_model.php */
+/* Location: ./application/models/Alumno_model.php */

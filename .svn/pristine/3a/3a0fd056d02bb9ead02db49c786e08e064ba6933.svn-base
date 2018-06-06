@@ -1,0 +1,55 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Webservice extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = explode(',', ROLES);
+		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
+	}
+	/* Datos prueba:
+	  Cuil: 23327524569
+	  ApeyNom:PAROLA
+	  LegExterno:2701740186042
+	  LegId:32752456001 */
+
+	public function buscar() {
+		$model = new stdClass();
+		$model->fields = array(
+			'PersonaCUIL' => array('label' => 'CUIL', 'maxlength' => '11', 'type' => 'integer'),
+			'PersonaApeYNom' => array('label' => 'Apellido y Nombre', 'maxlength' => '11', 'type' => 'text'),
+			'LegajoExterno' => array('label' => 'Legajo Externo', 'maxlength' => '13', 'type' => 'integer'),
+			'LegajoId' => array('label' => 'Legajo ID', 'maxlength' => '11', 'type' => 'integer')
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$client = new SOAPClient(dirname(__FILE__) . "home/web/gem/consultalegajo.xml", array('cache_wsdl' => WSDL_CACHE_NONE, 'trace' => TRUE));
+			$client->__setLocation('https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep');
+			$datos = array(
+				'PersonaCUIL' => (float) $this->input->post('PersonaCUIL'),
+				'PersonaApeYNom' => $this->input->post('PersonaApeYNom'),
+				'LegajoExterno' => (float) $this->input->post('LegajoExterno'),
+				'LegajoId' => (float) $this->input->post('LegajoId')
+			);
+			$respuesta = $client->Execute(array('Parmin' => array(
+					'ApiKey' => 'ba8abb35-4b25-4942-a296-21151a203c0f',
+					'Legajos' => array($datos)
+			)));
+			if (!isset($respuesta->Parmout->Resultados->Item->Legajos->Legajo)) {
+				$errors = $respuesta->Parmout->Resultados->Item->Mensajes->{'Messages.Message'}->Description;
+				$data['error'] = $errors;
+			} else {
+				if (!is_array($respuesta->Parmout->Resultados->Item->Legajos->Legajo)) {
+					$data['respuesta'] = array($respuesta->Parmout->Resultados->Item->Legajos->Legajo);
+				} else {
+					$data['respuesta'] = $respuesta->Parmout->Resultados->Item->Legajos->Legajo;
+				}
+			}
+		}
+		$data['title'] = TITLE;
+		$data['fields'] = $this->build_fields($model->fields);
+		$this->load_template('signos/signos_consulta', $data);
+	}
+}

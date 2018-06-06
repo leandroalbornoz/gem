@@ -1,0 +1,221 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Horario extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->load->model('horario_model');
+		$this->roles_permitidos = explode(',', ROLES);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/horario';
+	}
+
+	public function modal_agregar($division_id, $dia_id, $hora_catedra) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !ctype_digit($division_id) || !ctype_digit($dia_id) || !ctype_digit($hora_catedra)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$division = $this->division_model->get(array('id' => $division_id));
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro a agregar', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('dia_model');
+		$dia = $this->dia_model->get(array('id' => $dia_id));
+
+		unset($this->horario_model->fields['division']);
+		unset($this->horario_model->fields['dia']['input_type']);
+		unset($this->horario_model->fields['dia']['required']);
+		$this->horario_model->fields['dia']['disabled'] = TRUE;
+		$this->horario_model->fields['dia']['value'] = $dia->nombre;
+		$this->horario_model->fields['hora_catedra']['disabled'] = TRUE;
+		$this->horario_model->fields['hora_catedra']['value'] = $hora_catedra;
+		$this->horario_model->fields['obligaciones']['value'] = 1;//valor por defecto
+		$this->set_model_validation_rules($this->horario_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->horario_model->create(array(
+					'division_id' => $division->id,
+					'dia_id' => $dia_id,
+					'hora_catedra' => $hora_catedra,
+					'obligaciones' => $this->input->post('obligaciones'),
+					'hora_desde' => $this->input->post('hora_desde'),
+					'hora_hasta' => $this->input->post('hora_hasta')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->horario_model->get_msg());
+					redirect("division/editar_horario/$division->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->horario_model->get_error());
+					redirect("division/editar_horario/$division->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("division/editar_horario/$division->id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->horario_model->fields);
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = validation_errors() ? validation_errors() : $this->session->flashdata('error');
+		$data['title'] = "Agregar hora";
+		$this->load->view('horario/horario_modal_agregar', $data);
+	}
+
+	public function modal_editar($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$horario = $this->horario_model->get(array(
+			'id' => $id,
+			'join' => array(
+				array('division', 'division.id=horario.division_id', 'left', array()),
+				array('turno', 'turno.id=division.turno_id', 'left', array('turno.descripcion as turno', 'turno.id as turno_id')),
+				array('dia', 'dia.id=horario.dia_id', 'left', array('dia.nombre as dia', 'dia.id as dia_id')),
+			)
+		));
+
+		if (empty($horario)) {
+			$this->modal_error('No se encontró el registro del horario a editar', 'Registro no encontrado');
+			return;
+		}
+
+		$division = $this->division_model->get(array('id' => $horario->division_id));
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		unset($this->horario_model->fields['division']);
+		unset($this->horario_model->fields['dia']['input_type']);
+		$this->horario_model->fields['dia']['readonly'] = TRUE;
+		$this->horario_model->fields['hora_catedra']['readonly'] = TRUE;
+
+		$this->set_model_validation_rules($this->horario_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('horario_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->horario_model->update(array(
+					'id' => $this->input->post('horario_id'),
+					'obligaciones' => $this->input->post('obligaciones'),
+					'hora_desde' => $this->input->post('hora_desde'),
+					'hora_hasta' => $this->input->post('hora_hasta')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->horario_model->get_msg());
+					redirect("division/editar_horario/$horario->division_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->horario_model->get_error());
+					redirect("division/editar_horario/$horario->division_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("division/editar_horario/$horario->division_id", 'refresh');
+			}
+		}
+		$horario->dia = $horario->dia;
+
+		$data['fields'] = $this->build_fields($this->horario_model->fields, $horario);
+
+		$data['horario_id'] = $horario->id;
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = validation_errors() ? validation_errors() : $this->session->flashdata('error');
+		$data['title'] = "Editar hora";
+		$this->load->view('horario/horario_modal_editar', $data);
+	}
+
+	public function modal_eliminar($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$horario = $this->horario_model->get_one($id);
+		if (empty($horario)) {
+			$this->modal_error('No se encontró el registro del horario a eliminar', 'Registro no encontrado');
+			return;
+		}
+
+		$division = $this->division_model->get(array('id' => $horario->division_id));
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		unset($this->horario_model->fields['division']);
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('horario_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->horario_model->delete(array(
+				'id' => $this->input->post('horario_id'),
+			));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->horario_model->get_msg());
+				redirect("division/editar_horario/$horario->division_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', $this->horario_model->get_error());
+				redirect("division/editar_horario/$horario->division_id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->horario_model->fields, $horario, TRUE);
+
+		$data['horario_id'] = $horario->id;
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = validation_errors() ? validation_errors() : $this->session->flashdata('error');
+		$data['title'] = "Eliminar hora";
+		$this->load->view('horario/horario_modal_eliminar', $data);
+	}
+}
+/* End of file Horario.php */
+/* Location: ./application/controllers/Horario.php */

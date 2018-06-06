@@ -1,0 +1,360 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Carrera extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('carrera_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		if (!in_array($this->rol->codigo, array(ROL_ADMIN, ROL_USI, ROL_LINEA, ROL_GRUPO_ESCUELA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/carrera';
+	}
+
+	public function listar($nivel_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Nivel', 'data' => 'nivel', 'width' => 20),
+				array('label' => 'Carrera', 'data' => 'descripcion', 'width' => 44),
+				array('label' => 'Fecha Desde', 'data' => 'fecha_desde', 'render' => 'date', 'width' => 12),
+				array('label' => 'Fecha Hasta', 'data' => 'fecha_hasta', 'render' => 'date', 'width' => 12),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'order' => array(array(0, 'asc'), array(1, 'asc')),
+			'table_id' => 'carrera_table',
+			'source_url' => "carrera/listar_data/$nivel_id",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_carrera_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		if (empty($nivel_id)) {
+			$data['title'] = TITLE . ' - Carreras';
+		} else {
+			$this->load->model('nivel_model');
+			$nivel = $this->nivel_model->get(array('id' => $nivel_id));
+			$data['nivel'] = $nivel;
+			$data['title'] = TITLE . ' - Carreras Nivel ' . $nivel->descripcion;
+		}
+		$this->load_template('carrera/carrera_listar', $data);
+	}
+
+	public function listar_data($nivel_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('carrera.id, carrera.descripcion, carrera.fecha_desde, carrera.fecha_hasta, carrera.nivel_id, nivel.descripcion as nivel')
+			->unset_column('id')
+			->from('carrera')
+			->join('nivel', 'nivel.id = carrera.nivel_id', 'left');
+		if (!empty($nivel_id)) {
+			$this->datatables->where('nivel_id', $nivel_id);
+		}
+		switch ($this->rol->codigo) {
+			case ROL_GRUPO_ESCUELA:
+			case ROL_GRUPO_ESCUELA_CONSULTA:
+				$this->datatables
+					->join('escuela_carrera', 'escuela_carrera.carrera_id=carrera.id')
+					->join('escuela_grupo_escuela', 'escuela_grupo_escuela.escuela_id = escuela_carrera.escuela_id')
+					->where('escuela_grupo_escuela.escuela_grupo_id', $this->rol->entidad_id)
+					->group_by('carrera.id');
+				break;
+			case ROL_LINEA:
+			case ROL_CONSULTA_LINEA:
+				$this->datatables->where('nivel.linea_id', $this->rol->entidad_id);
+				break;
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$this->datatables->join('escuela', 'escuela.nivel_id = nivel.id', 'left');
+				$this->datatables->where('escuela.id', $this->rol->entidad_id);
+				break;
+			case ROL_SUPERVISION:
+				$this->datatables->join('supervision', 'supervision.nivel_id = nivel.id', 'left');
+				$this->datatables->where('supervision.id', $this->rol->entidad_id);
+				break;
+			default:
+		}
+		if ($this->edicion) {
+			$this->datatables->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="carrera/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="carrera/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '<li><a class="dropdown-item" href="carrera/eliminar/$1" title="Eliminar"><i class="fa fa-remove"></i> Eliminar</a></li>'
+				. '</ul></div>', 'id');
+		} else {
+			$this->datatables->add_column('edit', '<a class="btn btn-xs btn-default" href="carrera/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+
+		$this->load->model('nivel_model');
+		if ($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA) {
+			$this->array_nivel_control = $array_nivel = $this->get_array('nivel', 'descripcion', 'id', array('linea_id' => $this->rol->entidad_id, 'sort_by' => 'nivel.descripcion'), array('' => '-- Seleccionar nivel --'));
+		} else {
+			$this->array_nivel_control = $array_nivel = $this->get_array('nivel', 'descripcion', 'id', null, array('' => '-- Seleccionar nivel --'));
+		}
+		$this->set_model_validation_rules($this->carrera_model);
+		if ($this->form_validation->run() === TRUE) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->carrera_model->create(array(
+				'descripcion' => $this->input->post('descripcion'),
+				'fecha_desde' => $this->get_date_sql('fecha_desde'),
+				'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+				'nivel_id' => $this->input->post('nivel')));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->carrera_model->get_msg());
+				redirect('carrera/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->carrera_model->get_error() ? $this->carrera_model->get_error() : $this->session->flashdata('error')));
+
+		$this->carrera_model->fields['nivel']['array'] = $array_nivel;
+		$data['fields'] = $this->build_fields($this->carrera_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar carrera';
+		$this->load_template('carrera/carrera_abm', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("carrera/ver/$id");
+		}
+
+		$carrera = $this->carrera_model->get(array('id' => $id));
+		if (empty($carrera)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		$this->load->model('nivel_model');
+		if ($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA) {
+			$nivel = $this->nivel_model->get_one($carrera->nivel_id);
+			if ($nivel->linea_id !== $this->rol->entidad_id) {
+				show_error('No tiene permisos para editar carreras de otra Linea', 500, 'Acción no autorizada');
+			}
+			$this->array_nivel_control = $array_nivel = $this->get_array('nivel', 'descripcion', 'id', array('linea_id' => $this->rol->entidad_id, 'sort_by' => 'nivel.descripcion'));
+		} else {
+			$this->array_nivel_control = $array_nivel = $this->get_array('nivel');
+		}
+		$this->set_model_validation_rules($this->carrera_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->carrera_model->update(array(
+					'id' => $this->input->post('id'),
+					'descripcion' => $this->input->post('descripcion'),
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'fecha_hasta' => $this->get_date_sql('fecha_hasta'),
+					'nivel_id' => $this->input->post('nivel')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->carrera_model->get_msg());
+					redirect('carrera/listar', 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->carrera_model->get_error() ? $this->carrera_model->get_error() : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+
+		$this->carrera_model->fields['nivel']['array'] = $array_nivel;
+		$data['fields'] = $this->build_fields($this->carrera_model->fields, $carrera);
+
+		$data['carrera'] = $carrera;
+		$this->load->model('curso_model');
+		$cursos = $this->curso_model->get(array('nivel_id' => $carrera->nivel_id, 'sort_by' => 'id'));
+		$this->load->model('espacio_curricular_model');
+		$espacios_curriculares = $this->espacio_curricular_model->get(array('carrera_id' => $carrera->id,
+			'join' => array(
+				array('table' => 'materia', 'where' => 'materia.id=espacio_curricular.materia_id', 'columnas' => array('materia.descripcion as materia'))),
+			'sort_by' => 'cuatrimestre, materia.descripcion'
+		));
+		if (!empty($cursos)) {
+			foreach ($cursos as $curso) {
+				$curso->materias = array();
+				$array_cursos[$curso->id] = $curso;
+			}
+		}
+		if (!empty($espacios_curriculares)) {
+			foreach ($espacios_curriculares as $espacio_curricular) {
+				$espacio_curricular->cuatrimestre = $this->espacio_curricular_model->fields['cuatrimestre']['array'][$espacio_curricular->cuatrimestre];
+				if (empty($espacio_curricular->grupo_id)) {
+					$array_cursos[$espacio_curricular->curso_id]->materias[] = $espacio_curricular;
+				} else {
+					$array_cursos[$espacio_curricular->curso_id]->materias_grupo[$espacio_curricular->grupo_id][] = $espacio_curricular;
+				}
+			}
+		}
+		$data['cursos'] = $array_cursos;
+
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar carrera';
+		$this->load_template('carrera/carrera_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("carrera/ver/$id");
+		}
+
+		$carrera = $this->carrera_model->get_one($id);
+		if (empty($carrera)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA) {
+			$this->load->model('nivel_model');
+			$nivel = $this->nivel_model->get_one($carrera->nivel_id);
+			if ($nivel->linea_id !== $this->rol->entidad_id) {
+				show_error('No tiene permisos para eliminar carreras de otra Linea', 500, 'Acción no autorizada');
+			}
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->carrera_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->carrera_model->get_msg());
+				redirect('carrera/listar', 'refresh');
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->carrera_model->get_error() ? $this->carrera_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->carrera_model->fields, $carrera, TRUE);
+
+		$data['carrera'] = $carrera;
+		$this->load->model('curso_model');
+		$cursos = $this->curso_model->get(array('nivel_id' => $carrera->nivel_id, 'sort_by' => 'id'));
+		$this->load->model('espacio_curricular_model');
+		$espacios_curriculares = $this->espacio_curricular_model->get(array('carrera_id' => $carrera->id,
+			'join' => array(
+				array('table' => 'materia', 'where' => 'materia.id=espacio_curricular.materia_id', 'columnas' => array('materia.descripcion as materia'))
+			),
+			'sort_by' => 'cuatrimestre, materia.descripcion'
+		));
+		if (!empty($cursos)) {
+			foreach ($cursos as $curso) {
+				$curso->materias = array();
+				$array_cursos[$curso->id] = $curso;
+			}
+			if (!empty($espacios_curriculares)) {
+				foreach ($espacios_curriculares as $espacio_curricular) {
+					$espacio_curricular->cuatrimestre = $this->espacio_curricular_model->fields['cuatrimestre']['array'][$espacio_curricular->cuatrimestre];
+					if (empty($espacio_curricular->grupo_id)) {
+						$array_cursos[$espacio_curricular->curso_id]->materias[] = $espacio_curricular;
+					} else {
+						$array_cursos[$espacio_curricular->curso_id]->materias_grupo[$espacio_curricular->grupo_id][] = $espacio_curricular;
+					}
+				}
+			}
+			$data['cursos'] = $array_cursos;
+		}
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Eliminar carrera';
+		$this->load_template('carrera/carrera_abm', $data);
+	}
+
+	public function ver($id = NULL, $escuela_carrera_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$carrera = $this->carrera_model->get_one($id);
+		if (empty($carrera)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (!empty($escuela_carrera_id)) {
+			$this->load->model('escuela_carrera_model');
+			$escuela = $this->escuela_carrera_model->get_escuela($escuela_carrera_id);
+
+			$data['escuela'] = $escuela;
+			$data['escuela_carrera_id'] = $escuela_carrera_id;
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->carrera_model->fields, $carrera, TRUE);
+
+		$data['carrera'] = $carrera;
+		$this->load->model('curso_model');
+		$cursos = $this->curso_model->get(array('nivel_id' => $carrera->nivel_id, 'sort_by' => 'id'));
+		$this->load->model('espacio_curricular_model');
+		$espacios_curriculares = $this->espacio_curricular_model->get(array('carrera_id' => $carrera->id,
+			'join' => array(
+				array('table' => 'materia', 'where' => 'materia.id=espacio_curricular.materia_id', 'columnas' => array('materia.descripcion as materia'))
+			),
+			'sort_by' => 'cuatrimestre, materia.descripcion'
+		));
+
+		if (empty($cursos)) {
+			$this->session->set_flashdata('error', 'No hay cursos en el nivel de la carrera seleccionada');
+			redirect("carrera/listar");
+		}
+		foreach ($cursos as $curso) {
+			$curso->materias = array();
+			$array_cursos[$curso->id] = $curso;
+		}
+		if (!empty($espacios_curriculares)) {
+			foreach ($espacios_curriculares as $espacio_curricular) {
+				$espacio_curricular->cuatrimestre = $this->espacio_curricular_model->fields['cuatrimestre']['array'][$espacio_curricular->cuatrimestre];
+				if (empty($espacio_curricular->grupo_id)) {
+					$array_cursos[$espacio_curricular->curso_id]->materias[] = $espacio_curricular;
+				} else {
+					$array_cursos[$espacio_curricular->curso_id]->materias_grupo[$espacio_curricular->grupo_id][] = $espacio_curricular;
+				}
+			}
+		}
+
+		$data['cursos'] = $array_cursos;
+		$data['txt_btn'] = NULL;
+		if (empty($escuela_carrera_id)) {
+			$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		} else {
+			$data['class'] = array('agregar' => 'hide', 'ver' => 'active btn-app-zetta-active', 'editar' => 'hide', 'eliminar' => 'hide');
+		}
+
+		$data['title'] = TITLE . ' - Ver carrera';
+		$this->load_template('carrera/carrera_abm', $data);
+	}
+}
+/* End of file Carrera.php */
+/* Location: ./application/controllers/Carrera.php */

@@ -1,0 +1,257 @@
+<div class="row">
+	<h3>
+		<?php $dias_semana = array('Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'); ?>
+		<?php $fecha_ini_m = new DateTime($mes . '01'); ?>
+		<?php $fecha_ini_p = new DateTime($division_inasistencia->fecha_inicio); ?>
+		<?php $fecha_fin_m = new DateTime($mes . '01 +1 month'); ?>
+		<?php $fecha_fin_p = new DateTime($division_inasistencia->fecha_fin . ' +1 day'); ?>
+		<?php $fecha_ini = max(array($fecha_ini_m, $fecha_ini_p)); ?>
+		<?php $fecha_fin = min(array($fecha_fin_m, $fecha_fin_p)); ?>
+		<?php $dia = DateInterval::createFromDateString('1 day'); ?>
+		<?php $fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin); ?>
+	</h3>
+	<?php if ($division_inasistencia->fecha_cierre): ?>
+		<?php $alumnos_primer_dia_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_entrada_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_entrada_escuela_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_salida_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_salida_escuela_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_argentinos_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $alumnos_extranjeros_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $total_dias_sexo = array('1' => 0, '2' => 0); ?>
+		<?php $total_general_asistencia_ideal = 0; ?>
+		<?php $alumnos_edad_varones = 0; ?>
+		<?php $alumnos_edad_mujeres = 0; ?>
+		<?php $alumnos_edad = array(); ?>
+		<?php for ($edad = 6; $edad <= 16; $edad++): ?>
+			<?php $alumnos_edad["$edad"] = array('1' => 0, '2' => 0); ?>
+		<?php endfor; ?>
+		<?php foreach ($alumnos as $id => $alumno): ?>
+			<?php $date_nacimiento = new DateTime($alumno->fecha_nacimiento); ?>
+			<?php $date_ciclo_lectivo = new DateTime("$ciclo_lectivo-06-30"); ?>
+			<?php $interval = $date_nacimiento->diff($date_ciclo_lectivo); ?>
+			<?php $alumno->edad = $interval->y; ?>
+			<?php $asistencia_ideal = $division_inasistencia->dias - (isset($inasistencias_resumen[$alumno->id]['NC']) ? $inasistencias_resumen[$alumno->id]['NC'] : 0); ?>
+			<?php if ($alumno->fecha_desde <= $fecha_ini->format('Y-m-d') && $alumno->fecha_hasta <= (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'))->format('Y-m-d')): ?>
+				<?php $alumno->edad >= 6 ? $alumnos_edad["$alumno->edad"][$alumno->sexo_id] ++ : ''; ?>
+				<?php if (empty($alumno->nacionalidad_id) || $alumno->nacionalidad_id === '1'): ?>
+					<?php $alumnos_argentinos_sexo[$alumno->sexo_id] ++; ?>
+				<?php else: ?>
+					<?php $alumnos_extranjeros_sexo[$alumno->sexo_id] ++; ?>
+				<?php endif; ?>
+			<?php endif; ?>
+			<?php if ($alumno->fecha_desde <= $fecha_ini->format('Y-m-d')): ?>
+				<?php $alumnos_primer_dia_sexo[$alumno->sexo_id] ++; ?>
+			<?php endif; ?>
+			<?php if (!empty($alumno->fecha_hasta) && (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'))->format('Y-m-d') >= ($alumno->fecha_hasta)): ?>
+				<?php if ($alumno->causa_salida_id === '1'): ?>
+					<?php $alumnos_salida_escuela_sexo[$alumno->sexo_id] ++; ?>
+				<?php else: ?>
+					<?php $alumnos_salida_sexo[$alumno->sexo_id] ++; ?>
+				<?php endif; ?>
+			<?php endif; ?>
+			<?php if ((new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'))->format('Y-m-d') > $alumno->fecha_desde && $alumno->fecha_desde > $fecha_ini->format('Y-m-d')): ?>
+				<?php if ($alumno->causa_entrada_id === '3' || $alumno->causa_entrada_id === '4'): ?>
+					<?php $alumnos_entrada_escuela_sexo[$alumno->sexo_id] ++; ?>
+				<?php else: ?>
+					<?php $alumnos_entrada_sexo[$alumno->sexo_id] ++; ?>
+				<?php endif; ?>
+			<?php endif; ?>
+			<?php $total_dias_sexo[$alumno->sexo_id] += $division_inasistencia->dias; ?>
+			<?php $total_general_asistencia_ideal += $asistencia_ideal; ?>
+		<?php endforeach; ?>
+		<div class="col-sm-6">
+			<table class="table table-hover table-bordered table-condensed text-sm">
+				<tr>
+					<th style="width: 600px"> MOVIMIENTOS</th>
+					<th>V</th>
+					<th>M</th>
+					<th style="width: 40px">Total</th>
+				</tr>
+				<tr>
+					<td>Inscripción 1° día</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_primer_dia_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_primer_dia_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_primer_dia_sexo['1'] + $alumnos_primer_dia_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>Entrados a la Secc.</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_entrada_sexo['1'] + $alumnos_entrada_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>Entrados a la Esc.</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_escuela_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_escuela_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_entrada_escuela_sexo['1'] + $alumnos_entrada_escuela_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>Salidos de la Secc.</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_salida_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_salida_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_salida_sexo['1'] + $alumnos_salida_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>Salidos de la Esc.</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_salida_escuela_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_salida_escuela_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_salida_escuela_sexo['1'] + $alumnos_salida_escuela_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td style="width: 600px">Quedan último día (1)</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_sexo['1'] + $alumnos_entrada_escuela_sexo['1'] + $alumnos_primer_dia_sexo['1'] - $alumnos_salida_sexo['1'] - $alumnos_salida_escuela_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_entrada_sexo['2'] + $alumnos_entrada_escuela_sexo['2'] + $alumnos_primer_dia_sexo['2'] - $alumnos_salida_sexo['2'] - $alumnos_salida_escuela_sexo['2']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-green"><?php echo $alumnos_entrada_sexo['1'] + $alumnos_entrada_escuela_sexo['1'] + $alumnos_primer_dia_sexo['1'] - $alumnos_salida_sexo['1'] - $alumnos_salida_escuela_sexo['1'] + $alumnos_entrada_sexo['2'] + $alumnos_entrada_escuela_sexo['2'] + $alumnos_primer_dia_sexo['2'] - $alumnos_salida_sexo['2'] - $alumnos_salida_escuela_sexo['2']; ?></span>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<?php $indices = array('Total Inasistencias', 'Total Asistencias', 'No inscriptos', 'Asistencia Media'); ?>
+		<?php foreach (array('1', '2') as $sexo): ?>
+			<?php $indices_data['Asistencia ideal'][$sexo] = $total_dias_sexo[$sexo] - (empty($inasistencias_resumen_sexo[$sexo]['NC']) ? 0 : $inasistencias_resumen_sexo[$sexo]['NC']); ?>
+			<?php $indices_data['Total Inasistencias'][$sexo] = (empty($inasistencias_resumen_sexo[$sexo]['No']) ? 0 : $inasistencias_resumen_sexo[$sexo]['No']) + (empty($inasistencias_resumen_sexo[$sexo]['Si']) ? 0 : $inasistencias_resumen_sexo[$sexo]['Si']); ?>
+			<?php $indices_data['Total Asistencias'][$sexo] = $indices_data['Asistencia ideal'][$sexo] - $indices_data['Total Inasistencias'][$sexo]; ?>
+			<?php $indices_data['No inscriptos'][$sexo] = empty($inasistencias_resumen_sexo[$sexo]['NC']) ? 0 : $inasistencias_resumen_sexo[$sexo]['NC']; ?>
+			<?php $indices_data['Asistencia Media'][$sexo] = empty($division_inasistencia->dias) ? 0 : ($indices_data['Asistencia ideal'][$sexo] - $indices_data['Total Inasistencias'][$sexo]) / $division_inasistencia->dias; ?>
+		<?php endforeach; ?>
+		<div class="col-sm-6">
+			<table class="table table-hover table-bordered table-condensed text-sm">
+				<tr>
+					<th style="width: 600px"> ASISTENCIAS</th>
+					<th>V</th>
+					<th>M</th>
+					<th style="width: 40px">Total</th>
+				</tr>
+				<?php foreach ($indices as $i => $indice): ?>
+					<tr>
+						<td><?php echo $indice; ?></td>
+						<td>
+							<span class="badge bg-blue"><?php echo number_format($indices_data[$indice]['1'], 0, ',', ''); ?></span>
+						</td>
+						<td>
+							<span class="badge bg-blue"><?php echo number_format($indices_data[$indice]['2'], 0, ',', ''); ?></span>
+						</td>
+						<td><span class="badge bg-green"><?php echo number_format(empty($indices_data[$indice]['T']) ? $indices_data[$indice]['1'] + $indices_data[$indice]['2'] : $indices_data[$indice]['T'], 0, ',', ''); ?></span></td>
+					</tr>
+				<?php endforeach; ?>
+			</table>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<table class="table table-hover table-bordered table-condensed text-sm">
+				<tr>
+					<th style="width: 600px"> EDADES(al 30/06)</th>
+					<th>V</th>
+					<th>M</th>
+					<th style="width: 40px">Total</th>
+				</tr>
+				<?php for ($edad = 6; $edad <= 16; $edad++): ?>
+					<?php $alumnos_edad_varones += $alumnos_edad[$edad]['1']; ?>
+					<?php $alumnos_edad_mujeres += $alumnos_edad[$edad]['2']; ?>
+					<tr>
+						<td>de <?php echo $edad; ?> años</td>
+						<td>
+							<span class="badge bg-blue"><?php echo $alumnos_edad[$edad]['1']; ?></span>
+						</td>
+						<td>
+							<span class="badge bg-blue"><?php echo $alumnos_edad[$edad]['2']; ?></span>
+						</td>
+						<td><span class="badge bg-green"><?php echo $alumnos_edad[$edad]['1'] + $alumnos_edad[$edad]['2']; ?></span>
+						</td>
+					</tr>
+				<?php endfor; ?>
+				<tr>
+					<td><strong>TOTALES (1)</strong></td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_edad_varones; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_edad_mujeres; ?></span>
+					</td>
+					<td><span class="badge bg-green"><?php echo $alumnos_edad_varones + $alumnos_edad_mujeres; ?></span>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<div class="col-sm-6">
+			<table class="table table-hover table-bordered table-condensed text-sm">
+				<tr>
+					<th style="width: 600px"> NACIONALIDADES</th>
+					<th>V</th>
+					<th>M</th>
+					<th style="width: 40px">Total</th>
+				</tr>
+				<tr>
+					<td>Argentinos</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_argentinos_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_argentinos_sexo['2']; ?></span>
+					</td>
+					<td><span class="badge bg-green"><?php echo $alumnos_argentinos_sexo['1'] + $alumnos_argentinos_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td>Extranjeros</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_extranjeros_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_extranjeros_sexo['2']; ?></span>
+					</td>
+					<td><span class="badge bg-green"><?php echo $alumnos_extranjeros_sexo['1'] + $alumnos_extranjeros_sexo['2']; ?></span>
+					</td>
+				</tr>
+				<tr>
+					<td><strong>TOTALES (1)</strong></td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_argentinos_sexo['1'] + $alumnos_extranjeros_sexo['1']; ?></span>
+					</td>
+					<td>
+						<span class="badge bg-blue"><?php echo $alumnos_argentinos_sexo['2'] + $alumnos_extranjeros_sexo['2']; ?></span>
+					</td>
+					<td><span class="badge bg-green"><?php echo $alumnos_argentinos_sexo['1'] + $alumnos_extranjeros_sexo['1'] + $alumnos_argentinos_sexo['2'] + $alumnos_extranjeros_sexo['2']; ?></span>
+					</td>
+				</tr>
+			</table>
+		</div>
+	<?php endif; ?>
+</div>

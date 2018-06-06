@@ -1,0 +1,150 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1 class="box-title">Comedor <label class="label label-default"><?php echo $mes_nombre; ?></label>
+			<a class="btn btn-xs btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i> Cambiar</a></h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id ?>"><?= "Esc. $escuela->nombre_largo"; ?></a></li>
+			<li>Cursos y Divisiones</li>
+			<?php if (!empty($division)): ?>
+				<li><?php echo "$division->curso $division->division"; ?></li>
+			<?php endif; ?>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+					<a class="btn btn-app btn-app-zetta <?php echo $class['administrar']; ?>" href="comedor/escuela/ver/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>/<?php echo $mes; ?>">
+							<i class="fa fa-search"></i> Administrar
+						</a>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="comedor/division/ver/<?php echo (!empty($division->id)) ? $division->id : ''; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="comedor/division/editar/<?php echo (!empty($division->id)) ? $division->id : ''; ?>/<?php echo $mes; ?>">
+							<i class="fa fa-edit"></i> Editar 
+						</a>
+						<a class="btn bg-blue btn-app btn-app-zetta pull-right" href="comedor/division/modal_cargar_mes/<?php echo (!empty($division->id)) ? $division->id : ''; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" >
+							<i class="fa fa-plus" id="btn-agregar"></i> Cargar mes
+						</a>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['curso']['label']; ?>
+								<?php echo $fields['curso']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['division']['label']; ?>
+								<?php echo $fields['division']['form']; ?>
+							</div>
+							<div class="form-group col-md-2">
+								<?php echo $fields['turno']['label']; ?>
+								<?php echo $fields['turno']['form']; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['carrera']['label']; ?>
+								<?php echo $fields['carrera']['form']; ?>
+							</div>
+						</div>
+						<hr>
+						<div role="tabpanel" class="tab-pane" id="tab_alumnos">
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr style="background-color: #f4f4f4" >
+										<th style="text-align: center" colspan="8">
+											Alumnos
+											<?php echo empty($cantidad_alumnos) ? '' : "($cantidad_alumnos)"; ?>
+										</th>
+									</tr>
+									<tr>
+										<th>Documento</th>
+										<th>Persona</th>
+										<th>F. Nacimiento</th>
+										<th>Racion</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php if (!empty($alumnos)): ?>
+										<?php foreach ($alumnos as $alumno): ?>
+											<tr>
+												<td><?= "$alumno->documento_tipo $alumno->documento"; ?></td>
+												<td><?= $alumno->persona; ?></td>
+												<td><?= empty($alumno->fecha_nacimiento) ? '' : (new DateTime($alumno->fecha_nacimiento))->format('d/m/Y'); ?></td>
+												<td><?= empty($alumno->comedor_racion) ? '<span style="color:#aaa;">-Sin Ración-</span>' : "<b>$alumno->comedor_racion</b>"; ?></td>
+											</tr>
+										<?php endforeach; ?>
+									<?php else : ?>
+										<tr>
+											<td colspan="7" style="text-align: center;">-- No tiene --</td>
+										</tr>
+									<?php endif; ?>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="escuela/escritorio/<?= $escuela->id; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+	<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+		<div class="modal-dialog modal-sm">
+			<div class="modal-content">
+				<?php echo form_open("comedor/division/cambiar_mes/$division->id/$mes"); ?>
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+					<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+				</div>
+				<div style="display:none;" id="div_servicio_baja"></div>
+				<div class="modal-body">
+					<div class="row">
+						<div class="form-group col-md-12" style="text-align:center;">
+							<div id="datepicker" data-date="<?php echo $fecha; ?>"></div>
+							<input type="hidden" name="mes" id="mes" />
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+					<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+				</div>
+				<?php echo form_close(); ?>
+			</div>
+		</div>
+	</div>
+
+</div>
+<script type="text/javascript">
+	$(document).ready(function() {
+
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false,
+			endDate: '<?= $ultimo_mes; ?>',
+			startDate: '<?= $primer_mes; ?>'
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

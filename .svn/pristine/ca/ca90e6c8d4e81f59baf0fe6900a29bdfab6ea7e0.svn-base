@@ -1,0 +1,157 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cargo_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'cargo';
+		$this->msg_name = 'Cargo';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'condicion_cargo_id', 'division_id', 'espacio_curricular_id', 'carga_horaria', 'regimen_id', 'aportes', 'escuela_id', 'area_id', 'fecha_desde', 'fecha_hasta', 'observaciones', 'turno_id');
+		$this->fields = array(
+			'condicion_cargo' => array('label' => 'Condición de cargo', 'input_type' => 'combo', 'id_name' => 'condicion_cargo_id', 'required' => TRUE),
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id', 'class' => 'selectize-manual'),
+			'carrera' => array('label' => 'Carrera', 'input_type' => 'combo', 'id_name' => 'carrera_id', 'class' => 'selectize-manual'),
+			'turno' => array('label' => 'Turno', 'input_type' => 'combo', 'id_name' => 'turno_id', 'class' => 'selectize-manual'),
+			'espacio_curricular' => array('label' => 'Materia', 'input_type' => 'combo', 'id_name' => 'espacio_curricular_id', 'class' => 'selectize-manual'),
+			'carga_horaria' => array('label' => 'Carga horaria semanal', 'type' => 'integer', 'maxlength' => '11'),
+			'regimen' => array('label' => 'Régimen', 'input_type' => 'combo', 'id_name' => 'regimen_id', 'required' => TRUE),
+			'aportes' => array('label' => '% Aportes (Sólo Privadas)', 'type' => 'integer', 'max_value' => '100', 'required' => TRUE),
+			'fecha_desde' => array('label' => 'Fecha Desde', 'type' => 'date'),
+			'fecha_hasta' => array('label' => 'Fecha Hasta', 'type' => 'date'),
+			'observaciones' => array('label' => 'Observaciones', 'maxlength' => '100')
+		);
+		$this->requeridos = array('condicion_cargo_id', 'regimen_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('area', 'area.id = cargo.area_id', 'left', array('area.descripcion as area')),
+			array('condicion_cargo', 'cargo.condicion_cargo_id = condicion_cargo.id', 'left', array('condicion_cargo.descripcion as condicion_cargo')),
+			array('division', 'cargo.division_id = division.id', 'left', array('CONCAT(nivel.descripcion, \' \',curso.descripcion, \' \', division.division) as division')),
+			array('curso', 'curso.id = division.curso_id', 'left'),
+			array('nivel', 'nivel.id = curso.nivel_id', 'left'),
+			array('turno', 'turno.id = cargo.turno_id', 'left', array('turno.descripcion as turno')),
+			array('escuela', 'escuela.id = cargo.escuela_id', 'left', array('escuela.nombre as escuela', 'escuela.numero as escuela_numero')),
+			array('espacio_curricular', 'cargo.espacio_curricular_id = espacio_curricular.id', 'left', array('materia.descripcion as espacio_curricular')),
+			array('materia', 'espacio_curricular.materia_id = materia.id', 'left', array()),
+			array('carrera', 'espacio_curricular.carrera_id = carrera.id', 'left', array('carrera.descripcion as carrera')),
+			array('regimen', 'cargo.regimen_id = regimen.id', 'left', array('CONCAT(regimen.codigo, \' \',regimen.descripcion) as regimen', 'regimen_tipo_id'))
+		);
+	}
+
+	//Devuelve lista de cargos con la persona actual en el cargo que no poseen fecha de baja.
+	public function get_cargos_division($division_id) {
+		return $this->db->select('c.id, c.carga_horaria, cc.descripcion as condicion_cargo, m.descripcion as materia, r.codigo regimen_codigo, r.descripcion regimen, s.id servicio_id, p.cuil, p.nombre, p.apellido, s.fecha_alta, s.liquidacion, s.fecha_baja, sr.descripcion as situacion_revista')
+				->from('cargo c')
+				->join('condicion_cargo cc', 'cc.id = c.condicion_cargo_id', 'left')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'm.id = ec.materia_id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id', 'left')
+				->join('servicio s', 's.cargo_id = c.id AND s.fecha_baja IS NULL', 'left', false)
+				->join('persona p', 'p.id = s.persona_id', 'left')
+				->join('situacion_revista sr', 'sr.id = s.situacion_revista_id', 'left')
+				->where('d.id', $division_id)
+				->where('c.fecha_hasta IS NULL')
+				->group_by('c.id, s.id')
+				->order_by('m.descripcion, c.id, s.fecha_alta')
+				->get()->result();
+	}
+
+	public function get_by_escuela($escuela_id) {
+		return $this->db->query("SELECT r.codigo, r.descripcion, COUNT(DISTINCT c.id) cargos, SUM(c.carga_horaria) horas, s.servicios
+FROM cargo c
+JOIN regimen r ON c.regimen_id = r.id
+LEFT JOIN (
+	SELECT c.regimen_id, COUNT(s.id) servicios
+	FROM servicio s JOIN cargo c ON s.cargo_id = c.id
+	WHERE c.escuela_id = ? AND s.fecha_baja IS NULL
+	GROUP BY c.regimen_id
+	) s ON s.regimen_id = r.id
+WHERE c.escuela_id = ? AND c.fecha_hasta IS NULL
+GROUP BY r.id
+ORDER BY r.codigo", array($escuela_id, $escuela_id)
+			)->result();
+	}
+
+	public function get_personal($cuil = '', $apellido = '', $nombre = '') {
+		$this->db->select('count(cargo.id) as cant_cargos, '
+				. "CONCAT(escuela.numero, ' - ', escuela.nombre) as escuela, "
+				. "COALESCE(persona.cuil, '') as cuil, CONCAT(COALESCE(persona.apellido, ''), ', ', COALESCE(persona.nombre, '')) as persona")
+			->from('cargo')
+			->join('servicio', 'servicio.cargo_id = cargo.id', 'left')
+			->join('persona', 'persona.id = servicio.persona_id', 'left')
+			->join('escuela', 'escuela.id = cargo.escuela_id', 'left')
+			->where('servicio.fecha_baja IS NULL')
+			->order_by('escuela.nombre', 'ASC')
+			->order_by('persona', 'ASC')
+			->group_by(array('cargo.escuela_id', 'cargo.area_id'));
+		if (!empty($cuil)) {
+			$this->db->where('persona.cuil', $cuil);
+			return $this->db->get()->result();
+		} elseif (!empty($apellido) && !empty($nombre) && strlen($apellido) >= 3 && strlen($nombre) >= 3) {
+			$this->db->like('persona.apellido', $apellido, 'after');
+			$this->db->like('persona.nombre', $nombre, 'after');
+			return $this->db->get()->result();
+		} else {
+			return FALSE;
+		}
+	}
+
+	public function get_alumno($documento = '', $apellido = '', $nombre = '') {
+		$this->db->select('p.id as id, al.id as alumno_id, ad.legajo, ad.id as division_id, l.descripcion as localidad, dep.descripcion as departamento,'
+				. 'es.id as escuela_id, p.fecha_nacimiento, p.documento, '
+				. "CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, "
+				. "CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as nombre,"
+				. "CONCAT(c.descripcion, ' ', d.division) as division2, "
+				. "CONCAT(es.numero, CASE WHEN es.anexo=0 THEN ' ' ELSE CONCAT('/',es.anexo,' ') END, es.nombre) as escuela, ad.ciclo_lectivo")
+			->from('persona p')
+			->join('alumno al', 'al.persona_id = p.id', 'left')
+			->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+			->join('division d', 'd.id = ad.division_id', 'left')
+			->join('curso c', 'd.curso_id = c.id', 'left')
+			->join('escuela es', 'es.id = d.escuela_id', 'left')
+			->join('localidad l', 'l.id = p.localidad_id', 'left')
+			->join('departamento dep', 'dep.id = l.departamento_id', 'left')
+			->where('ad.fecha_hasta IS NULL');
+		if (!empty($documento)) {
+			$this->db->where('p.documento', $documento);
+			return $this->db->get()->result();
+		} elseif (!empty($apellido) && !empty($nombre) && strlen($apellido) >= 3 && strlen($nombre) >= 3) {
+			$this->db->like('p.apellido', $apellido, 'after');
+			$this->db->like('p.nombre', $nombre, 'after');
+			return $this->db->get()->result();
+		} else {
+			return FALSE;
+		}
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('cargo_id', $delete_id)->count_all_results('horario') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga horarios asociados.');
+			return FALSE;
+		}
+		if ($this->db->where('cargo_id', $delete_id)->count_all_results('cargo_horario') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no tenga horarios asociados.');
+			return FALSE;
+		}
+		if ($this->db->where('cargo_id', $delete_id)->count_all_results('servicio') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a servicio.');
+			return FALSE;
+		}
+		if ($this->db->where('cargo_id', $delete_id)->count_all_results('cargo_escuela') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté compartido con otra escuela.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Cargo_model.php */
+/* Location: ./application/models/Cargo_model.php */

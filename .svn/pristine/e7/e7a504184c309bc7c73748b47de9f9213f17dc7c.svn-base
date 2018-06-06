@@ -1,0 +1,58 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Administracion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = explode(',', ROLES);
+		$this->roles_admin = array(ROL_ADMIN);
+	}
+
+	private function migrar_usuarios() {
+		$this->load->model('usuario_model');
+		$usuarios = array(3835, 3869, 3891, 3676);
+		foreach ($usuarios as $usuario) {
+			$this->usuario_model->migrar($usuario);
+		}
+	}
+
+	public function get_usuario() {
+		$clave = $this->input->post('clave');
+		$return = array();
+		$usuarios = $this->usuarios_model->get_usuarios_by_clave($clave);
+		foreach ($usuarios as $usuario) {
+			$return[] = array(
+				'id' => $usuario->id,
+				'cuil' => isset($usuario->cuil) ? $usuario->cuil : '',
+				'nombre' => isset($usuario->nombre) ? $usuario->nombre : '',
+				'apellido' => isset($usuario->apellido) ? $usuario->apellido : '',
+				'usuario' => $usuario->usuario,
+				'picture' => base64_encode($usuario->picture),
+			);
+		}
+		echo json_encode($return);
+		return TRUE;
+	}
+
+	public function get_permisos() {
+		$usuario_id = $this->input->post('usuario');
+		$this->load->model('usuario_model');
+		$usuario = $this->usuario_model->get(array('id' => $usuario_id));
+		$grupos = $this->usuarios_model->get_grupos($usuario_id);
+		if (!empty($usuario)) {
+			$roles = $this->usuarios_model->get_roles($usuario_id);
+			if (empty($roles)) {
+				echo json_encode(array('status' => 'success', 'roles' => '0', 'grupos' => $grupos));
+			} else {
+				echo json_encode(array('status' => 'success', 'roles' => $roles, 'grupos' => $grupos));
+			}
+		} else {
+			echo json_encode(array('status' => 'success', 'roles' => '-1', 'grupos' => $grupos));
+		}
+		return TRUE;
+	}
+}
+/* End of file Administracion.php */
+/* Location: ./application/modules/usuarios/controllers/Administracion.php */

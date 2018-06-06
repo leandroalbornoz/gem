@@ -1,0 +1,216 @@
+<style>
+	td.child>ul{
+		width:100%;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Títulos 
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="<?php echo $controlador; ?>">Títulos</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<div class="row">
+								<div class="col-md-12">
+									<h4><?php echo "$persona->apellido, $persona->nombre ($persona->documento_tipo $persona->documento - CUIL: $persona->cuil)"; ?>
+									</h4>
+								</div>
+							</div>
+						</h3>
+					</div>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="titulos/titulo_persona/ver/<?php echo $persona->id; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="titulos/titulo_persona/editar/<?php echo $persona->id; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+							<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['titulo']; ?>" href="titulos/titulo_persona/ver_titulo/<?php echo $persona->id; ?>">
+								<i class="fa fa-edit"></i> Títulos
+							</a>								
+						<?php if ($txt_btn === 'Editar'): { ?>
+								<div class="row">
+									<div class="form-group col-md-2">
+										<?php echo $fields['apellido']['label']; ?>
+										<?php echo $fields['apellido']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['nombre']['label']; ?>
+										<?php echo $fields['nombre']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['cuil']['label']; ?>
+										<span class="label label-danger" id="cuil_existente"></span>
+										<?php echo $fields['cuil']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento_tipo']['label']; ?>
+										<?php echo $fields['documento_tipo']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento']['label']; ?>
+										<span class="label label-danger" id="documento_existente"></span>
+										<?php echo $fields['documento']['form']; ?>
+									</div>
+								</div>
+							<?php }endif; ?>
+						<ul class="nav nav-tabs" role="tablist">
+							<li role="presentation" class="active"><a href="#tab_personales" aria-controls="tab_personales" role="tab" data-toggle="tab">Datos Personales</a></li>
+							<li role="presentation"><a href="#tab_domicilio" aria-controls="tab_domicilio" role="tab" data-toggle="tab">Datos Domicilio</a></li>	
+						</ul>
+						<div class="tab-content">
+							<div id="tab_personales" role="tabpanel" class="tab-pane active">
+								<div class="row">
+									<div class="form-group col-md-3">
+										<?php echo $fields['sexo']['label']; ?>
+										<?php echo $fields['sexo']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['fecha_nacimiento']['label']; ?>
+										<?php echo $fields['fecha_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['nacionalidad']['label']; ?>
+										<?php echo $fields['nacionalidad']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['estado_civil']['label']; ?>
+										<?php echo $fields['estado_civil']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['nivel_estudio']['label']; ?>
+										<?php echo $fields['nivel_estudio']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['ocupacion']['label']; ?>
+										<?php echo $fields['ocupacion']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['grupo_sanguineo']['label']; ?>
+										<?php echo $fields['grupo_sanguineo']['form']; ?>
+									</div>
+									<div class="form-group col-md-12">
+										<?php echo $fields['obra_social']['label']; ?>
+										<?php echo $fields['obra_social']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['depto_nacimiento']['label']; ?>
+										<?php echo $fields['depto_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['fecha_defuncion']['label']; ?>
+										<?php echo $fields['fecha_defuncion']['form']; ?>
+									</div>
+									<div class="form-group col-md-6">
+										<?php echo $fields['lugar_traslado_emergencia']['label']; ?>
+										<?php echo $fields['lugar_traslado_emergencia']['form']; ?>
+									</div>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="tab_domicilio">
+								<div class="row">
+									<div class="form-group col-md-5">
+										<?php echo $fields['calle']['label']; ?>
+										<?php echo $fields['calle']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['calle_numero']['label']; ?>
+										<?php echo $fields['calle_numero']['form']; ?>
+									</div>
+									<div class="form-group col-md-5">
+										<?php echo $fields['localidad']['label']; ?>
+										<?php echo $fields['localidad']['form']; ?>
+									</div>
+									<div class="form-group col-md-5">
+										<?php echo $fields['barrio']['label']; ?>
+										<?php echo $fields['barrio']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['manzana']['label']; ?>
+										<?php echo $fields['manzana']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['casa']['label']; ?>
+										<?php echo $fields['casa']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['departamento']['label']; ?>
+										<?php echo $fields['departamento']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['piso']['label']; ?>
+										<?php echo $fields['piso']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['telefono_fijo']['label']; ?>
+										<?php echo $fields['telefono_fijo']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['telefono_movil']['label']; ?>
+										<?php echo $fields['telefono_movil']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['prestadora']['label']; ?>
+										<?php echo $fields['prestadora']['form']; ?>
+									</div>
+									<div class="form-group col-md-4">
+										<?php echo $fields['email']['label']; ?>
+										<?php echo $fields['email']['form']; ?>
+									</div>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="tab_titulos">
+							</div>
+						</div>
+						<div class="box-footer">
+							<?php if ($txt_btn === 'ver' || $txt_btn === 'Editar'): ?>
+								<a class="btn btn-default" href="<?php echo ($txt_btn === 'ver') ? "titulos/titulo_persona/listar" : "titulos/titulo_persona/ver/$persona->id"; ?>" title="<?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?>"><?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?></a>
+								<?php echo ($txt_btn === 'Editar') ? '<input type="submit" value="Guardar" class="btn btn-primary pull-right" title="Guardar" id="Guardar">' : ''; ?>
+								<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $persona->id) : ''; ?>
+							<?php else: ?>
+								<a class="btn btn-default" href="titulos/titulo_persona/listar" title="Volver">Volver</a>
+							<?php endif; ?>
+						</div>
+						<?php echo form_close(); ?>
+					</div>
+				</div>
+			</div>
+	</section>
+</div>
+<script>
+	$(document).ready(function() {
+		$('#servicio_table,#alumno_table,#reporte_horario_table').DataTable({
+			dom: 't',
+			autoWidth: false,
+			paging: false,
+			ordering: false
+		});
+	});
+</script>

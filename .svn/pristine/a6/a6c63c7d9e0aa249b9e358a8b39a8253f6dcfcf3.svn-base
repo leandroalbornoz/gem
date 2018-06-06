@@ -1,0 +1,127 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Validacion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		if (ENVIRONMENT === 'production') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('becas/beca_persona_model');
+		$this->load->model('becas/beca_etapa_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
+		$this->modulos_permitidos = array(ROL_MODULO_BECAS);
+		$this->nav_route = 'beca/beca_persona';
+	}
+
+	public function listar() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'CUIL', 'data' => 'cuil', 'width' => 12),
+				array('label' => 'Docente', 'data' => 'persona', 'width' => 25),
+				array('label' => 'Postulación', 'data' => 'fecha', 'render' => 'datetime', 'width' => 16),
+				array('label' => 'Escuela', 'data' => 'escuela', 'width' => 25),
+				array('label' => 'Estado', 'data' => 'beca_estado', 'width' => 10),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'beca_persona_table',
+			'source_url' => 'becas/validacion/listar_data',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_beca_persona_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Becas - Personas Beca';
+		$data['vw_etapas'] = $this->load->view('becas/validacion/validacion_etapas', array('etapas' => $this->beca_etapa_model->get()), TRUE);
+		$this->load_template('becas/validacion/validacion_listar', $data);
+	}
+
+	public function listar_data() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select("beca_persona.id, beca_persona.fecha, beca_estado.descripcion as beca_estado, CONCAT_WS(' ', CONCAT_WS('/',escuela.numero, CASE WHEN escuela.anexo=0 THEN NULL ELSE escuela.anexo END), escuela.nombre) as escuela, persona.cuil as cuil, CONCAT_WS(', ', persona.apellido, persona.nombre) as persona")
+			->unset_column('id')
+			->from('beca_persona')
+			->join('beca_estado', 'beca_estado.id = beca_persona.beca_estado_id')
+			->join('escuela', 'escuela.id = beca_persona.escuela_id')
+			->join('persona', 'persona.id = beca_persona.persona_id')
+			->add_column('edit', '<a href="becas/validacion/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning"><i class="fa fa-edit"></i> Editar</a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_editar($id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$beca_persona = $this->beca_persona_model->get_one($id);
+		if (empty($beca_persona)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->beca_persona_model->fields, $beca_persona, TRUE);
+
+		$data['beca_persona'] = $beca_persona;
+		$this->load->model('becas/beca_operacion_model');
+		$data['operaciones_posibles'] = $this->beca_operacion_model->get_operaciones($beca_persona->beca_estado_id, 'validador');
+		$data['title'] = 'Editar Beca Docente';
+		$this->load->view('becas/validacion/validacion_modal_abm', $data);
+	}
+
+	public function operacion() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || !isset($_POST)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$beca_persona_id = $this->input->post('id');
+		$operacion = $this->input->post('operacion');
+		if (empty($beca_persona_id) || empty($operacion)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$beca_persona = $this->beca_persona_model->get_one($beca_persona_id);
+		if (empty($beca_persona)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('beca_operacion_model');
+		$operaciones_permitidas = $this->beca_operacion_model->get_operaciones($beca_persona->beca_estado_id);
+		$operacion_permitida = FALSE;
+		foreach ($operaciones_permitidas as $o_p) {
+			if ($o_p->id === $operacion) {
+				$operacion_permitida = $o_p;
+				if ($o_p->cambia_validador === 'No') {
+					show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+				}
+			}
+		}
+		if ($operacion_permitida) {
+			$trans_ok = $this->beca_persona_model->update(array(
+				'id' => $beca_persona->id,
+				'beca_estado_id' => $operacion_permitida->beca_estado_d_id
+			));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', 'Estado cambiado correctamente');
+			} else {
+				$this->session->set_flashdata('error', 'Ocurrió un error al intentar cambiar el estado');
+			}
+		} else {
+			$this->session->set_flashdata('error', 'Ocurrió un error al intentar cambiar el estado');
+		}
+		redirect('becas/validacion/listar');
+	}
+}
+/* End of file Validacion.php */
+/* Location: ./application/modules/becas/controllers/Validacion.php */

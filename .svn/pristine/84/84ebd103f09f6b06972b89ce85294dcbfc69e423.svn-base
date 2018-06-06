@@ -1,0 +1,102 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Busqueda extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('alumno_model');
+		$this->load->model('persona_model');
+		$this->roles_permitidos = explode(',', ROLES);
+		$this->nav_route = 'busqueda';
+	}
+
+	public function buscar_personal() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'cuil' => array('label' => 'CUIL', 'maxlength' => '13'),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'minlength' => '3'),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'minlength' => '3'),
+		);
+
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['txt_btn'] = 'Buscar';
+		$data['title'] = 'Buscar Personal';
+		$this->load_template('busqueda/cargo_buscar', $data);
+	}
+
+	public function buscar_alumno() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'documento' => array('label' => 'Documento', 'maxlength' => '13'),
+			'apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'minlength' => '3'),
+			'nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'minlength' => '3'),
+		);
+
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['txt_btn'] = 'Buscar';
+		$data['title'] = 'Buscar Alumno';
+		$this->load_template('busqueda/alumno_buscar', $data);
+	}
+
+	public function ver_alumno($alumno_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $alumno_id == NULL || !ctype_digit($alumno_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('alumno_division_model');
+		$this->load->model('division_model');
+
+		$this->load->model('alumno_model');
+		$alumno = $this->alumno_model->get_alumno_busqueda($alumno_id);
+
+		if (empty($alumno)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$trayectoria = $this->alumno_division_model->get_trayectoria_alumno($alumno_id);
+
+		$this->load->model('familia_model');
+		$parientes = $this->familia_model->get_familiares($alumno->persona_id);
+		$this->load->model('caracteristica_alumno_model');
+		$fields_tipos = $this->caracteristica_alumno_model->get_fields($alumno_id, TRUE);
+
+		foreach ($fields_tipos as $tipo => $fields) {
+			$data['fields_tipos'][$tipo] = $this->build_fields($fields);
+		}
+		ksort($data['fields_tipos']);
+
+		$model = new stdClass();
+		$model->fields = array(
+			'direccion' => array('label' => 'Domicilio', 'readonly' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date'),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id'),
+			'email_contacto' => array('label' => 'Email de Contacto / Notificaciones', 'type' => 'email', 'maxlength' => '150'),
+			'localidad' => array('label' => 'Localidad'),
+			'telefono_fijo' => array('label' => 'Teléfono Fijo', 'maxlength' => '15'),
+			'telefono_movil' => array('label' => 'Celular', 'maxlength' => '15'),
+			'prestadora' => array('label' => 'Prestadora'),
+			'email' => array('label' => 'Email personal', 'type' => 'email', 'maxlength' => '100'),
+		);
+
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['fields'] = $this->build_fields($model->fields, $alumno, TRUE);
+		$data['trayectoria'] = $trayectoria;
+		$data['parientes'] = $parientes;
+		$data['alumno'] = $alumno;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver alumno';
+		$this->load_template('busqueda/alumno_ver', $data);
+	}
+}

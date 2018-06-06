@@ -1,0 +1,247 @@
+<link rel="stylesheet" href="plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css">
+<script src="plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js" type="text/javascript"></script>
+<script src="plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js" type="text/javascript"></script>
+<style>
+	.dia_0,.dia_6{
+		background-color: lightgray;
+	}
+	.mes_asistencia{
+		width: 50px;
+		height: 50px;
+		border: darkgray thin solid;
+		border-radius: 5px;
+		margin-right: 5px;
+		text-align: center;
+		font-weight: bold;
+	}
+	.mes_asistencia.active{
+		background-color: #00c0ef;
+		border-color: #0044cc;
+	}
+	#chart_2 .c3-line{
+		stroke-width:4px;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Alumnos de <?= "$division->curso $division->division"; ?> - <label class="label label-default"><?php echo $ciclo_lectivo; ?></label>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id; ?>"><?= "Esc. $escuela->nombre_corto"; ?></a></li>
+			<li><a href="division/listar/<?= $escuela->id ?>">Cursos y Divisiones</a></li>
+			<?php if (!empty($division)): ?>
+				<li><a href="division/ver/<?= $division->id ?>"><?php echo "$division->curso $division->division"; ?></a></li>
+			<?php endif; ?>
+			<li class="active"><?php echo "Inasistencias"; ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta" href="division/ver/<?php echo (!empty($division->id)) ? $division->id : ''; ?>">
+							<i class="fa fa-search" id="btn-ver"></i> Ver división
+						</a>
+						<a class="btn btn-app btn-app-zetta" href="division/alumnos/<?php echo $division->id; ?>">
+							<i class="fa fa-users"></i> Alumnos
+						</a>
+						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="division_inasistencia/listar/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+							<i class="fa fa-clock-o"></i> Asistencia
+						</a>
+						<?php if (in_array($this->rol->codigo, $this->admin_rol_asistencia) && ENVIRONMENT !== 'Production'): ?>
+							<a class="btn bg-blue btn-app btn-app-zetta pull-right" href="division_inasistencia/administrar_rol_asistencia_division/<?php echo $division->id ?>">
+								<i class="fa fa-cogs"></i> Rol asistencia 
+							</a>
+						<?php endif; ?>
+						<hr style="margin: 10px 0;">
+						<div class="row">
+							<?php foreach ($periodos as $periodo): ?>
+								<div class="col-sm-4">
+									<?php $fecha_ini = new DateTime(substr($periodo->inicio, 0, 8) . '01'); ?>
+									<?php $fecha_fin = new DateTime($periodo->fin); ?>
+									<?php $dia = DateInterval::createFromDateString('1 month'); ?>
+									<?php $fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin); ?>
+									<h3><?php echo "{$periodo->periodo}° $periodo->nombre_periodo"; ?></h3>
+									<h4><?php echo (new DateTime($periodo->inicio))->format('d/m/Y') . ' al ' . $fecha_fin->format('d/m/Y'); ?></h4>
+									<?php foreach ($fechas as $fecha): ?>
+										<?php if (isset($inasistencias[$periodo->periodo][$fecha->format('Ym')])): ?>
+											<a href="division_inasistencia/ver/<?php echo $inasistencias[$periodo->periodo][$fecha->format('Ym')]->id; ?>" class="mes_asistencia pull-left btn <?php echo empty($inasistencias[$periodo->periodo][$fecha->format('Ym')]->fecha_cierre) ? 'btn-default' : 'btn-success'; ?> "><i class="fa fa-2x fa-<?php echo empty($inasistencias[$periodo->periodo][$fecha->format('Ym')]->fecha_cierre) ? 'calendar-o' : 'calendar-check-o'; ?>"></i><br/><?php echo substr($this->nombres_meses[$fecha->format('m')], 0, 3); ?></a>
+										<?php else: ?>
+											<a data-remote="false" data-toggle="modal" data-target="#remote_modal"  href="division_inasistencia/modal_abrir_mes/<?php echo "$division->id/$ciclo_lectivo/$periodo->periodo/" . $fecha->format('Ym'); ?>" class="mes_asistencia pull-left btn btn-default"><i class="fa fa-2x fa-calendar-plus-o"></i><br/><?php echo substr($this->nombres_meses[$fecha->format('m')], 0, 3); ?></a>
+										<?php endif; ?>
+									<?php endforeach; ?>
+									<p class="clearfix"></p>
+								</div>
+							<?php endforeach; ?>
+						</div>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="division/<?php echo empty($txt_btn) ? "alumnos/$division->id" : ""; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php if (!empty($inasistencias)): ?>
+			<div class="row">
+				<div class="col-xs-12">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+
+
+							<h3 class="box-title">Estadísticas de asistencias</h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<!-- /.box-header -->
+						<div class="box-body">
+							<div class="row">
+								<div class="col-md-8">
+									<p class="text-center">
+									<h4 align="center"><u><strong>Asistencia Media</strong></u></h4>
+									</p>
+									<?php if ($grafica): ?>
+										<div class="row">
+											<div id="chart">
+											</div>
+										</div>
+									<?php endif; ?>
+								</div>
+								<!-- /.col -->
+								<div class="col-md-4">
+									<p class="text-center">
+										<strong>Estadisticas del curso</strong>
+									</p>
+									<?php $dias_habiles_total = 0; ?>
+									<?php $asistencia_ideal_total = 0; ?>
+									<?php $inasistencias_totales = 0; ?>
+									<?php $asistencia_real_total = 0; ?>
+									<?php
+									foreach ($estadisticas_total as $estadistica_total) {
+										$dias_habiles_total += $estadistica_total->dias;
+										$asistencia_ideal_total += $estadistica_total->asistencia_ideal;
+										$inasistencias_totales += $estadistica_total->dias_falta;
+										$asistencia_real_total += $estadistica_total->asistencia_real;
+									}
+									?>
+									<div class="progress-group">
+										<span class="progress-text">Días hábiles de cursado/Días del año</span>
+										<span class="progress-number"><b><?php echo $dias_habiles_total; ?></b>/365</span>
+										<div class="progress sm">
+											<?php $porc_dias_habiles_total = $dias_habiles_total * 100 / 365; ?>
+											<div class="progress-bar progress-bar-yellow" style="width: <?php echo $porc_dias_habiles_total; ?>%"></div>
+										</div>
+									</div>
+									<div class="progress-group">
+										<span class="progress-text">Total inasistencias/Asistencia ideal</span>
+										<span class="progress-number"><b><?php echo $inasistencias_totales; ?></b>/<?php echo $asistencia_ideal_total; ?></span>
+										<div class="progress sm">
+											<?php if (!empty($asistencia_ideal_total)): ?>
+												<?php $porc_inasistencias_totales = $inasistencias_totales * 100 / $asistencia_ideal_total; ?>
+											<?php else: ?>
+												<?php $porc_inasistencias_totales = 0; ?>
+											<?php endif; ?>
+											<div class="progress-bar progress-bar-red" style="width: <?php echo $porc_inasistencias_totales; ?>%"></div>
+										</div>
+									</div>
+									<div class="progress-group">
+										<span class="progress-text">Asistencia real/Asistencia ideal</span>
+										<?php if (!empty($asistencia_ideal_total)): ?>
+											<?php $porc_asistencia_real = $asistencia_real_total * 100 / $asistencia_ideal_total; ?>
+										<?php else: ?>
+											<?php $porc_asistencia_real = 0; ?>
+										<?php endif; ?>
+										<span class="progress-number"><b><?php echo $asistencia_real_total; ?></b>/<?php echo $asistencia_ideal_total; ?></span>
+										<div class="progress sm">
+											<div class="progress-bar progress-bar-green" style="width: <?php echo $porc_asistencia_real ?>%"></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="box-footer">
+							<div class="row">
+								<div class="col-sm-4 col-xs-6">
+									<div class="description-block border-right">
+										<span class="description-percentage text-yellow"><i class="fa fa-dot-circle-o"></i> <?php echo round($porc_dias_habiles_total, 2); ?>%</span>
+										<h5 class="description-header"><?php echo $dias_habiles_total; ?></h5>
+										<span class="description-text">Días Hábiles</span>
+									</div>
+								</div>
+								<div class="col-sm-4 col-xs-6">
+									<div class="description-block border-right">
+										<span class="description-percentage text-red"><i class="fa fa-dot-circle-o"></i> <?php echo round($porc_inasistencias_totales, 2); ?>%</span>
+										<h5 class="description-header"><?php echo $inasistencias_totales; ?></h5>
+										<span class="description-text">Total inasistencias</span>
+									</div>
+								</div>
+								<div class="col-sm-4 col-xs-6">
+									<div class="description-block ">
+										<span class="description-percentage text-green"><i class="fa fa-dot-circle-o"></i> <?php echo round($porc_asistencia_real, 2); ?>%</span>
+										<h5 class="description-header"><?php echo $asistencia_real_total ?></h5>
+										<span class="description-text">Asistencia real</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		<?php endif; ?>
+	</section>
+</div>
+<script type="text/javascript">
+	$(document).ready(function() {
+		var chart = c3.generate({
+			bindto: '#chart',
+			axis: {
+				x: {
+					type: 'categories',
+					max: 11,
+					categories: <?php echo $grafica[1]; ?>,
+					label: {
+						text: 'Mes',
+						position: 'outer-right'
+					}
+				},
+				y: {
+					max: 1,
+					padding: 0,
+					tick: {
+						format: d3.format('%')
+					},
+					label: {
+						text: '% de asistencias',
+						position: 'outer-center'
+					}
+				}
+			},
+			data: {
+				names: {
+					data1: 'Asistencia Media'
+				},
+				columns: [
+<?php echo $grafica[0]; ?>
+				],
+				type: 'bar'
+			}
+		});
+	});
+</script>

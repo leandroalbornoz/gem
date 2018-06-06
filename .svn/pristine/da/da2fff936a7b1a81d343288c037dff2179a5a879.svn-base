@@ -1,0 +1,33 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Tem_model extends CI_Model {
+
+	public function __construct() {
+		parent::__construct();
+	}
+
+	public function get_vista($escuela_id, $data) {
+		$return['escuela'] = $data['escuela'];
+		$return['administrar'] = $data['administrar'];
+		$return['proyecto_meses'] = $this->db->select('p.descripcion, pe.horas_catedra, ms.mes, ms.semanas')->from('tem_proyecto_escuela pe')->join('tem_proyecto p', 'p.id=pe.tem_proyecto_id')->join('tem_mes_semana ms', 'ms.tem_proyecto_id=p.id')->where('pe.escuela_id', $escuela_id)->get()->result();
+		$return['cargos'] = $this->db->query("SELECT r.codigo, r.descripcion, COUNT(DISTINCT c.id) cargos, SUM(c.carga_horaria) horas, s.servicios
+FROM cargo c
+JOIN regimen r ON c.regimen_id = r.id
+LEFT JOIN (
+	SELECT c.regimen_id, COUNT(s.id) servicios
+	FROM servicio s JOIN cargo c ON s.cargo_id = c.id
+	WHERE c.escuela_id = ? AND s.fecha_baja IS NULL
+	GROUP BY c.regimen_id
+	) s ON s.regimen_id = r.id
+WHERE c.escuela_id = ? AND c.fecha_hasta IS NULL
+AND c.condicion_cargo_id = 4
+GROUP BY r.id
+ORDER BY r.codigo", array($escuela_id, $escuela_id)
+			)->result();
+		return $return;
+	}
+}
+/* End of file Tem_model.php */
+/* Location: ./application/modules/tem/models/Tem_model.php */

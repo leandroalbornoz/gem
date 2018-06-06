@@ -1,0 +1,197 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Reportes extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_SUPERVISION);
+		$this->nav_route = 'reportes/reportes';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect('escritorio');
+		}
+		$this->load->model('supervision_model');
+		$supervision = $this->supervision_model->get(array('id' => $this->rol->entidad_id));
+		$data['supervision'] = $supervision;
+		$data['error'] = $this->session->flashdata('error');
+		$this->load_template('reportes/reportes_supervision_listar', $data);
+	}
+
+	public function escuelas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Número', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('CUE', 10),
+			'D' => array('SubCUE', 10),
+			'E' => array('Nombre', 10),
+			'F' => array('Calle', 10),
+			'G' => array('N°', 10),
+			'H' => array('Barrio', 10),
+			'I' => array('Localidad', 10),
+			'J' => array('Departamento', 10),
+			'K' => array('C.P.', 10),
+			'L' => array('Nivel', 10),
+			'M' => array('Regímenes', 10),
+			'N' => array('Repartición', 10),
+			'O' => array('Supervisión', 10),
+			'P' => array('Regional', 10),
+			'Q' => array('Gestión', 10),
+			'R' => array('Zona', 10),
+			'S' => array('Fecha Creación', 10),
+			'T' => array('Año Resolución', 10),
+			'U' => array('Número Resolución', 10),
+			'V' => array('Teléfono', 10),
+			'W' => array('Email', 10)
+		);
+		$escuelas = $this->db->select('e.numero, e.anexo, e.cue, e.subcue, e.nombre, e.calle, e.calle_numero, e.barrio, lo.descripcion localidad, ld.descripcion departamento, '
+					. 'e.codigo_postal, n.descripcion nivel, rl.descripcion regimen_lista, CONCAT(j.codigo, \' \', r.codigo) reparticion, s.nombre supervision, rg.descripcion regional, d.descripcion dependencia, '
+					. 'z.descripcion zona, e.fecha_creacion, e.anio_resolucion, e.numero_resolucion, e.telefono, e.email')
+				->from('escuela e')
+				->join('dependencia d', 'd.id = e.dependencia_id', 'left')
+				->join('localidad lo', 'lo.id = e.localidad_id', 'left')
+				->join('departamento ld', 'ld.id = lo.departamento_id', 'left')
+				->join('nivel n', 'n.id = e.nivel_id', 'left')
+				->join('regimen_lista rl', 'rl.id = e.regimen_lista_id', 'left')
+				->join('linea l', 'l.id = n.linea_id', 'left')
+				->join('regional rg', 'rg.id = e.regional_id', 'left')
+				->join('reparticion r', 'r.id = e.reparticion_id', 'left')
+				->join('jurisdiccion j', 'j.id = r.jurisdiccion_id', 'left')
+				->join('supervision s', 's.id = e.supervision_id', 'left')
+				->join('zona z', 'z.id = e.zona_id', 'left')
+				->where('supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($escuelas)) {
+			$this->exportar_excel(array('title' => "Escuelas_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $escuelas);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function cargos() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona actual', 50),
+		);
+		$cargos = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona')
+				->from('cargo c')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id', 'left')
+				->join('servicio sp', "sp.id = (SELECT id FROM servicio s WHERE s.cargo_id = c.id AND ((NOW() BETWEEN s.fecha_alta AND s.fecha_baja) OR NOW() >= s.fecha_alta AND s.fecha_baja IS NULL ) ORDER BY s.fecha_alta DESC LIMIT 1)", 'left')
+				->join('persona p', 'p.id = sp.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($cargos)) {
+			$this->exportar_excel(array('title' => "Cargos_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $cargos);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function servicios() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona', 50),
+			'H' => array('Liquidación', 15),
+			'I' => array('Alta', 11),
+			'J' => array('Baja', 11),
+		);
+		$servicios = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona, s.liquidacion, s.fecha_alta, s.fecha_baja')
+				->from('servicio s')
+				->join('cargo c', 'c.id = s.cargo_id')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id', 'left')
+				->join('persona p', 'p.id = s.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->get()->result_array();
+
+		if (!empty($servicios)) {
+			$this->exportar_excel(array('title' => "Servicios_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $servicios);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+
+	public function novedades() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$campos = array(
+			'A' => array('Escuela', 10),
+			'B' => array('Anexo', 10),
+			'C' => array('Régimen', 40),
+			'D' => array('Materia', 30),
+			'E' => array('División', 20),
+			'F' => array('Hs Cátedra', 15),
+			'G' => array('Persona', 50),
+			'H' => array('Liquidación', 15),
+			'I' => array('Artículo', 11),
+			'J' => array('Desde', 11),
+			'K' => array('Hasta', 11),
+			'L' => array('Alta', 11),
+			'M' => array('Baja', 11),
+		);
+		$novedades = $this->db->select('e.numero, e.anexo, CONCAT(r.codigo, \' \', r.descripcion) as regimen, m.descripcion as materia, '
+					. 'CONCAT(cu.descripcion, \' \', d.division) division, c.carga_horaria, CONCAT(COALESCE(p.cuil, p.documento), \' \', p.apellido, \' \', p.nombre) as persona, '
+					. 's.liquidacion, CONCAT(nt.articulo, \'-\', nt.inciso, \' \', nt.descripcion), sn.fecha_desde, sn.fecha_hasta, s.fecha_alta, s.fecha_baja')
+				->from('servicio_novedad sn')
+				->join('novedad_tipo nt', 'nt.id = sn.novedad_tipo_id')
+				->join('servicio s', 's.id = sn.servicio_id')
+				->join('cargo c', 'c.id = s.cargo_id')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('division d', 'd.id = c.division_id', 'left')
+				->join('curso cu', 'cu.id = d.curso_id', 'left')
+				->join('espacio_curricular ec', 'ec.id = c.espacio_curricular_id', 'left')
+				->join('materia m', 'ec.materia_id = m.id', 'left')
+				->join('regimen r', 'r.id = c.regimen_id', 'left')
+				->join('persona p', 'p.id = s.persona_id', 'left')
+				->where('e.supervision_id', $this->rol->entidad_id)
+				->where('sn.planilla_baja_id IS NULL')
+				->get()->result_array();
+
+		if (!empty($novedades)) {
+			$this->exportar_excel(array('title' => "Novedades_{$this->rol->entidad_id}_" . date('Ymd')), $campos, $novedades);
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('reportes/listar', 'refresh');
+		}
+	}
+}

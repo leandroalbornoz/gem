@@ -1,0 +1,354 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Datos_personal extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('persona_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL, ROL_ESCUELA_ALUM));
+		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_GRUPO_ESCUELA_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/servicio';
+	}
+
+	public function listar($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Cuil', 'data' => 'cuil', 'width' => 10),
+				array('label' => 'Documento', 'data' => 'documento', 'width' => 10),
+				array('label' => 'Nombre', 'data' => 'persona', 'width' => 20),
+				array('label' => 'Dirección', 'data' => 'direccion', 'width' => 20),
+				array('label' => 'Localidad', 'data' => 'localidad', 'width' => 10),
+				array('label' => 'Teléfono', 'data' => 'telefono_fijo', 'width' => 8),
+				array('label' => 'Celular', 'data' => 'telefono_movil', 'width' => 10),
+				array('label' => '', 'data' => 'menu', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'persona_table',
+			'source_url' => "datos_personal/listar_data/$escuela_id/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'details_format' => 'persona_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_persona_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['escuela'] = $escuela;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Datos de personal';
+		$this->load_template('datos_personal/datos_personal_listar', $data);
+	}
+
+	public function listar_data($escuela_id = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select("MIN(servicio.id) as id, persona.cuil, CONCAT(documento_tipo.descripcion_corta, ' ', persona.documento) as documento, CONCAT(persona.apellido, ', ', persona.nombre) as persona, CONCAT(COALESCE(CONCAT(persona.calle,' '),''), COALESCE(CONCAT(persona.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',persona.departamento,' '),''), COALESCE(CONCAT('P:',persona.piso,' '),''), COALESCE(CONCAT('B°:',persona.barrio,' '),''), COALESCE(CONCAT('M:',persona.manzana,' '),''), COALESCE(CONCAT('C:',persona.casa,' '),'')) as direccion, persona.telefono_fijo, persona.telefono_movil, persona.fecha_nacimiento, departamento.descripcion as depto_nacimiento, localidad.descripcion as localidad")
+			->from('persona')
+			->join('departamento', 'departamento.id = persona.depto_nacimiento_id', 'left')
+			->join('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left')
+			->join('localidad', 'localidad.id = persona.localidad_id', 'left')
+			->join('servicio', 'persona.id = servicio.persona_id')
+			->join('cargo', 'cargo.id = servicio.cargo_id', '')
+			->join('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1', '')
+			->where('cargo.escuela_id', $escuela_id)
+			->where('servicio.fecha_baja IS NULL')
+			->group_by('persona.id');
+		if ($this->edicion) {
+			$this->datatables->add_column('menu', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="datos_personal/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item" href="datos_personal/editar/$1" title="Editar"><i class="fa fa-pencil"></i> Editar</a></li>'
+				. '</ul></div>', 'id');
+		} else {
+			$this->datatables->add_column('menu', '<a class="btn btn-xs btn-default" href="datos_personal/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("servicio/ver/$id");
+		}
+
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$persona = $this->persona_model->get_one($servicio->persona_id);
+		if (empty($persona)) {
+			show_error('No se encontró el registro a editar', 500, 'Registro no encontrado');
+		}
+		if (!empty($persona->cuil)) {
+			$this->persona_model->fields['cuil'] = array('label' => 'CUIL', 'readonly' => TRUE);
+		}
+		$this->persona_model->fields['documento_tipo'] = array('label' => 'T.Doc.', 'readonly' => TRUE);
+		$this->persona_model->fields['documento'] = array('label' => 'Documento', 'readonly' => TRUE);
+		$this->load->model('departamento_model');
+		$this->load->model('estado_civil_model');
+		$this->load->model('grupo_sanguineo_model');
+		$this->load->model('localidad_model');
+		$this->load->model('nacionalidad_model');
+		$this->load->model('nivel_estudio_model');
+		$this->load->model('obra_social_model');
+		$this->load->model('ocupacion_model');
+		$this->load->model('prestadora_model');
+		$this->load->model('sexo_model');
+		$this->array_depto_nacimiento_control = $array_depto_nacimiento = $this->get_array('departamento', 'descripcion', 'id', null, array('' => '-- Seleccionar departamento --'));
+		$this->array_estado_civil_control = $array_estado_civil = $this->get_array('estado_civil', 'descripcion', 'id', null, array('' => '-- Seleccionar estado civil --'));
+		$this->array_grupo_sanguineo_control = $array_grupo_sanguineo = $this->get_array('grupo_sanguineo', 'descripcion', 'id', null, array('' => '-- Seleccionar grupo sanguíneo --'));
+		$this->array_localidad_control = $array_localidad = $this->get_array('localidad', 'localidad', 'id', array(
+			'select' => array('localidad.id', "CONCAT(departamento.descripcion, ' - ', localidad.descripcion) as localidad"),
+			'join' => array(array('departamento', 'departamento.id = localidad.departamento_id')),
+			'sort_by' => 'departamento.descripcion, localidad.descripcion'
+			), array('' => '-- Seleccionar localidad --'));
+		$this->array_nacionalidad_control = $array_nacionalidad = $this->get_array('nacionalidad', 'descripcion', 'id', null, array('' => '-- Seleccionar nacionalidad --'));
+		$this->array_nivel_estudio_control = $array_nivel_estudio = $this->get_array('nivel_estudio', 'descripcion', 'id', null, array('' => '-- Seleccionar nivel de estudios --'));
+		$this->array_obra_social_control = $array_obra_social = $this->get_array('obra_social', 'descripcion', 'id', null, array('' => '-- Seleccionar obra social --'));
+		$this->array_ocupacion_control = $array_ocupacion = $this->get_array('ocupacion', 'descripcion', 'id', null, array('' => '-- Seleccionar ocupación --'));
+		$this->array_prestadora_control = $array_prestadora = $this->get_array('prestadora', 'descripcion', 'id', null, array('' => '-- Seleccionar prestadora --'));
+		$this->array_sexo_control = $array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+		$this->set_model_validation_rules($this->persona_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($servicio->persona_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_model->update(array(
+					'id' => $this->input->post('id'),
+					'cuil' => empty($persona->cuil) ? $this->input->post('cuil') : $persona->cuil,
+					'apellido' => $this->input->post('apellido'),
+					'nombre' => $this->input->post('nombre'),
+					'calle' => $this->input->post('calle'),
+					'calle_numero' => $this->input->post('calle_numero'),
+					'departamento' => $this->input->post('departamento'),
+					'piso' => $this->input->post('piso'),
+					'barrio' => $this->input->post('barrio'),
+					'manzana' => $this->input->post('manzana'),
+					'casa' => $this->input->post('casa'),
+					'localidad_id' => $this->input->post('localidad'),
+					'codigo_postal' => $this->input->post('codigo_postal'),
+					'sexo_id' => $this->input->post('sexo'),
+					'estado_civil_id' => $this->input->post('estado_civil'),
+					'nivel_estudio_id' => $this->input->post('nivel_estudio'),
+					'ocupacion_id' => $this->input->post('ocupacion'),
+					'telefono_fijo' => $this->input->post('telefono_fijo'),
+					'telefono_movil' => $this->input->post('telefono_movil'),
+					'prestadora_id' => $this->input->post('prestadora'),
+					'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento'),
+					'fecha_defuncion' => $this->get_date_sql('fecha_defuncion'),
+					'obra_social_id' => $this->input->post('obra_social'),
+					'grupo_sanguineo_id' => $this->input->post('grupo_sanguineo'),
+					'depto_nacimiento_id' => $this->input->post('depto_nacimiento'),
+					'lugar_traslado_emergencia' => $this->input->post('lugar_traslado_emergencia'),
+					'email' => $this->input->post('email'),
+					'nacionalidad_id' => $this->input->post('nacionalidad')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_model->get_msg());
+					redirect("datos_personal/ver/$id", 'refresh');
+				}
+			}
+		}
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->persona_model->get_error() ? $this->persona_model->get_error() : $this->session->flashdata('error')));
+
+		$this->persona_model->fields['depto_nacimiento']['array'] = $array_depto_nacimiento;
+		$this->persona_model->fields['estado_civil']['array'] = $array_estado_civil;
+		$this->persona_model->fields['grupo_sanguineo']['array'] = $array_grupo_sanguineo;
+		$this->persona_model->fields['localidad']['array'] = $array_localidad;
+		$this->persona_model->fields['nacionalidad']['array'] = $array_nacionalidad;
+		$this->persona_model->fields['nivel_estudio']['array'] = $array_nivel_estudio;
+		$this->persona_model->fields['obra_social']['array'] = $array_obra_social;
+		$this->persona_model->fields['ocupacion']['array'] = $array_ocupacion;
+		$this->persona_model->fields['prestadora']['array'] = $array_prestadora;
+		$this->persona_model->fields['sexo']['array'] = $array_sexo;
+		$data['fields'] = $this->build_fields($this->persona_model->fields, $persona);
+
+		$data['servicio'] = $servicio;
+		$data['persona'] = $persona;
+		$data['escuela'] = $escuela;
+		$this->load->model('persona_antiguedad_model');
+		$data['antiguedades'] = $this->persona_antiguedad_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('escuela', 'escuela.id=persona_antiguedad.escuela_id', '', array('escuela.numero', 'escuela.nombre'))
+		)));
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('ver' => '', 'editar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Editar datos personal';
+		$this->load_template('datos_personal/datos_personal_abm', $data);
+	}
+
+	public function ver($id = NULL, $es_funcion = '0') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if ($es_funcion === '1') {
+			$this->load->model('servicio_funcion_model');
+			$servicio_funcion = $this->servicio_funcion_model->get_one($id);
+			$id = $servicio_funcion->servicio_id;
+		}
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		if ($es_funcion === '1') {
+			$escuela = $this->escuela_model->get_one($servicio_funcion->escuela_id);
+		} else {
+			$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		}
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$persona = $this->persona_model->get_one($servicio->persona_id);
+		if (empty($persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('servicio_model');
+		$this->load->model('alumno_model');
+
+		$servicios = $this->servicio_model->get_servicios_persona($persona->id);
+
+		if (ENVIRONMENT !== 'production') {
+			$horarios_servicios_db = $this->servicio_model->get_horario_by_persona($persona->id);
+			$horarios_servicios = array();
+			foreach ($horarios_servicios_db as $hs) {
+				if (!isset($horarios_servicios[$hs->servicio_id])) {
+					$horarios_servicios[$hs->servicio_id] = $hs;
+					$horarios_servicios[$hs->servicio_id]->horarios = array();
+				}
+				if (!isset($horarios_servicios[$hs->servicio_id]->dias[$hs->dia_id])) {
+					$horarios_servicios[$hs->servicio_id]->dias[$hs->dia_id] = $hs;
+					$horarios_servicios[$hs->servicio_id]->dias[$hs->dia_id]->horarios = array();
+				}
+				$horarios_servicios[$hs->servicio_id]->dias[$hs->dia_id]->horarios[] = $hs;
+			}
+			$data['horarios_servicios'] = $horarios_servicios;
+		}
+		$alumno = $this->alumno_model->get_trayectoria_alumno($persona->id);
+		$data['error'] = $this->session->flashdata('error');
+		$data['fields'] = $this->build_fields($this->persona_model->fields, $persona, TRUE);
+		$this->load->model('familia_model');
+		$data['parientes'] = $this->familia_model->get_familiares($persona->id);
+		$data['servicios'] = $servicios;
+		$this->load->model('tbcabh_model');
+		$data['liquidaciones'] = $this->tbcabh_model->get_by_persona($persona->cuil);
+		$data['alumno'] = $alumno;
+		$data['servicio'] = $servicio;
+		$data['persona'] = $persona;
+		$data['escuela'] = $escuela;
+		$this->load->model('persona_antiguedad_model');
+		$data['antiguedades'] = $this->persona_antiguedad_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('escuela', 'escuela.id=persona_antiguedad.escuela_id', '', array('escuela.numero', 'escuela.nombre'))
+		)));
+		$data['es_funcion'] = $es_funcion;
+		$data['txt_btn'] = 'Ver';
+		$data['class'] = array('ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver datos personal';
+		$this->load_template('datos_personal/datos_personal_ver', $data);
+	}
+
+	public function antiguedad($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$persona = $this->persona_model->get_one($servicio->persona_id);
+		if (empty($persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$this->load->model('servicio_model');
+		$this->load->model('alumno_model');
+
+		$servicios = $this->servicio_model->get_servicios_persona($persona->id, $escuela->id);
+		$alumno = $this->alumno_model->get_trayectoria_alumno($persona->id);
+		$data['error'] = $this->session->flashdata('error');
+
+		$data['fields'] = $this->build_fields($this->persona_model->fields, $persona, TRUE);
+		$data['servicios'] = $servicios;
+		$data['alumno'] = $alumno;
+		$data['servicio'] = $servicio;
+		$data['persona'] = $persona;
+		$data['escuela'] = $escuela;
+		$this->load->model('persona_antiguedad_model');
+		$data['antiguedades'] = $this->persona_antiguedad_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('escuela', 'escuela.id=persona_antiguedad.escuela_id', '', array('escuela.numero', 'escuela.nombre'))
+		)));
+		$data['title'] = TITLE . ' - Antigüedad de personal';
+		$this->load_template('datos_personal/datos_personal_antiguedad', $data);
+	}
+}
+/* End of file Datos_personal.php */
+/* Location: ./application/controllers/Datos_personal.php */

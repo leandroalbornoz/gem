@@ -1,0 +1,159 @@
+<style>
+	.table-striped > tbody > tr:nth-of-type(odd) {
+		background-color: #dfdfdf;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Auditoría de Bajas - <label class="label label-default"><?php echo empty($departamento) ? 'N/D' : $departamento->descripcion; ?></label> <label class="label label-default"><?php echo $mes; ?></label>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="liquidaciones/escritorio/index/<?php echo $mes; ?>">Auditoría Bajas <?php echo $mes; ?></a></li>
+			<li class="active"><?php echo empty($departamento) ? 'N/D' : $departamento->descripcion; ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<?php echo $js_table; ?>
+						<?php echo $html_table; ?>
+					</div>
+				</div>
+				<div class="box box-primary">
+					<div class="box-body">
+						<?php echo $js_table_2; ?>
+						<?php echo $html_table_2; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	var bajas_table;
+	var bajas_auditadas_table;
+	function complete_bajas_table() {
+		agregar_filtros('bajas_table', bajas_table, 7);
+	}
+	function complete_bajas_auditadas_table() {
+		agregar_filtros('bajas_auditadas_table', bajas_auditadas_table, 7);
+	}
+	function bajas_table_detalles(api, rowIdx, columns) {
+		var html = table_detalles(api, rowIdx, columns);
+		html += '<div id="bajas_table_detalle_' + rowIdx + '"><i class="fa fa-spin fa-refresh"></i>Cargando bajas...</div>';
+		var escuela_numero = api.row(rowIdx).data().numero;
+		$.ajax({
+			type: 'GET',
+			url: 'liquidaciones/bajas/ajax_get_bajas?',
+			data: {
+				escuela_numero: escuela_numero,
+				mes: <?php echo $mes; ?>
+			},
+			dataType: 'json',
+			success: function(result) {
+				$('#bajas_table_detalle_' + rowIdx).html(format(result));
+			}
+		});
+		return html;
+	}
+	function bajas_auditadas_table_detalles(api, rowIdx, columns) {
+		var html = table_detalles(api, rowIdx, columns);
+		html += '<div id="bajas_auditadas_table_detalle_' + rowIdx + '"><i class="fa fa-spin fa-refresh"></i>Cargando bajas...</div>';
+		var escuela_numero = api.row(rowIdx).data().numero;
+		$.ajax({
+			type: 'GET',
+			url: 'liquidaciones/bajas/ajax_get_bajas?',
+			data: {
+				escuela_numero: escuela_numero,
+				mes: <?php echo $mes; ?>
+			},
+			dataType: 'json',
+			success: function(result) {
+				$('#bajas_auditadas_table_detalle_' + rowIdx).html(format(result));
+			}
+		});
+		return html;
+	}
+	function format(bajas) {
+		var html = '<table class="table table-condensed table-bordered table-hover" style="margin-bottom: 0;"><thead><tr class="bg-gray"><thead><tr class="bg-gray"><th class="text-center" colspan="7">Bajas sirrhh</th></td><tr><th>Persona/Liq</th><th>Baja</th><th>RegSal</th><th>Clase</th><th>Baja</th><th>Usuario</th><th>GEM</th></tr></thead><tbody>';
+		if (bajas.sirrhh.length === 0) {
+			html += '<tr><td colspan="7">No hay bajas registradas por sirrhh</td></tr>';
+		} else {
+			var len = bajas.sirrhh.length;
+			for (var i = 0; i < len; i++) {
+				html += '<tr>' +
+								'<td>' + (bajas.sirrhh[i].persona_id === null ? bajas.sirrhh[i].PerCuil : '<a target="_blank" href="persona/ver/' + bajas.sirrhh[i].persona_id + '"><i class="fa fa-search"></i></a> ' + bajas.sirrhh[i].PerCuil + ' ' + bajas.sirrhh[i].ReeLiq + ' ' + bajas.sirrhh[i].Persona) + '</td>' +
+								'<td>' + bajas.sirrhh[i].ReeDiaAlt + '</td>' +
+								'<td>' + bajas.sirrhh[i].RegSalCod + '</td>' +
+								'<td>' + bajas.sirrhh[i].Clase + '</td>' +
+								'<td>' + bajas.sirrhh[i].ReeDiaBaj + '</td>' +
+								'<td>' + bajas.sirrhh[i].ReeusuId + '</td>' +
+								'<td>' + (bajas.sirrhh[i].servicios === null ? '' : url_servicios(bajas.sirrhh[i].servicios)) + '</td></tr>';
+			}
+		}
+		html += '<tr class="bg-gray"><th class="text-center" colspan="7">Bajas gem</th></td><tr><th>Persona</th><th>Baja</th><th>RegSal</th><th>Clase</th><th>Baja</th><th>Revista</th><th>sirrhh</th></tr>';
+		if (bajas.gem.length === 0) {
+			html += '<tr><td colspan="7">No hay bajas registradas por gem</td></tr>';
+		} else {
+			var len = bajas.gem.length;
+			for (var i = 0; i < len; i++) {
+				if (bajas.gem[i].mes_anterior === '1') {
+					html += '<tr class="bg-gray">';
+				} else if (bajas.gem[i].Liquidacion !== null && bajas.gem[i].Liquidacion.substring(0, 1) !== 'A') {
+					html += '<tr class="bg-green">';
+				} else {
+					html += '<tr>';
+				}
+				html += '<td>' + '<a target="_blank" href="persona/ver/' + bajas.gem[i].persona_id + '"><i class="fa fa-search"></i></a> ' + bajas.gem[i].CUIL + ' ' + bajas.gem[i].Persona + (bajas.gem[i].Liquidacion === null ? '' : ' - Liquidación: ' + bajas.gem[i].Liquidacion) + '</td>' +
+								'<td>' + moment(bajas.gem[i].Baja).format("DD/MM/YY") + '</td>' +
+								'<td>' + bajas.gem[i].Regimen + '</td>' +
+								'<td>' + (bajas.gem[i].Clase === '0000' ? bajas.gem[i].puntos : bajas.gem[i].Clase) + '</td>' +
+								'<td>' + (bajas.gem[i].Baja === null ? '' : moment(bajas.gem[i].Baja).format("DD/MM/YY")) + '</td>' +
+								'<td>' + bajas.gem[i].SR + '</td>' +
+								'<td>' + bajas.gem[i].liqs + '</td></tr>';
+			}
+		}
+		html += '</tbody></table>';
+		return html;
+	}
+	function url_servicios(servicios_id) {
+		var servicios_arr = servicios_id.split(',');
+		var html = '';
+		for (var i = 0; i < servicios_arr.length; i++) {
+			html += '<a target="_blank" href="servicio/ver/' + servicios_arr[i] + '"><i class="fa fa-search"></i></a><br/>';
+		}
+		return html;
+	}
+</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

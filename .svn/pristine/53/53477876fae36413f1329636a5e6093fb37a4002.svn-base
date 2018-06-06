@@ -1,0 +1,191 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Extintor extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('extintores/extintor_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_DIR_ESCUELA, ROL_SDIR_ESCUELA, ROL_SEC_ESCUELA, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_SUPERVISION, ROL_DOCENTE);
+		$this->nav_route = 'par/extintor';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(//@todo arreglar anchos de columnas
+				array('label' => 'Primer Carga', 'data' => 'fecha_primer_carga', 'render' => 'date', 'width' => 15),
+				array('label' => 'Vencimiento', 'data' => 'fecha_vencimiento', 'render' => 'date', 'width' => 15),
+				array('label' => 'Número de Registro', 'data' => 'numero_registro', 'width' => 10),
+				array('label' => 'Empresa de Instalación', 'data' => 'empresa_instalacion', 'width' => 15),
+				array('label' => 'Marca', 'data' => 'marca', 'width' => 12),
+				array('label' => 'Kilos', 'data' => 'kilos', 'class' => 'dt-body-center', 'width' => 8),
+				array('label' => 'Tipo de Extintor', 'data' => 'tipo_extintor', 'width' => 8),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'extintor_table',
+			'source_url' => 'extintores/extintor/listar_data'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Gestión Escuelas Mendoza - Extintores';
+		$this->load_template('extintores/extintor/extintor_listar', $data);
+	}
+
+	public function listar_data() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('extintor.id, extintor.fecha_primer_carga, extintor.fecha_vencimiento, extintor.numero_registro, extintor.empresa_instalacion, extintor.marca, extintor.kilos, extintor.tipo_extintor')
+			->unset_column('id')
+			->from('extintor')
+			->add_column('edit', '<a href="extintores/extintor/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default"><i class="fa fa-search"></i></a> <a href="extintores/extintor/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning"><i class="fa fa-pencil"></i></a> <a href="extintores/extintor/modal_eliminar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger"><i class="fa fa-remove"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->set_model_validation_rules($this->extintor_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok&= $this->extintor_model->create(array(
+					'fecha_primer_carga' => $this->get_date_sql('fecha_primer_carga'),
+					'fecha_vencimiento' => $this->get_date_sql('fecha_vencimiento'),
+					'numero_registro' => $this->input->post('numero_registro'),
+					'empresa_instalacion' => $this->input->post('empresa_instalacion'),
+					'marca' => $this->input->post('marca'),
+					'kilos' => $this->input->post('kilos'),
+					'tipo_extintor' => $this->input->post('tipo_extintor')));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->extintor_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->extintor_model->get_error());
+				}
+				redirect('extintores/extintor/listar', 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('extintores/extintor/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->extintor_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar extintor';
+		$this->load->view('extintores/extintor/extintor_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$extintor = $this->extintor_model->get(array('id' => $id));
+		if (empty($extintor)) {
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+		}
+		$this->set_model_validation_rules($this->extintor_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok&= $this->extintor_model->update(array(
+					'id' => $this->input->post('id'),
+					'fecha_primer_carga' => $this->get_date_sql('fecha_primer_carga'),
+					'fecha_vencimiento' => $this->get_date_sql('fecha_vencimiento'),
+					'numero_registro' => $this->input->post('numero_registro'),
+					'empresa_instalacion' => $this->input->post('empresa_instalacion'),
+					'marca' => $this->input->post('marca'),
+					'kilos' => $this->input->post('kilos'),
+					'tipo_extintor' => $this->input->post('tipo_extintor')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->extintor_model->get_msg());
+					redirect('extintores/extintor/listar', 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('extintores/extintor/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->extintor_model->fields, $extintor);
+
+		$data['extintor'] = $extintor;
+
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar extintor';
+		$this->load->view('extintores/extintor/extintor_modal_abm', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$extintor = $this->extintor_model->get(array('id' => $id));
+		if (empty($extintor)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok&= $this->extintor_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->extintor_model->get_msg());
+				redirect('extintores/extintor/listar', 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->extintor_model->fields, $extintor, TRUE);
+
+		$data['extintor'] = $extintor;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar extintor';
+		$this->load->view('extintores/extintor/extintor_modal_abm', $data);
+	}
+
+	public function modal_ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$extintor = $this->extintor_model->get(array('id' => $id));
+		if (empty($extintor)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$data['fields'] = $this->build_fields($this->extintor_model->fields, $extintor, TRUE);
+
+		$data['extintor'] = $extintor;
+		$data['txt_btn'] = NULL;
+		$data['title'] = 'Ver extintor';
+		$this->load->view('extintores/extintor/extintor_modal_abm', $data);
+	}
+}
+/* End of file Extintor.php */
+/* Location: ./application/modules/extintores/controllers/Extintor.php */

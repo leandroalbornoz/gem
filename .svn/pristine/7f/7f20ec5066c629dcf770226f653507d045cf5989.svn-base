@@ -1,0 +1,187 @@
+<style>
+	#formulario_novedad .table{
+		margin-bottom: 0;
+	}
+</style>
+<script>
+	var unavailableDates = JSON.parse('<?php echo json_encode($fechas_inhabilitadas); ?>');
+	$(document).ready(function() {
+		$('#cal_desde').datepicker({
+			datesDisabled: unavailableDates,
+			endDate: '<?php echo (isset($reemplazo_corto) && $reemplazo_corto) ? $fecha_desde : $fecha_hasta; ?>',
+			format: 'dd/mm/yyyy',
+			language: 'es',
+			maxViewMode: 'month',
+			minViewMode: 'month',
+			startDate: '<?php echo $fecha_desde; ?>'
+		}).on('changeDate', function(e) {
+			$('#fecha_desde').val($('#cal_desde').datepicker('getFormattedDate'));
+			$('#fecha_desde').change();
+			validarFechas();
+		});
+		$('#formulario_novedad').submit(validarFechas);
+		$('#fecha_hasta').val('<?php echo $fecha_hasta; ?>');
+		agregar_eventos($('#formulario_novedad'));
+		$('#obligaciones').inputmask('decimal', {radixPoint: ',', digits: 1, autoUnmask: true, placeholder: '', removeMaskOnSubmit: true, onUnMask: function(value) {
+				return value.replace('.', '').replace(',', '.');
+			}});
+		$('#obligaciones').on('change', function(e) {
+			var value = $('#obligaciones').inputmask('unmaskedvalue');
+			if (value !== '') {
+				var decimals = value.split('.')[1];
+				if (typeof decimals === 'undefined')
+					$('#obligaciones').val(value + ',0');
+				else {
+					$('#obligaciones').val(value + ('0').substr(decimals.length));
+				}
+			}
+		});
+		$('#fecha_desde').change(function(e) {
+			var desde = $('#fecha_desde').val();
+			var hasta = $('#fecha_hasta').val();
+			if (desde !== '' && hasta !== '') {
+				desde = moment(desde, 'DD/MM/YYYY');
+				hasta = moment(hasta, 'DD/MM/YYYY');
+				var date_desde = desde.toDate();
+				var date_hasta = hasta.toDate();
+				var obligaciones = 0;
+				while (date_desde.getTime() <= date_hasta.getTime())
+				{
+					if (typeof $('#dia_' + date_desde.getDay()).html() !== 'undefined') {
+						obligaciones += parseFloat($('#dia_' + date_desde.getDay()).html());
+					}
+					date_desde.setDate(date_desde.getDate() + 1);
+				}
+				$('#obligaciones').val(obligaciones.toFixed(1));
+				var diferencia = hasta.diff(desde, 'days');
+				$('#dias').val(diferencia + 1);
+			} else {
+				$('#dias').val('');
+				e.preventDefault();
+			}
+		});
+	});
+	function validarFechas(e) {
+		var input_desde = $("#fecha_desde");
+		var input_hasta = $("#fecha_hasta");
+		var fecha_desde;
+		var fecha_hasta;
+		var tmp_split;
+		var fecha_tmp;
+
+		if (input_desde.val() === '') {
+			$('#alerta').html('Fecha desde no puede estar vacía');
+			$('#btn_submit_novedad').attr('disabled', true);
+			e.preventDefault();
+			return false;
+		}
+
+		if (input_hasta.val() === '') {
+			$('#alerta').html('Ocurrió un error, por favor recargue la página');
+			$('#btn_submit_novedad').attr('disabled', true);
+			e.preventDefault();
+			return false;
+		}
+		tmp_split = input_desde.val().split('/');
+		fecha_desde = new Date(tmp_split[2], tmp_split[1] - 1, tmp_split[0]);
+		tmp_split = input_hasta.val().split('/');
+		fecha_hasta = new Date(tmp_split[2], tmp_split[1] - 1, tmp_split[0]);
+		for (i = 0; i < unavailableDates.length; i++) {
+			tmp_split = unavailableDates[i].split('/');
+			fecha_tmp = new Date(tmp_split[2], tmp_split[1] - 1, tmp_split[0]);
+			if (fecha_desde < fecha_tmp && fecha_hasta > fecha_tmp) {
+				$('#alerta').html('No puede seleccionar un rango que contenga el día ' + unavailableDates[i]);
+				$('#btn_submit_novedad').attr('disabled', true);
+				e.preventDefault();
+				return false;
+			}
+		}
+		$('#alerta').html('');
+		$('#btn_submit_novedad').attr('disabled', false);
+	}
+</script>
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'formulario_novedad')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<div class="form-group col-md-12">
+			<?php echo $fields['novedad_tipo']['label']; ?>
+			<?php echo $fields['novedad_tipo']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<div id="cal_desde"></div>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['fecha_desde']['label']; ?>
+			<?php echo $fields['fecha_desde']['form']; ?>
+			<input type="hidden" id="fecha_hasta" name="fecha_hasta">
+		</div>
+		<div class="form-group col-md-3">
+			<?php echo $fields['dias']['label']; ?>
+			<?php echo $fields['dias']['form']; ?>
+		</div>
+		<?php if ($servicio->regimen_tipo_id === '2'): ?>
+			<div class="form-group col-md-3">
+				<?php echo $fields['obligaciones']['label']; ?>
+				<?php echo $fields['obligaciones']['form']; ?>
+			</div>
+			<?php if (!empty($horarios)): ?>
+				<div class="col-md-6">
+					<label>Horas Cátedra Semanales</label>
+					<table class="table table-condensed text-center text-sm">
+						<thead>
+							<tr>
+								<?php foreach ($horarios as $horario): ?>
+									<th><?php echo mb_substr($horario->dia, 0, 2); ?></th>
+								<?php endforeach; ?>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<?php foreach ($horarios as $horario): ?>
+									<td class="text-center" id="dia_<?php echo $horario->dia_id; ?>"><?php echo $horario->cantidad; ?></td>
+								<?php endforeach; ?>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
+		<?php endif; ?>
+		<?php if (!empty($novedades)): ?>
+			<div class="col-md-12">
+				<label>Novedades Servicio</label>
+				<table class="table table-condensed text-center text-sm">
+					<thead>
+						<tr>
+							<th>Artículo</th>
+							<th>Desde</th>
+							<th>Hasta</th>
+							<th>Días</th>
+							<th>Obligaciones</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($novedades as $novedad): ?>
+							<tr>
+								<td><?php echo "$novedad->articulo-$novedad->inciso"; ?></td>
+								<td><?php echo (new DateTime($novedad->fecha_desde))->format('d/m/Y'); ?></td>
+								<td><?php echo (new DateTime($novedad->fecha_hasta))->format('d/m/Y'); ?></td>
+								<td><?php echo $novedad->dias; ?></td>
+								<td><?php echo $novedad->obligaciones; ?></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		<?php endif; ?>
+	</div>
+</div>
+<div class="modal-footer">
+	<span class="badge bg-red" id="alerta"></span>
+	<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+	<?php echo form_submit(array('class' => 'btn btn-danger pull-right', 'title' => 'Dar de baja', 'id' => 'btn_submit_novedad'), 'Dar de baja'); ?>
+</div>
+<?php echo form_close(); ?>

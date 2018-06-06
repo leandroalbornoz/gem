@@ -479,6 +479,7 @@
 											<label>Mes</label>
 										</div>
 									</h4>
+								
 									<thead>
 										<tr>
 											<th>N° Abono</th>
@@ -538,7 +539,7 @@
 										<th colspan="2">Egreso</th>
 										<th>Estado</th>
 										<th>Inasistencias</th>
-										<th style="min-width:70px;"></th>
+										<th style="min-width:70px;">Trayectoria</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -555,9 +556,13 @@
 												<td><?= empty($division->fecha_hasta) ? '' : (new DateTime($division->fecha_hasta))->format('d/m/y'); ?></td>
 												<td class="text-sm"><?= $division->causa_salida; ?></td>
 												<td><?= $division->estado; ?></td>
-												<td class="text-center">
-													<?= number_format($division->falta, 1, ',', ''); ?>&nbsp;
-													<a class="btn btn-xs btn-primary pull-left" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="alumno_division/modal_inasistencia_alumno/<?= $division->id; ?>" title="Editar"><i class="fa fa-clock-o"></i></a>
+												<td class="text-right">
+														<?= number_format($division->falta, 1, ',', ''); ?>&nbsp;
+													<?php if (in_array($this->rol->codigo, $this->roles_admin)): ?>
+														<a class="btn btn-xs btn-warning" href="alumno_division/inasistencia/<?= $division->id; ?>" title="Editar inasistencias"><i class="fa fa-edit"></i></a>
+													<?php endif; ?>
+													<a class="btn btn-xs btn-primary" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="alumno_division/modal_inasistencia_alumno/<?= $division->id; ?>" title="Editar"><i class="fa fa-clock-o"></i></a>
+
 												</td>
 												<td class="text-center">
 													<?php if (in_array($this->rol->codigo, array(ROL_ADMIN, ROL_USI))): ?>

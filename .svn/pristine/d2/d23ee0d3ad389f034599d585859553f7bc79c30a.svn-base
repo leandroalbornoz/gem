@@ -1,0 +1,701 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Personal extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('area_model');
+		$this->load->model('servicio_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_AREA, ROL_CONSULTA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+		if (in_array($this->rol->codigo, array(ROL_CONSULTA))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/servicio';
+	}
+
+	public function listar($area_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $area_id == NULL || !ctype_digit($area_id) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			redirect("areas/personal/listar/$area_id/" . date('Ym'), 'refresh');
+		}
+
+		$area = $this->area_model->get_one($area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		$nombres_meses = array('01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril', '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto', '09' => 'Setiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre');
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => 'details-control', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 23, 'class' => 'text-sm'),
+				array('label' => 'Alta', 'data' => 'fecha_alta', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Liquidación', 'data' => 'liquidacion', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'S.R.', 'data' => 'situacion_revista', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'Régimen/Área', 'data' => 'regimen_area', 'width' => 34, 'class' => 'text-sm'),
+				array('label' => 'Hora', 'data' => 'carga_horaria', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Baja', 'data' => 'fecha_baja', 'render' => 'short_date', 'width' => 6),
+				array('label' => '', 'data' => 'menu', 'width' => 10, 'class' => 'dt-body-center', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'servicio_table',
+			'source_url' => "areas/personal/listar_data/$area_id/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(5, 'asc'), array(6, 'asc'), array(7, 'asc')),
+			'responsive' => FALSE,
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_servicio_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+
+		$tableData_f = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => 'details-control', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 23, 'class' => 'text-sm'),
+				array('label' => 'Alta', 'data' => 'fecha_alta', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Liquidación', 'data' => 'liquidacion', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'S.R.', 'data' => 'situacion_revista', 'width' => 7, 'class' => 'text-sm'),
+				array('label' => 'Origen', 'data' => 'origen', 'width' => 14, 'class' => 'text-sm'),
+				array('label' => 'Régimen/Área', 'data' => 'regimen_area', 'width' => 20, 'class' => 'text-sm'),
+				array('label' => 'Hora', 'data' => 'carga_horaria', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Baja', 'data' => 'fecha_baja', 'render' => 'short_date', 'width' => 6),
+				array('label' => '', 'data' => 'menu', 'width' => 10, 'class' => 'dt-body-center', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'servicio_f_table',
+			'source_url' => "areas/personal/listar_data_funcion/$area_id/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(5, 'asc'), array(6, 'asc'), array(7, 'asc')),
+			'responsive' => FALSE,
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_servicio_f_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+
+		$data['fields'] = $this->build_fields($this->area_model->fields, $area, TRUE);
+		$data['area'] = $area;
+
+		$data['mes_id'] = $mes;
+		$data['mes'] = $nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+		$fecha = DateTime::createFromFormat('Ymd', $mes . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['html_table_f'] = buildHTML($tableData_f);
+		$data['js_table_f'] = buildJS($tableData_f);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Personal';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('areas/personal/personal_listar', $data);
+	}
+
+	public function listar_data($area_id = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $area_id == NULL || !ctype_digit($area_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$area = $this->area_model->get_one($area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		$this->load->helper('datatables_functions_helper');
+		$this->datatables
+			->select(
+				'servicio.id, servicio.persona_id, servicio.cargo_id, servicio.fecha_alta,'
+				. 'servicio.fecha_baja, servicio.liquidacion, servicio.situacion_revista_id, cargo.carga_horaria, '
+				. 'CONCAT(COALESCE(persona.cuil, \'\'), \'<br>\', COALESCE(persona.apellido, \'\'), \', \', COALESCE(persona.nombre, \'\')) as persona, situacion_revista.descripcion as situacion_revista,'
+				. 'CONCAT(regimen.codigo, \'-\', regimen.descripcion, \'<br>\', area.codigo, \'-\', area.descripcion) as regimen_area, area.id as area_id')
+			->unset_column('id')
+			->from('servicio')
+			->join('cargo', 'cargo.id = servicio.cargo_id', '')
+			->join('persona', 'persona.id = servicio.persona_id', 'left')
+			->join('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', 'left')
+			->join('area', 'cargo.area_id = area.id', 'left')
+			->join('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1', '')
+			->where("'$mes' BETWEEN COALESCE(DATE_FORMAT(servicio.fecha_alta,'%Y%m'),'000000') AND COALESCE(DATE_FORMAT(servicio.fecha_baja,'%Y%m'),'999999')")
+			->where('area.id', $area_id)
+			->add_column('', '', 'id');
+		if ($this->edicion) {
+			$this->datatables->add_column('menu', '$1', 'dt_column_area_personal_menu(\'' . $mes . '\', id, area_id, fecha_baja)');
+		} else {
+			$this->datatables->add_column('menu', '<a class="btn btn-xs btn-default" href="areas/personal/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function listar_data_funcion($area_id = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $area_id == NULL || !ctype_digit($area_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$area = $this->area_model->get_one($area_id);
+		if (empty($area)) {
+			show_error('No se encontró el registro del área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		$this->load->helper('datatables_functions_helper');
+		$this->datatables
+			->select(
+				'servicio_funcion.id, servicio.persona_id, servicio.cargo_id, servicio.fecha_alta,'
+				. 'servicio.fecha_baja, servicio.liquidacion, servicio.situacion_revista_id, cargo.carga_horaria, '
+				. 'CONCAT(COALESCE(persona.cuil, \'\'), \'<br>\', COALESCE(persona.apellido, \'\'), \', \', COALESCE(persona.nombre, \'\')) as persona, situacion_revista.descripcion as situacion_revista,'
+				. 'COALESCE(CONCAT(area.codigo, \' \', area.descripcion), CONCAT(escuela.numero, \' \', escuela.nombre, CASE WHEN anexo = 0 THEN \'\' ELSE CONCAT(\'/\', anexo) END)) as origen, CONCAT(regimen.codigo, \'-\', regimen.descripcion, \'<br>\', area.codigo, \'-\', area.descripcion) as regimen_area, servicio_funcion.area_id')
+			->unset_column('id')
+			->from('servicio_funcion')
+			->join('servicio', 'servicio.id = servicio_funcion.servicio_id')
+			->join('area area_f', 'servicio_funcion.area_id = area_f.id', 'left')
+			->join('cargo', 'cargo.id = servicio.cargo_id', '')
+			->join('persona', 'persona.id = servicio.persona_id', 'left')
+			->join('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', 'left')
+			->join('area', 'cargo.area_id = area.id', 'left')
+			->join('escuela', 'escuela.id = cargo.escuela_id', 'left')
+			->join('regimen', 'cargo.regimen_id = regimen.id AND regimen.planilla_modalidad_id=1', '')
+			->where("'$mes' BETWEEN COALESCE(DATE_FORMAT(servicio.fecha_alta,'%Y%m'),'000000') AND COALESCE(DATE_FORMAT(servicio.fecha_baja,'%Y%m'),'999999')")
+			->where('area_f.id', $area_id)
+			->where('servicio_funcion.fecha_hasta IS NULL')
+			->add_column('', '', 'id');
+		if ($this->edicion) {
+			$this->datatables->add_column('menu', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="areas/personal/ver_funcion/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn-primary" href="areas/personal_novedad/modal_agregar_funcion/' . $mes . '/$1/$2" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-calendar-plus-o"></i> Agregar novedad</a></li>'
+				. '</ul></div>', 'id,area_id');
+		} else {
+			$this->datatables->add_column('menu', '<a class="btn btn-xs btn-default" href="areas/personal/ver_funcion/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function cambiar_mes($area_id, $mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("areas/personal/listar/$area_id/$mes", 'refresh');
+	}
+
+	public function agregar($area_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $area_id == NULL || !ctype_digit($area_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$area = $this->area_model->get(array('id' => $area_id));
+		if (empty($area)) {
+			show_error('No se encontró el registro del área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('cargo_model');
+		$this->load->model('servicio_model');
+		$this->load->model('departamento_model');
+		$this->load->model('documento_tipo_model');
+		$this->load->model('estado_civil_model');
+		$this->load->model('grupo_sanguineo_model');
+		$this->load->model('localidad_model');
+		$this->load->model('nacionalidad_model');
+		$this->load->model('nivel_estudio_model');
+		$this->load->model('obra_social_model');
+		$this->load->model('ocupacion_model');
+		$this->load->model('persona_model');
+		$this->load->model('prestadora_model');
+		$this->load->model('sexo_model');
+		$this->array_depto_nacimiento_control = $array_depto_nacimiento = $this->get_array('departamento', 'descripcion', 'id', null, array('' => '-- Seleccionar departamento --'));
+		$this->array_documento_tipo_control = $array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar tipo de documento --'));
+		$this->array_estado_civil_control = $array_estado_civil = $this->get_array('estado_civil', 'descripcion', 'id', null, array('' => '-- Seleccionar estado civil --'));
+		$this->array_grupo_sanguineo_control = $array_grupo_sanguineo = $this->get_array('grupo_sanguineo', 'descripcion', 'id', null, array('' => '-- Seleccionar grupo sanguíneo --'));
+		$this->array_localidad_control = $array_localidad = $this->get_array('localidad', 'localidad', 'id', array(
+			'select' => array('localidad.id', "CONCAT(departamento.descripcion, ' - ', localidad.descripcion) as localidad"),
+			'join' => array(array('departamento', 'departamento.id = localidad.departamento_id')),
+			'sort_by' => 'departamento.descripcion, localidad.descripcion'
+			), array('' => '-- Seleccionar localidad --'));
+		$this->array_nacionalidad_control = $array_nacionalidad = $this->get_array('nacionalidad', 'descripcion', 'id', null, array('' => '-- Seleccionar nacionalidad --'));
+		$this->array_nivel_estudio_control = $array_nivel_estudio = $this->get_array('nivel_estudio', 'descripcion', 'id', null, array('' => '-- Seleccionar nivel de estudios --'));
+		$this->array_obra_social_control = $array_obra_social = $this->get_array('obra_social', 'descripcion', 'id', null, array('' => '-- Seleccionar obra social --'));
+		$this->array_ocupacion_control = $array_ocupacion = $this->get_array('ocupacion', 'descripcion', 'id', null, array('' => '-- Seleccionar ocupación --'));
+		$this->array_prestadora_control = $array_prestadora = $this->get_array('prestadora', 'descripcion', 'id', null, array('' => '-- Seleccionar prestadora --'));
+		$this->array_sexo_control = $array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+
+		$this->persona_model->fields['depto_nacimiento']['array'] = $array_depto_nacimiento;
+		$this->persona_model->fields['documento_tipo']['array'] = $array_documento_tipo;
+		$this->persona_model->fields['documento_tipo']['value'] = 1;
+		$this->persona_model->fields['estado_civil']['array'] = $array_estado_civil;
+		$this->persona_model->fields['grupo_sanguineo']['array'] = $array_grupo_sanguineo;
+		$this->persona_model->fields['localidad']['array'] = $array_localidad;
+		$this->persona_model->fields['nacionalidad']['array'] = $array_nacionalidad;
+		$this->persona_model->fields['nivel_estudio']['array'] = $array_nivel_estudio;
+		$this->persona_model->fields['obra_social']['array'] = $array_obra_social;
+		$this->persona_model->fields['ocupacion']['array'] = $array_ocupacion;
+		$this->persona_model->fields['prestadora']['array'] = $array_prestadora;
+		$this->persona_model->fields['sexo']['array'] = $array_sexo;
+
+		foreach ($this->persona_model->fields as $field_id => $field) {
+			if ($field_id !== 'documento' && $field_id !== 'documento_tipo') {
+				$this->persona_model->fields[$field_id]['disabled'] = 'TRUE';
+			}
+		}
+
+		unset($this->servicio_model->fields['celador_concepto']);
+		$this->load->model('situacion_revista_model');
+		$this->load->model('servicio_funcion_model');
+		$this->array_situacion_revista_control = $array_situacion_revista = $this->get_array('situacion_revista', 'descripcion', 'id', null, array('' => '-- Seleccione situación de revista --'));
+		unset($this->servicio_funcion_model->fields['servicio']);
+		unset($this->servicio_model->fields['cuil']);
+		unset($this->servicio_model->fields['apellido']);
+		unset($this->servicio_model->fields['nombre']);
+		unset($this->servicio_model->fields['escuela']);
+		$this->load->model('regimen_model');
+		$this->array_regimen_control = $array_regimen = $this->get_array('regimen', 'regimen', 'id', array(
+			'select' => array('regimen.id', 'CONCAT(regimen.codigo, \' \',regimen.descripcion) as regimen'),
+			'where' => array('dependencia_id IS NULL'),
+			'sort_by' => 'regimen.codigo'
+			), array('' => '-- Sin regímenes --'));
+		$this->array_regimen_control = $array_regimen = $this->get_array('regimen', 'regimen', 'id', array(
+			'select' => array('regimen.id', 'CONCAT(regimen.codigo, \' \',regimen.descripcion) as regimen'),
+			'sort_by' => 'regimen.codigo'
+			), array('' => '-- Seleccionar régimen --'));
+		$this->servicio_model->fields['area'] = array('label' => 'Área', 'readonly' => TRUE);
+		$this->servicio_model->fields['regimen'] = array('label' => 'Régimen', 'input_type' => 'combo', 'id_name' => 'regimen_id', 'required' => TRUE, 'array' => $array_regimen);
+		$this->servicio_model->fields['carga_horaria'] = array('label' => 'Carga Horaria', 'type' => 'integer', 'maxlength' => '11');
+		$this->load->model('funcion_model');
+		$this->array_funcion_control = $array_funcion = $this->get_array('funcion', 'descripcion', 'id', null, array('' => '-- Seleccione función --'));
+		$this->array_tarea_control = $this->servicio_funcion_model->fields['tarea']['array'];
+		$this->array_tipo_destino_control = $this->servicio_funcion_model->fields['tipo_destino']['array'];
+
+		$this->set_model_validation_rules($this->servicio_model);
+		unset($this->servicio_funcion_model->fields['fecha_desde']);
+		$this->set_model_validation_rules($this->servicio_funcion_model);
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if (empty($this->input->post('tipo_destino'))) {
+				$this->array_destino_control = array('' => '');
+			} else {
+				if ($this->input->post('tipo_destino') === 'escuela') {
+					$this->load->model('escuela_model');
+					$this->array_destino_control = $this->get_array('escuela', 'escuela', 'id', array('select' => array('id', "CONCAT(numero, ' - ', nombre) as escuela")));
+				} elseif ($this->input->post('tipo_destino') === 'area') {
+					$this->array_destino_control = $this->get_array('area', 'area', 'id', array('select' => array('id', "CONCAT(codigo, ' - ', descripcion) as area")));
+				}
+			}
+			$persona_id = $this->input->post('persona_id');
+			if (empty($persona_id)) {
+				$this->set_model_validation_rules($this->persona_model);
+			} else {
+				$this->form_validation->set_rules('documento', 'Documento', 'required|integer');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				if (empty($persona_id)) {
+					$trans_ok &= $this->persona_model->create(array(
+						'cuil' => $this->input->post('cuil'),
+						'documento_tipo_id' => $this->input->post('documento_tipo'),
+						'documento' => $this->input->post('documento'),
+						'apellido' => $this->input->post('apellido'),
+						'nombre' => $this->input->post('nombre'),
+						'calle' => $this->input->post('calle'),
+						'calle_numero' => $this->input->post('calle_numero'),
+						'departamento' => $this->input->post('departamento'),
+						'piso' => $this->input->post('piso'),
+						'barrio' => $this->input->post('barrio'),
+						'manzana' => $this->input->post('manzana'),
+						'casa' => $this->input->post('casa'),
+						'localidad_id' => $this->input->post('localidad'),
+						'sexo_id' => $this->input->post('sexo'),
+						'estado_civil_id' => $this->input->post('estado_civil'),
+						'nivel_estudio_id' => $this->input->post('nivel_estudio'),
+						'ocupacion_id' => $this->input->post('ocupacion'),
+						'telefono_fijo' => $this->input->post('telefono_fijo'),
+						'telefono_movil' => $this->input->post('telefono_movil'),
+						'prestadora_id' => $this->input->post('prestadora'),
+						'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento'),
+						'fecha_defuncion' => $this->get_date_sql('fecha_defuncion'),
+						'obra_social_id' => $this->input->post('obra_social'),
+						'grupo_sanguineo_id' => $this->input->post('grupo_sanguineo'),
+						'depto_nacimiento_id' => $this->input->post('depto_nacimiento'),
+						'lugar_traslado_emergencia' => $this->input->post('lugar_traslado_emergencia'),
+						'nacionalidad_id' => $this->input->post('nacionalidad')
+						), FALSE);
+
+					$persona_id = $this->persona_model->get_row_id();
+				} else {
+					$persona = $this->persona_model->get(array('id' => $persona_id));
+					if (empty($persona)) {
+						$persona_id = FALSE;
+					} elseif (empty($persona->cuil)) {
+						$trans_ok &= $this->persona_model->update(array(
+							'id' => $persona->id,
+							'cuil' => $this->input->post('cuil'),
+							'apellido' => $this->input->post('apellido'),
+							'nombre' => $this->input->post('nombre'),
+							), FALSE);
+					}
+				}
+				if ($trans_ok && $persona_id) {
+					$trans_ok &= $this->cargo_model->create(array(
+						'condicion_cargo_id' => 1,
+						'regimen_id' => $this->input->post('regimen'),
+						'area_id' => $area->id,
+						'carga_horaria' => $this->input->post('carga_horaria'),
+						'fecha_desde' => $this->get_date_sql('fecha_alta'),
+						'situacion_revista_id' => $this->input->post('situacion_revista'),
+						'celador_concepto_id' => $this->input->post('celador_concepto')
+						), FALSE);
+					$cargo_id = $this->cargo_model->get_row_id();
+
+					$trans_ok &= $this->servicio_model->create(array(
+						'persona_id' => $persona_id,
+						'cargo_id' => $cargo_id,
+						'fecha_alta' => $this->get_date_sql('fecha_alta'),
+						'liquidacion' => $this->input->post('liquidacion'),
+						'situacion_revista_id' => $this->input->post('situacion_revista'),
+						'celador_concepto_id' => $this->input->post('celador_concepto')
+						), FALSE);
+
+					$servicio_id = $this->servicio_model->get_row_id();
+					if ($trans_ok) {
+						$trans_ok &= $this->servicio_funcion_model->create(array(
+							'servicio_id' => $servicio_id,
+							'celador_concepto' => $this->input->post('celador_concepto'),
+							'funcion_id' => $this->input->post('funcion'),
+							'destino' => $this->input->post('destino'),
+							'norma' => $this->input->post('norma'),
+							'tarea' => $this->input->post('tarea'),
+							'carga_horaria' => $this->input->post('carga_horaria'),
+							'fecha_desde' => $this->get_date_sql('fecha_alta')
+							), FALSE);
+
+						$this->load->model('planilla_asisnov_model');
+						$planilla_id = $this->planilla_asisnov_model->get_planilla_area_abierta($area_id, $this->get_date_sql('fecha_alta', 'd/m/Y', 'Ym'));
+						$trans_ok &= $planilla_id > 0;
+						if ($trans_ok) {
+							$this->load->model('servicio_novedad_model');
+							$trans_ok &= $this->servicio_novedad_model->create(array(
+								'servicio_id' => $servicio_id,
+								'ames' => $this->get_date_sql('fecha_alta', 'd/m/Y', 'Ym'),
+								'novedad_tipo_id' => 1,
+								'fecha_desde' => $this->get_date_sql('fecha_alta'),
+								'fecha_hasta' => $this->get_date_sql('fecha_alta'),
+								'dias' => '0',
+								'obligaciones' => '0',
+								'estado' => 'Cargado',
+								'planilla_alta_id' => $planilla_id
+								), FALSE);
+						}
+					}
+				}
+
+				if ($this->db->trans_status() && $trans_ok && $persona_id) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+					redirect("areas/personal/listar/$area->id/$mes", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar agregar.';
+					if ($this->persona_model->get_error())
+						$errors .= '<br>' . $this->persona_model->get_error();
+					if ($this->servicio_model->get_error())
+						$errors .= '<br>' . $this->servicio_model->get_error();
+					if ($this->servicio_funcion_model->get_error())
+						$errors .= '<br>' . $this->servicio_funcion_model->get_error();
+				}
+			}
+		}
+		$data['error'] = validation_errors() ? validation_errors() : ($errors ? $errors : $this->session->flashdata('error'));
+
+		$this->servicio_model->fields['area']['value'] = "$area->codigo $area->descripcion";
+		$this->servicio_model->fields['situacion_revista']['array'] = $array_situacion_revista;
+		unset($this->servicio_model->fields['liquidacion']['readonly']);
+
+		$this->servicio_funcion_model->fields['funcion']['array'] = $array_funcion;
+
+		$data['fields'] = $this->build_fields($this->persona_model->fields);
+		$data['fields_servicio'] = $this->build_fields($this->servicio_model->fields);
+		$data['fields_funcion'] = $this->build_fields($this->servicio_funcion_model->fields);
+		$data['fn_mostrar_campos'] = $this->funcion_model->get_fn_mostrar_campos();
+
+		$data['area'] = $area;
+		$data['mes_id'] = $mes;
+		$data['txt_btn'] = 'Agregar';
+		$data['class'] = array('agregar' => 'active disabled btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+		$data['title'] = TITLE . ' - Agregar personal';
+		$this->load_template('areas/personal/personal_agregar', $data);
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$area = $this->area_model->get_one($servicio->area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+		$this->load->model('servicio_funcion_model');
+		$servicio_funciones = $this->servicio_funcion_model->get(array(
+			'servicio_id' => $servicio->id,
+			'join' => array(
+				array('funcion', 'servicio_funcion.funcion_id=funcion.id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion')),
+			)
+		));
+
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->apellido, $servicio->nombre";
+
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $this->session->flashdata('error');
+		$data['servicio_funciones'] = $servicio_funciones;
+		$data['servicio'] = $servicio;
+		$data['cargo'] = $servicio;
+		$data['area'] = $area;
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar servicio';
+		$this->load_template('areas/personal/personal_abm', $data);
+	}
+
+	public function eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("areas/personal/ver/$id");
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+
+		if (!empty($servicio->liquidacion)) {
+			$this->session->set_flashdata('error', 'No puede eliminar servicios con liquidación asociada.');
+			redirect("areas/personal/ver/$id");
+		}
+
+		$area = $this->area_model->get_one($servicio->area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+		$this->load->model('cargo_model');
+
+		$this->load->model('servicio_funcion_model');
+		$servicio_funciones = $this->servicio_funcion_model->get(array(
+			'servicio_id' => $servicio->id,
+			'join' => array(
+				array('funcion', 'servicio_funcion.funcion_id=funcion.id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion')),
+			)
+		));
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$this->load->model('servicio_novedad_model');
+			$novedades = $this->servicio_novedad_model->get(array('servicio_id' => $id));
+			if (!empty($novedades)) {
+				foreach ($novedades as $novedad) {
+					$trans_ok &= $this->servicio_novedad_model->delete(array('id' => $novedad->id), FALSE);
+				}
+			}
+
+			$this->load->model('servicio_funcion_model');
+			foreach ($servicio_funciones as $funcion) {
+				$trans_ok &= $this->servicio_funcion_model->delete(array('id' => $funcion->id), FALSE);
+			}
+
+			$trans_ok &= $this->servicio_model->delete(array('id' => $this->input->post('id')), FALSE);
+			$this->load->model('cargo_model');
+			$trans_ok &= $this->cargo_model->delete(array('id' => $servicio->cargo_id), FALSE);
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				redirect("areas/personal/listar/$area->id/" . date('Ym'), 'refresh');
+			} else {
+				$this->db->trans_rollback();
+			}
+		}
+
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->cuil - $servicio->apellido, $servicio->nombre";
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$data['servicio_funciones'] = $servicio_funciones;
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->servicio_model->get_error() ? $this->servicio_model->get_error() : $this->session->flashdata('error')));
+		$data['area'] = $area;
+		$data['servicio'] = $servicio;
+		$data['cargo'] = $servicio;
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Eliminar servicio';
+		$this->load_template('areas/personal/personal_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (empty($servicio->area_id)) {
+			redirect("servicios/ver/$servicio->id");
+		}
+
+		$area = $this->area_model->get_one($servicio->area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+		$this->load->model('servicio_funcion_model');
+		$servicio_funciones = $this->servicio_funcion_model->get(array(
+			'servicio_id' => $servicio->id,
+			'join' => array(
+				array('funcion', 'servicio_funcion.funcion_id=funcion.id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion')),
+			)
+		));
+
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->cuil - $servicio->apellido, $servicio->nombre";
+
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $this->session->flashdata('error');
+		$data['servicio_funciones'] = $servicio_funciones;
+		$data['servicio'] = $servicio;
+		$data['cargo'] = $servicio;
+		$data['area'] = $area;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver servicio';
+		$this->load_template('areas/personal/personal_abm', $data);
+	}
+
+	public function ver_funcion($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('servicio_funcion_model');
+		$servicio_funcion = $this->servicio_funcion_model->get_one($id);
+		if (empty($servicio_funcion)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$servicio = $this->servicio_model->get_one($servicio_funcion->servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro del servicio', 500, 'Registro no encontrado');
+		}
+
+		$area = $this->area_model->get_one($servicio_funcion->area_id);
+		if (empty($area)) {
+			show_error('No se encontró el área', 500, 'Registro no encontrado');
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			show_error('No tiene permisos para acceder al área', 500, 'Acción no autorizada');
+		}
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+
+		$servicio_funciones = $this->servicio_funcion_model->get(array(
+			'servicio_id' => $servicio->id,
+			'join' => array(
+				array('funcion', 'servicio_funcion.funcion_id=funcion.id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion')),
+			)
+		));
+
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->cuil - $servicio->apellido, $servicio->nombre";
+
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $this->session->flashdata('error');
+		$data['servicio_funciones'] = $servicio_funciones;
+		$data['servicio'] = $servicio;
+		$data['cargo'] = $servicio;
+		$data['area'] = $area;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver servicio';
+		$this->load_template('areas/personal/personal_abm', $data);
+	}
+}
+/* End of file Personal.php */
+/* Location: ./application/modules/areas/controllers/Personal.php */

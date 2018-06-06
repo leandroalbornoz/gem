@@ -1,0 +1,781 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Personal extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('servicio_model');
+		$this->load->model('tem/tem_proyecto_escuela_model');
+		$this->load->model('tem/tem_model');
+		$this->load->model('tem/tem_personal_model');
+		$this->roles_admin = array(ROL_ADMIN);
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM))) {
+			$this->edicion = FALSE;
+		}
+//		$this->nav_route = 'menu/servicio';
+	}
+
+	public function listar($escuela_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			redirect("areas/personal/listar/$escuela_id/" . date('Ym'), 'refresh');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		$proyecto_db = $this->tem_proyecto_escuela_model->get(array(
+			'escuela_id' => $escuela->id,
+			'select' => 'horas_catedra, tem_mes_semana.mes',
+			'join' => array(array('tem_mes_semana', "tem_mes_semana.tem_proyecto_id = tem_proyecto_escuela.tem_proyecto_id")),
+			'where' => array("tem_mes_semana.mes = $mes")
+		));
+
+		if (empty($escuela) || empty($proyecto_db)) {
+			show_error('No se encontró el proyecto o la escuela', 500, 'Registro no encontrado');
+		}
+		$proyecto = $proyecto_db[0];
+
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$cargos = $this->tem_model->get_cargos_tem($escuela_id);
+		$rangos_disponibles = array();
+		$altas = array();
+		$bajas = array();
+		$inicio = new DateTime($mes . '01');
+		$fin = new DateTime($mes . '01 +1 month');
+		$intervalo = DateInterval::createFromDateString('1 day');
+		$periodo = new DatePeriod($inicio, $intervalo, $fin);
+		$ultima_fecha_alta = '';
+		if (!empty($cargos)) {
+			foreach ($cargos as $cargo) {
+				if ($cargo->fecha_alta <= $inicio->format('Y-m-d') && (empty($cargo->fecha_baja) || $cargo->fecha_baja > $inicio->format('Y-m-d'))) {
+					$cargo->fecha_alta = $inicio->format('Y-m-d');
+				}
+				if (!isset($altas[$cargo->fecha_alta])) {
+					$altas[$cargo->fecha_alta] = 0;
+				}
+				$altas[$cargo->fecha_alta] += $cargo->carga_horaria;
+				if (!empty($cargo->fecha_baja)) {
+					if (!isset($bajas[$cargo->fecha_baja])) {
+						$bajas[$cargo->fecha_baja] = 0;
+					}
+					$bajas[$cargo->fecha_baja] += $cargo->carga_horaria;
+				}
+				$ultima_fecha_alta = $cargo->fecha_alta;
+			}
+			ksort($altas);
+			ksort($bajas);
+		}
+		$horas_asignadas = 0;
+		$horas_disponibles = $proyecto->horas_catedra;
+		$i_fecha = $inicio->format('Y-m-d');
+		$rangos_disponibles[$i_fecha]['horas_asignadas'] = $horas_asignadas;
+		$rangos_disponibles[$i_fecha]['horas_disponibles'] = $horas_disponibles;
+		$rangos_disponibles[$i_fecha]['fecha_desde'] = $i_fecha;
+		$rangos_disponibles[$i_fecha]['fecha_hasta'] = $i_fecha;
+		if (empty($cargos)) {
+			$rangos_disponibles[$i_fecha]['fecha_hasta'] = (new DateTime($mes . '01 +1 month -1 day'))->format('Y-m-d');
+			$rangos_disponibles[$i_fecha]['alta'] = TRUE;
+		} else {
+			foreach ($periodo as $fecha) {
+				if (isset($altas[$fecha->format('Y-m-d')]) || isset($bajas[$fecha->format('Y-m-d')])) {
+					$i_fecha = $fecha->format("Y-m-d");
+					$rangos_disponibles[$i_fecha]['horas_asignadas'] = $horas_asignadas += ((isset($altas[$fecha->format('Y-m-d')]) ? $altas[$fecha->format('Y-m-d')] : 0) - (isset($bajas[$fecha->format('Y-m-d')]) ? $bajas[$fecha->format('Y-m-d')] : 0));
+					$rangos_disponibles[$i_fecha]['horas_disponibles'] = $horas_disponibles += (-(isset($altas[$fecha->format('Y-m-d')]) ? $altas[$fecha->format('Y-m-d')] : 0) + (isset($bajas[$fecha->format('Y-m-d')]) ? $bajas[$fecha->format('Y-m-d')] : 0));
+					$rangos_disponibles[$i_fecha]['fecha_desde'] = $i_fecha;
+					$rangos_disponibles[$i_fecha]['fecha_hasta'] = $i_fecha;
+					if ($i_fecha >= $ultima_fecha_alta) {
+						$rangos_disponibles[$i_fecha]['alta'] = TRUE;
+					}
+				} else {
+					$rangos_disponibles[$i_fecha]['fecha_hasta'] = $fecha->format("Y-m-d");
+				}
+			}
+		}
+
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => 'details-control', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Persona', 'data' => 'persona', 'width' => 23, 'class' => 'text-sm'),
+				array('label' => 'Horas', 'data' => 'carga_horaria', 'width' => 4, 'class' => 'dt-body-right'),
+				array('label' => 'Alta', 'data' => 'fecha_alta', 'render' => 'short_date', 'width' => 7),
+				array('label' => 'Baja', 'data' => 'fecha_baja', 'render' => 'short_date', 'width' => 6),
+				array('label' => '', 'data' => 'menu', 'width' => 10, 'class' => 'dt-body-center', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'servicio_table',
+			'source_url' => "tem/personal/listar_data/$escuela_id/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(3, 'asc'), array(2, 'asc'), array(4, 'asc')),
+			'responsive' => FALSE,
+			'reuse_var' => TRUE,
+			'disablePagination' => TRUE,
+			'initComplete' => "complete_servicio_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+
+		$data['ultimo_rango'] = end($rangos_disponibles)['fecha_desde'];
+		$data['rangos_disponibles'] = $rangos_disponibles;
+		$data['escuela'] = $escuela;
+		$data['proyecto'] = $proyecto;
+		$data['mes_id'] = $mes;
+		$data['mes'] = $this->nombres_meses[substr($mes, 4, 2)] . '\'' . substr($mes, 2, 2);
+		$fecha = DateTime::createFromFormat('Ymd', $mes . '01');
+		$data['fecha'] = $fecha->format('d/m/Y');
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Tutores';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('tem/personal/personal_listar', $data);
+	}
+
+	public function listar_data($escuela_id = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$fecha_baja_default = "2017-12-15";
+
+		$this->load->helper('datatables_functions_helper');
+		$this->datatables
+			->select(
+				'servicio.id, servicio.persona_id, servicio.cargo_id, servicio.fecha_alta, cargo.escuela_id,'
+				. 'IF(servicio.fecha_baja, servicio.fecha_baja,\'' . $fecha_baja_default . '\') as fecha_baja, servicio.situacion_revista_id, cargo.carga_horaria, '
+				. 'CONCAT(COALESCE(persona.cuil, \'\'), \'<br>\', COALESCE(persona.apellido, \'\'), \', \', COALESCE(persona.nombre, \'\')) as persona, situacion_revista.descripcion as situacion_revista,'
+				. 'CONCAT(regimen.codigo, \'-\', regimen.descripcion) as regimen')
+			->unset_column('id')
+			->from('servicio')
+			->join('cargo', 'cargo.id = servicio.cargo_id', '')
+			->join('condicion_cargo', 'condicion_cargo.id = cargo.condicion_cargo_id', '')
+			->join('persona', 'persona.id = servicio.persona_id', '')
+			->join('situacion_revista', 'situacion_revista.id = servicio.situacion_revista_id', '')
+			->join('regimen', 'cargo.regimen_id = regimen.id', '')
+			->where("'$mes' BETWEEN COALESCE(DATE_FORMAT(servicio.fecha_alta,'%Y%m'),'000000') AND COALESCE(DATE_FORMAT(servicio.fecha_baja,'%Y%m'),'999999')")
+			->where('cargo.escuela_id', $escuela->id)
+			->where('condicion_cargo.planilla_modalidad_id', '2')
+			->add_column('', '', 'id');
+		if ($this->edicion) {
+			$this->datatables->add_column('menu', '$1', 'dt_column_tem_personal_menu(\'' . $mes . '\', id, escuela_id, fecha_baja)');
+		} else {
+			$this->datatables->add_column('menu', '<a class="btn btn-xs btn-default" href="tem/personal/ver/$1" title="Ver"><i class="fa fa-search"></i> Ver</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function cambiar_mes($escuela_id, $mes) {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		redirect("tem/personal/listar/$escuela_id/$mes", 'refresh');
+	}
+
+	public function agregar($escuela_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			$this->load->model('funcion_model');
+			$this->load->model('regimen_model');
+			$this->load->model('situacion_revista_model');
+			$this->load->model('condicion_cargo_model');
+			$this->load->model('planilla_asisnov_model');
+			$funcion_db = $this->funcion_model->get(array('planilla_modalidad_id' => 2));
+			$regimen_db = $this->regimen_model->get(array('planilla_modalidad_id' => 2));
+			$situacion_revista_db = $this->situacion_revista_model->get(array('planilla_tipo_id' => 3));
+			$condicion_cargo_db = $this->condicion_cargo_model->get(array('planilla_modalidad_id' => 2));
+			if (empty($funcion_db) || empty($regimen_db) || empty($situacion_revista_db) || empty($condicion_cargo_db)) {
+				show_error('No se encontró el registro de función, régimen, situación revista o condición cargo', 500, 'Registro no encontrado');
+			}
+			$funcion = $funcion_db[0];
+			$regimen = $regimen_db[0];
+			$situacion_revista = $situacion_revista_db[0];
+			$condicion_cargo = $condicion_cargo_db[0];
+
+			$this->load->model('cargo_model');
+			$this->load->model('servicio_model');
+			$this->load->model('documento_tipo_model');
+			$this->load->model('persona_model');
+			$this->load->model('sexo_model');
+			$array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar tipo de documento --'));
+			$array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+
+			$this->persona_model->fields['documento_tipo']['array'] = $array_documento_tipo;
+			$this->persona_model->fields['documento_tipo']['value'] = 1;
+			$this->persona_model->fields['sexo']['array'] = $array_sexo;
+			unset($this->persona_model->fields['estado_civil']);
+			unset($this->persona_model->fields['localidad']);
+			unset($this->persona_model->fields['estado_civil']);
+			unset($this->persona_model->fields['nivel_estudio']);
+			unset($this->persona_model->fields['ocupacion']);
+			unset($this->persona_model->fields['prestadora']);
+			unset($this->persona_model->fields['obra_social']);
+			unset($this->persona_model->fields['grupo_sanguineo']);
+			unset($this->persona_model->fields['depto_nacimiento']);
+			unset($this->persona_model->fields['nacionalidad']);
+
+			foreach ($this->persona_model->fields as $field_id => $field) {
+				if ($field_id !== 'documento' && $field_id !== 'documento_tipo') {
+					$this->persona_model->fields[$field_id]['disabled'] = 'TRUE';
+				}
+			}
+
+			$this->load->model('cargo_model');
+			unset($this->cargo_model->fields['division']);
+			unset($this->cargo_model->fields['carrera']);
+			unset($this->cargo_model->fields['turno']);
+			unset($this->cargo_model->fields['espacio_curricular']);
+			unset($this->cargo_model->fields['aportes']);
+			unset($this->cargo_model->fields['resolucion_alta']);
+			unset($this->cargo_model->fields['codigo_junta']);
+			unset($this->cargo_model->fields['fecha_desde']);
+			unset($this->cargo_model->fields['fecha_hasta']);
+			unset($this->cargo_model->fields['observaciones']);
+			unset($this->cargo_model->fields['condicion_cargo']['input_type']);
+			unset($this->cargo_model->fields['regimen']['input_type']);
+			$this->cargo_model->fields['condicion_cargo']['value'] = $condicion_cargo->descripcion;
+			$this->cargo_model->fields['condicion_cargo']['readonly'] = TRUE;
+			$this->cargo_model->fields['regimen']['value'] = $regimen->descripcion;
+			$this->cargo_model->fields['regimen']['readonly'] = TRUE;
+			$this->cargo_model->fields['carga_horaria']['required'] = TRUE;
+			$this->cargo_model->fields['carga_horaria']['type'] = 'number';
+			$this->cargo_model->fields['carga_horaria']['min'] = '1';
+			$this->cargo_model->fields['carga_horaria']['max'] = $this->input->post('horas_disponibles');
+			$this->cargo_model->fields['carga_horaria']['data-hs'] = $this->input->post('horas_disponibles');
+
+			$this->load->model('servicio_funcion_model');
+			unset($this->servicio_funcion_model->fields['servicio']);
+			unset($this->servicio_funcion_model->fields['funcion']['input_type']);
+			unset($this->servicio_funcion_model->fields['fecha_desde']);
+			unset($this->servicio_funcion_model->fields['destino']);
+			unset($this->servicio_funcion_model->fields['tipo_destino']);
+			unset($this->servicio_funcion_model->fields['tarea']);
+			unset($this->servicio_funcion_model->fields['norma']);
+			$this->servicio_funcion_model->fields['funcion']['readonly'] = TRUE;
+
+			unset($this->servicio_model->fields['celador_concepto']);
+			unset($this->servicio_model->fields['cuil']);
+			unset($this->servicio_model->fields['apellido']);
+			unset($this->servicio_model->fields['nombre']);
+			unset($this->servicio_model->fields['situacion_revista']);
+			unset($this->servicio_model->fields['regimen']);
+			unset($this->servicio_model->fields['carga_horaria']);
+			$this->servicio_model->fields['dias'] = array('label' => 'Días a cumplir en mes', 'type' => 'number', 'max' => '30', 'min' => '1', 'readonly' => TRUE);
+			$this->servicio_model->fields['obligaciones'] = array('label' => 'Oblig. a cumplir en mes', 'type' => 'number', 'step' => '1', 'max' => '4', 'min' => '1');
+			$this->servicio_model->fields['fecha_alta']['class'] = 'datepicker';
+			$this->servicio_model->fields['fecha_baja']['value'] = '15/12/2017';
+			$this->servicio_model->fields['fecha_baja']['readonly'] = TRUE;
+
+			$this->servicio_model->fields['escuela']['value'] = "$escuela->numero $escuela->nombre";
+			$this->servicio_funcion_model->fields['funcion']['value'] = $funcion->descripcion;
+
+			$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+			$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+			$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+			$data['fields'] = $this->build_fields($this->persona_model->fields);
+			$data['fields_servicio'] = $this->build_fields($this->servicio_model->fields);
+			$data['fields_funcion'] = $this->build_fields($this->servicio_funcion_model->fields);
+			$data['fields_cargo'] = $this->build_fields($this->cargo_model->fields);
+			$data['fn_mostrar_campos'] = $this->funcion_model->get_fn_mostrar_campos();
+			$data['escuela'] = $escuela;
+			$data['mes_id'] = $mes;
+			$data['fecha_desde'] = (new DateTime($this->input->post('fecha_desde')))->format('d/m/Y');
+			$data['fecha_hasta'] = (new DateTime($this->input->post('fecha_hasta')))->format('d/m/Y');
+			$data['fecha_fin_actual'] = (new DateTime($mes . '01 +1 month -1 day'))->format('d/m/Y');
+			$data['txt_btn'] = 'Agregar';
+			$data['class'] = array('agregar' => 'active disabled btn-app-zetta-active', 'ver' => 'disabled', 'editar' => 'disabled', 'eliminar' => 'disabled');
+			$data['title'] = TITLE . ' - Agregar tutor';
+			$this->load_template('tem/personal/personal_agregar', $data);
+		}
+	}
+
+	public function agregar_personal($escuela_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get(array('id' => $escuela_id));
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('funcion_model');
+		$this->load->model('regimen_model');
+		$this->load->model('situacion_revista_model');
+		$this->load->model('condicion_cargo_model');
+		$this->load->model('planilla_asisnov_model');
+		$mes_actual = $this->planilla_asisnov_model->get_mes_actual();
+		$funcion_db = $this->funcion_model->get(array('planilla_modalidad_id' => 2));
+		$regimen_db = $this->regimen_model->get(array('planilla_modalidad_id' => 2));
+		$situacion_revista_db = $this->situacion_revista_model->get(array('planilla_tipo_id' => 3));
+		$condicion_cargo_db = $this->condicion_cargo_model->get(array('planilla_modalidad_id' => 2));
+		if (empty($funcion_db) || empty($regimen_db) || empty($situacion_revista_db) || empty($condicion_cargo_db)) {
+			show_error('No se encontró el registro de función, régimen, situación revista o condición cargo', 500, 'Registro no encontrado');
+		}
+		$funcion = $funcion_db[0];
+		$regimen = $regimen_db[0];
+		$situacion_revista = $situacion_revista_db[0];
+		$condicion_cargo = $condicion_cargo_db[0];
+
+		$this->load->model('cargo_model');
+		$this->load->model('servicio_model');
+		$this->load->model('documento_tipo_model');
+		$this->load->model('persona_model');
+		$this->load->model('sexo_model');
+		$this->load->model('cargo_model');
+		$this->load->model('servicio_funcion_model');
+
+		$this->array_documento_tipo_control = $array_documento_tipo = $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('' => '-- Seleccionar tipo de documento --'));
+		$this->array_sexo_control = $array_sexo = $this->get_array('sexo', 'descripcion', 'id', null, array('' => '-- Seleccionar sexo --'));
+		unset($this->persona_model->fields['estado_civil']);
+		unset($this->persona_model->fields['localidad']);
+		unset($this->persona_model->fields['estado_civil']);
+		unset($this->persona_model->fields['nivel_estudio']);
+		unset($this->persona_model->fields['ocupacion']);
+		unset($this->persona_model->fields['prestadora']);
+		unset($this->persona_model->fields['obra_social']);
+		unset($this->persona_model->fields['grupo_sanguineo']);
+		unset($this->persona_model->fields['depto_nacimiento']);
+		unset($this->persona_model->fields['nacionalidad']);
+
+		unset($this->cargo_model->fields['condicion_cargo']);
+		unset($this->cargo_model->fields['regimen']);
+		unset($this->cargo_model->fields['aportes']);
+		unset($this->cargo_model->fields['division']);
+		unset($this->cargo_model->fields['carrera']);
+		unset($this->cargo_model->fields['turno']);
+		unset($this->cargo_model->fields['espacio_curricular']);
+		$this->cargo_model->fields['carga_horaria']['required'] = TRUE;
+		$this->cargo_model->fields['carga_horaria']['type'] = 'number';
+		$this->cargo_model->fields['carga_horaria']['min'] = '1';
+
+		$this->set_model_validation_rules($this->cargo_model);
+
+		if (isset($_POST) && !empty($_POST)) {
+			$persona_id = $this->input->post('persona_id');
+			if (empty($persona_id)) {
+				$this->set_model_validation_rules($this->persona_model);
+			} else {
+				$this->form_validation->set_rules('documento', 'Documento', 'required|integer');
+			}
+			$fecha_alta_post = $this->get_date_sql('fecha_alta');
+			$fecha_alta = new DateTime($fecha_alta_post);
+			if ($fecha_alta->format('Ym') != $mes_actual) {
+				$this->session->set_flashdata('error', 'No puede dar alta fuera del periodo actual');
+				redirect("tem/personal/listar/$escuela->id/$mes", 'refresh');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$persona_tem = $this->tem_personal_model->get(array(
+					'documento' => $this->input->post('documento')
+				));
+				if (!empty($persona_tem)) {
+					$persona_tem = $persona_tem[0];
+					$horas_asignadas = $this->input->post('carga_horaria');
+					if (!empty($persona_id)) {
+						$horas_tem_db = $this->db->select('SUM(cargo.carga_horaria) horas_tem')
+							->from('servicio')
+							->join('persona', 'persona.id = servicio.persona_id')
+							->join('cargo', 'cargo.id = servicio.cargo_id')
+							->join('condicion_cargo', 'condicion_cargo.id = cargo.condicion_cargo_id')
+							->where('persona.id', $persona_id)
+							->where('condicion_cargo.planilla_modalidad_id', 2)
+							->where('servicio.fecha_baja IS NULL')
+							->get()
+							->row();
+						$horas_tem = empty($horas_tem_db->horas_tem) ? 0 : $horas_tem_db->horas_tem;
+						$persona_tem->horas_disponibles -= $horas_tem;
+					}
+					if (($persona_tem->horas_disponibles > 0) && ($persona_tem->horas_disponibles >= $horas_asignadas)) {
+						if (empty($persona_id)) {
+							$trans_ok &= $this->persona_model->create(array(
+								'cuil' => $this->input->post('cuil'),
+								'documento_tipo_id' => $this->input->post('documento_tipo'),
+								'documento' => $this->input->post('documento'),
+								'apellido' => $this->input->post('apellido'),
+								'nombre' => $this->input->post('nombre'),
+								'sexo_id' => $this->input->post('sexo'),
+								'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento'),
+								), FALSE);
+							$persona_id = $this->persona_model->get_row_id();
+						} else {
+							$persona = $this->persona_model->get(array('id' => $persona_id));
+							if (empty($persona)) {
+								$persona_id = FALSE;
+							} elseif (empty($persona->cuil)) {
+								$trans_ok &= $this->persona_model->update(array(
+									'id' => $persona->id,
+									'cuil' => $this->input->post('cuil'),
+									'apellido' => $this->input->post('apellido'),
+									'nombre' => $this->input->post('nombre'),
+									), FALSE);
+							}
+						}
+						if ($trans_ok && $persona_id) {
+							$trans_ok &= $this->cargo_model->create(array(
+								'condicion_cargo_id' => $condicion_cargo->id,
+								'regimen_id' => $regimen->id,
+								'escuela_id' => $escuela->id,
+								'carga_horaria' => $this->input->post('carga_horaria'),
+								'fecha_desde' => $this->get_date_sql('fecha_alta'),
+								), FALSE);
+							$cargo_id = $this->cargo_model->get_row_id();
+
+							$trans_ok &= $this->servicio_model->create(array(
+								'persona_id' => $persona_id,
+								'cargo_id' => $cargo_id,
+								'fecha_alta' => $this->get_date_sql('fecha_alta'),
+								'situacion_revista_id' => $situacion_revista->id,
+								'observaciones' => $this->input->post('observaciones')
+								), FALSE);
+							$servicio_id = $this->servicio_model->get_row_id();
+							if ($trans_ok) {
+								$trans_ok &= $this->servicio_funcion_model->create(array(
+									'servicio_id' => $servicio_id,
+									'funcion_id' => $funcion->id,
+									'fecha_desde' => $this->get_date_sql('fecha_alta')
+									), FALSE);
+
+								$this->load->model('planilla_asisnov_model');
+								$planilla_id = $this->planilla_asisnov_model->get_planilla_abierta($escuela_id, $this->get_date_sql('fecha_alta', 'd/m/Y', 'Ym'), 3);
+								$trans_ok &= $planilla_id > 0;
+								if ($trans_ok) {
+									$this->load->model('servicio_novedad_model');
+									$trans_ok &= $this->servicio_novedad_model->create(array(
+										'servicio_id' => $servicio_id,
+										'ames' => $this->get_date_sql('fecha_alta', 'd/m/Y', 'Ym'),
+										'novedad_tipo_id' => 1,
+										'fecha_desde' => $this->get_date_sql('fecha_alta'),
+										'fecha_hasta' => $this->get_date_sql('fecha_alta'),
+										'dias' => $this->input->post('dias'),
+										'obligaciones' => $this->input->post('obligaciones'),
+										'estado' => 'Cargado',
+										'planilla_alta_id' => $planilla_id
+										), FALSE);
+								}
+							}
+						}
+					} else {
+						$this->session->set_flashdata('error', 'La persona no posee horas disponibles');
+						redirect("tem/personal/listar/$escuela_id/$mes", 'refresh');
+					}
+				} else {
+					$this->session->set_flashdata('error', 'No se encontró el registro de persona');
+					redirect("tem/personal/listar/$escuela_id/$mes", 'refresh');
+				}
+				if ($this->db->trans_status() && $trans_ok && $persona_id) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+					redirect("tem/personal/listar/$escuela->id/$mes", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar agregar.';
+					if ($this->persona_model->get_error()) {
+						$errors .= '<br>' . $this->persona_model->get_error();
+					}
+					if ($this->servicio_model->get_error()) {
+						$errors .= '<br>' . $this->servicio_model->get_error();
+					}
+					if ($this->servicio_funcion_model->get_error()) {
+						$errors .= '<br>' . $this->servicio_funcion_model->get_error();
+					}
+					$this->session->set_flashdata('error', $errors);
+					redirect("tem/personal/listar/$escuela->id/$mes", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("tem/personal/listar/$escuela->id/$mes", 'refresh');
+			}
+		}
+	}
+
+	public function editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->apellido, $servicio->nombre";
+
+		if (isset($_POST) && !empty($_POST)) {
+			$trans_ok = TRUE;
+			$trans_ok &= $this->servicio_model->update(array(
+				'id' => $servicio->id,
+				'observaciones' => $this->input->post('observaciones')
+			));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+			} else {
+				$errors = 'Ocurrió un error al intentar editar.';
+				if ($this->servicio_model->get_error())
+					$errors .= '<br>' . $this->servicio_model->get_error();
+				$this->session->set_flashdata('error', $errors);
+			}
+			redirect("tem/personal/editar/$servicio->id", 'refresh');
+		}
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$this->load->model('tem/tem_alumno_model');
+		$data['alumnos'] = $this->tem_alumno_model->get_alumnos_cargo($servicio->cargo_id);
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['servicio'] = $servicio;
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = 'Editar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Editar servicio';
+		$this->load_template('tem/personal/personal_abm', $data);
+	}
+
+	public function eliminar($id = NULL, $novedad_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!$this->edicion) {
+			$this->session->set_flashdata('error', 'No tiene permisos para la acción solicitada');
+			redirect("tem/personal/ver/$id");
+		}
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a eliminar', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		if ($novedad_id === NULL && !in_array($this->rol->codigo, $this->roles_admin)) {
+			$this->session->set_flashdata('error', 'No está autorizado para eliminar el Tutor');
+			redirect("tem/personal/listar/$escuela->id/" . date('Ym'));
+		}
+		if ($novedad_id !== NULL) {
+			$this->load->model('servicio_novedad_model');
+			$novedad = $this->servicio_novedad_model->get_one($novedad_id);
+			if ($novedad->novedad_tipo_id === '1') {
+				$this->load->model('planilla_asisnov_model');
+				$planilla = $this->planilla_asisnov_model->get_planilla($escuela->id, $novedad->ames, 3);
+				if ($planilla->id !== $novedad->planilla_alta_id || !empty($planilla->fecha_cierre)) {
+					$this->session->set_flashdata('error', 'La planilla del alta del servicio ya ha sido cerrada');
+					redirect("tem/personal/ver/$id");
+				}
+			} else {
+				if ($planilla->id !== $novedad->planilla_alta_id) {
+					$this->session->set_flashdata('error', 'No está autorizado para eliminar el Tutor');
+					redirect("tem/personal/ver/$id");
+				}
+			}
+		}
+		$this->load->model('cargo_model');
+		$this->load->model('servicio_funcion_model');
+		$servicio_funciones = $this->servicio_funcion_model->get(array(
+			'servicio_id' => $servicio->id,
+			'join' => array(
+				array('funcion', 'servicio_funcion.funcion_id=funcion.id', 'left', array('COALESCE(funcion.descripcion, servicio_funcion.detalle) as funcion')),
+			)
+		));
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$this->load->model('servicio_novedad_model');
+			$novedades = $this->servicio_novedad_model->get(array('servicio_id' => $id));
+			if (!empty($novedades)) {
+				foreach ($novedades as $novedad) {
+					$trans_ok &= $this->servicio_novedad_model->delete(array('id' => $novedad->id), FALSE);
+				}
+			}
+
+			$this->load->model('servicio_funcion_model');
+			foreach ($servicio_funciones as $funcion) {
+				$trans_ok &= $this->servicio_funcion_model->delete(array('id' => $funcion->id), FALSE);
+			}
+
+			$trans_ok &= $this->servicio_model->delete(array('id' => $this->input->post('id')), FALSE);
+			$this->load->model('cargo_model');
+			$trans_ok &= $this->cargo_model->delete(array('id' => $servicio->cargo_id), FALSE);
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->servicio_model->get_msg());
+				redirect("tem/personal/listar/$escuela->id/" . date('Ym'), 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar eliminar.';
+				if ($this->servicio_novedad_model->get_error())
+					$errors .= '<br>' . $this->servicio_novedad_model->get_error();
+				if ($this->servicio_funcion_model->get_error())
+					$errors .= '<br>' . $this->servicio_funcion_model->get_error();
+				if ($this->servicio_model->get_error())
+					$errors .= '<br>' . $this->servicio_model->get_error();
+				if ($this->cargo_model->get_error())
+					$errors .= '<br>' . $this->cargo_model->get_error();
+			}
+		}
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->cuil - $servicio->apellido, $servicio->nombre";
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$this->load->model('tem/tem_alumno_model');
+		$data['alumnos'] = $this->tem_alumno_model->get_alumnos_cargo($servicio->cargo_id);
+		$data['servicio_funciones'] = $servicio_funciones;
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $errors ? $errors : ($this->session->flashdata('error'));
+		$data['escuela'] = $escuela;
+		$data['servicio'] = $servicio;
+		$data['txt_btn'] = 'Eliminar';
+		$data['class'] = array('agregar' => '', 'ver' => '', 'editar' => '', 'eliminar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Eliminar servicio';
+		$this->load_template('tem/personal/personal_abm', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+		if (empty($servicio->escuela_id)) {
+			redirect("servicios/ver/$servicio->id");
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		if (substr($servicio->regimen, 1, 6) !== '560201') {
+			unset($this->servicio_model->fields['celador_concepto']);
+		}
+
+		$this->load->model('cargo_model');
+		$cargo = $this->cargo_model->get_one($servicio->cargo_id);
+		$servicio->nombre = "$servicio->apellido, $servicio->nombre";
+
+		$fields_servicio = $this->build_fields($this->servicio_model->fields, $servicio, TRUE);
+		$fields_cargo = $this->build_fields($this->cargo_model->fields, $cargo, TRUE);
+
+		$data['fields'] = array_merge($fields_cargo, $fields_servicio);
+		$data['error'] = $this->session->flashdata('error');
+		$this->load->model('tem/tem_alumno_model');
+		$data['alumnos'] = $this->tem_alumno_model->get_alumnos_cargo($servicio->cargo_id);
+		$data['servicio'] = $servicio;
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('agregar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '', 'eliminar' => '');
+		$data['title'] = TITLE . ' - Ver servicio';
+		$this->load_template('tem/personal/personal_abm', $data);
+	}
+
+	public function modal_buscar_alumno($escuela_id = NULL, $servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $servicio_id == NULL || !ctype_digit($servicio_id) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro de servicio', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('alumno_model');
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'd_documento' => array('label' => 'Documento', 'maxlength' => '10'),
+			'd_apellido' => array('label' => 'Apellido', 'maxlength' => '100', 'minlength' => '3'),
+			'd_nombre' => array('label' => 'Nombre', 'maxlength' => '100', 'minlength' => '3'),
+			'persona_seleccionada' => array('label' => '', 'type' => 'integer', 'required' => TRUE),
+		);
+
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['escuela'] = $escuela;
+		$data['servicio'] = $servicio;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Buscar alumno a agregar';
+		$this->load->view('personal/personal_modal_buscar_alumno', $data);
+	}
+}
+/* End of file Personal.php */
+/* Location: ./application/modules/tem/controllers/Personal.php */

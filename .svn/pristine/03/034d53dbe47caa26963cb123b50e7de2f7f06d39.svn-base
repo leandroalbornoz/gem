@@ -1,0 +1,44 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Evaluacion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'evaluacion';
+		$this->msg_name = 'Evaluación';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'evaluacion_tipo_id', 'fecha', 'cursada_id', 'tema');
+		$this->fields = array(
+			'evaluacion_tipo' => array('label' => 'Tipo de evaluación', 'input_type' => 'combo', 'id_name' => 'evaluacion_tipo_id', 'required' => TRUE),
+			'fecha' => array('label' => 'Fecha', 'type' => 'date', 'required' => TRUE),
+			'espacio_curricular' => array('label' => 'Espacio curricular', 'input_type' => 'combo', 'id_name' => 'espacio_curricular_id'),
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id'),
+			'tema' => array('label' => 'Tema', 'maxlength' => '45')
+		);
+		$this->requeridos = array('evaluacion_tipo_id', 'fecha', 'cursada_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('division', 'division.id = evaluacion.division_id', 'left', array('division.escuela_id as division')),
+			array('espacio_curricular', 'espacio_curricular.id = evaluacion.espacio_curricular_id', 'left', array('espacio_curricular.descripcion as espacio_curricular')),
+			array('evaluacion_tipo', 'evaluacion_tipo.id = evaluacion.evaluacion_tipo_id', 'left', array('evaluacion_tipo.descripcion as evaluacion_tipo'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('evaluacion_id', $delete_id)->count_all_results('cursada_nota') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cursada de nota.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Evaluacion_model.php */
+/* Location: ./application/models/Evaluacion_model.php */

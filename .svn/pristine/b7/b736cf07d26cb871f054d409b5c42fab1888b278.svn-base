@@ -1,0 +1,159 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_titulo extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS, ROL_MODULO, ROL_ADMIN);
+		$this->nav_route = 'titulo/titulo_persona';
+	}
+
+	public function modal_agregar($persona_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/persona_model');
+		$this->persona_model->set_database($DB1);
+		if (empty($persona_id)) {
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		} else {
+			$persona = $this->persona_model->get_one($persona_id);
+		}
+
+		if (empty($persona)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+			redirect('juntas/escritorio/listar_personas', 'refresh');
+		}
+
+		$this->load->model('juntas/persona_titulo_model');
+		$this->load->model('juntas/entidad_emisora_model');
+
+		$this->persona_titulo_model->set_database($DB1);
+		$this->entidad_emisora_model->set_database($DB1);
+		$persona_titulos = $this->persona_titulo_model->get(array('persona_id' => $persona->id,
+			'join' => array(
+				array('table' => 'titulo', 'where' => 'persona_titulo.titulo_id=titulo.id', 'type' => 'left', 'columnas' => array("titulo.NomTitLon"))
+		)));
+		$this->array_entidad_emisora_control = $array_entidad_emisora = array('' => '');
+		$this->array_titulo_control = $array_titulo = array('' => '');
+
+		$this->persona_titulo_model->fields['persona']['value'] = "$persona->PerCuil - $persona->PerApe $persona->PerNom";
+		unset($this->persona_titulo_model->fields['titulo']['input_type']);
+		unset($this->persona_titulo_model->fields['entidad_emisora']['input_type']);
+		$this->set_model_validation_rules($this->persona_titulo_model);
+		$this->persona_titulo_model->fields['titulo']['input_type'] = 'combo';
+		$this->persona_titulo_model->fields['entidad_emisora']['input_type'] = 'combo';
+		if (isset($_POST) && !empty($_POST)) {
+			if ($persona->id !== $this->input->post('persona_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$this->load->model('juntas/titulo_model');
+				$this->titulo_model->set_database($DB1);
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->persona_titulo_model->create(array(
+					"titulo_id" => $this->input->post('titulo'),
+					'titulo_tipo_id' => '1',
+					'persona_id' => $this->input->post('persona_id'),
+					'entidad_emisora_id' => $this->input->post('entidad_emisora'),
+					), FALSE);
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_titulo_model->get_msg());
+					redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+					redirect("juntas/escritorio/ver/$persona_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+		}
+		$this->persona_titulo_model->fields['titulo']['array'] = $array_titulo;
+		$this->persona_titulo_model->fields['entidad_emisora']['array'] = $array_entidad_emisora;
+		$data['fields'] = $this->build_fields($this->persona_titulo_model->fields);
+		$data['txt_btn'] = 'Asignar';
+		$data['persona'] = $persona;
+		$data['persona_titulos'] = $persona_titulos;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = 'Agregar título';
+		$this->load->view('juntas/persona_titulo/persona_titulo_modal_agregar', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$model_persona_titulo = new stdClass();
+		$model_persona_titulo->fields = array(
+			'PerCuil' => array('label' => 'CUIL'),
+			'persona' => array('label' => 'Persona'),
+			'NomTitLon' => array('label' => 'Título'),
+			'entidad_emisora' => array('label' => 'Entidad emisora')
+		);
+
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('juntas/persona_titulo_model');
+		$this->persona_titulo_model->set_database($DB1);
+
+		$persona_titulo = $this->persona_titulo_model->get(array(
+			'id' => $id,
+			'join' => array(
+				array('table' => 'persona', 'where' => 'persona.id=persona_titulo.persona_id', 'type' => 'left', 'columnas' => array('persona.PerCuil', 'CONCAT(persona.PerApe, ", ", persona.PerNom) as persona', 'persona.id as persona_id')),
+				array('table' => 'titulo', 'where' => 'titulo.id=persona_titulo.titulo_id', 'type' => 'left', 'columnas' => array('titulo.NomTitLon')),
+				array('table' => 'entidad_emisora', 'where' => 'entidad_emisora.id=persona_titulo.entidad_emisora_id', 'type' => 'left', 'columnas' => array('entidad_emisora.entidad as entidad_emisora'))
+		)));
+		if (empty($persona_titulo)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_titulo_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->persona_titulo_model->get_msg());
+				redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', $this->persona_titulo_model->get_error());
+				redirect("juntas/escritorio/ver/$persona_titulo->persona_id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($model_persona_titulo->fields, $persona_titulo, TRUE);
+		$data['persona_titulo'] = $persona_titulo;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar título';
+		$this->load->view('juntas/persona_titulo/persona_titulo_modal_abm', $data);
+	}
+
+	public function ajax_buscar_titulo() {
+		$this->load->model('juntas/titulo_model');
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->titulo_model->set_database($DB1);
+		$busqueda = $this->input->post('titulo');
+		echo json_encode($this->titulo_model->find_titulos($busqueda));
+	}
+
+	public function ajax_buscar_entidad_emisora() {
+		$this->load->model('juntas/entidad_emisora_model');
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->entidad_emisora_model->set_database($DB1);
+		$busqueda = $this->input->post('entidad_emisora');
+		echo json_encode($this->entidad_emisora_model->find_entidad_emisora($busqueda));
+	}
+}
+/* End of file Titulo_persona.php */
+/* Location: ./application/modules/titulos/controllers/Titulo_persona.php */

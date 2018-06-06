@@ -1,0 +1,72 @@
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_agregar_alumno_abono_nuevo')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<div class="form-group col-md-12">
+			<h4><?php echo $alumno->apellido . ", " . $alumno->nombre . " (" . $alumno->documento_tipo . " " . $alumno->documento . ")" ?></h4>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['numero_abono']['label']; ?>
+			<?php echo $fields['numero_abono']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['abono_tipo']['label']; ?>
+			<?php echo $fields['abono_tipo']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['monto']['label']; ?>
+			<?php echo $fields['monto']['form']; ?>
+		</div>
+		<div class="form-group col-md-3">
+			<?php echo $fields['fecha_desde']['label']; ?>
+			<div class="input-group date" id="datepicker-e">
+				<?php echo $fields['fecha_desde']['form']; ?>
+			</div>
+		</div>
+		<div class="form-group col-md-3">
+			<?php echo $fields['fecha_hasta']['label']; ?>
+			<div class="input-group date" id="datepicker-e">
+				<?php echo $fields['fecha_hasta']['form']; ?>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="modal-footer">
+	<button type="button" id="btn-submit" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+	<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Guardar', 'id' => 'boton_guardar'), 'Guardar'); ?>
+</div>
+<input type="hidden" name="alumno" value="<?php echo $alumno->id; ?>" id="alumno"/>
+<?php echo form_close(); ?>
+<script type="text/javascript">
+	agregar_eventos($('#form_agregar_alumno_abono_nuevo'));
+	$(document).ready(function() {
+		$('#fecha_desde').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			startDate: '01/02/2018',
+			endDate: '31/12/2018',
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+		$('#fecha_hasta').datepicker({
+			format: "dd/mm/yyyy",
+			startView: "days",
+			minViewMode: "days",
+			startDate: '01/02/2018',
+			endDate: '31/12/2018',
+			language: 'es',
+			autoclose: true,
+			orientation: "bottom",
+			todayHighlight: true
+		});
+		$('#monto').inputmask('decimal', {radixPoint: ',', digits: 2, autoUnmask: true, placeholder: '', removeMaskOnSubmit: true, onUnMask: function(value) {
+				return value.replace('.', '').replace(',', '.');
+			}});
+	});
+</script>

@@ -1,0 +1,81 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Eleccion_desinfeccion_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'eleccion_desinfeccion';
+		$this->msg_name = 'Desinfección de Escuela';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'eleccion_id', 'escuela_id', 'mesas', 'celadores_permitidos', 'fecha_cierre');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => TRUE),
+			'mesas' => array('label' => 'Cantidad de mesas', 'readonly' => TRUE),
+			'celadores_permitidos' => array('label' => 'Celadores permitidos', 'readonly' => TRUE),
+			'fecha_cierre' => array('label' => 'Fecha de cierre', 'type' => 'date', 'readonly' => TRUE),
+		);
+		$this->requeridos = array('escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('eleccion', 'eleccion.id = eleccion_desinfeccion.eleccion_id', 'left', array('eleccion.descripcion as eleccion')),
+			array('escuela', 'escuela.id = eleccion_desinfeccion.escuela_id', 'left', array("CONCAT(escuela.numero, ' - ', escuela.nombre) as escuela")),
+			array("(SELECT eleccion_desinfeccion_id, COUNT(1) cantidad FROM eleccion_desinfeccion_persona WHERE estado = 'Activo' GROUP BY eleccion_desinfeccion_id) p", 'p.eleccion_desinfeccion_id = eleccion_desinfeccion.id', 'left', array("p.cantidad as celadores_asignados"))
+		);
+	}
+
+	public function get_eleccion_desinfeccion($eleccion_id, $escuela_id) {
+		return $this->db
+				->select("ed.id, el.descripcion eleccion, el.fecha_desde, el.fecha_hasta, ed.escuela_id, ed.mesas, ed.celadores_permitidos, ed.fecha_cierre, p.cantidad as celadores_asignados")
+				->from('eleccion_desinfeccion ed')
+				->join('eleccion el', 'ed.eleccion_id=el.id')
+				->join('escuela e', 'e.id=ed.escuela_id')
+				->join('(SELECT eleccion_desinfeccion_id, COUNT(1) cantidad FROM eleccion_desinfeccion_persona edp where edp.estado = \'Activo\' GROUP BY eleccion_desinfeccion_id) p', 'p.eleccion_desinfeccion_id = ed.id', 'left')
+				->where('ed.eleccion_id', $eleccion_id)
+				->where('ed.escuela_id', $escuela_id)
+				->get()->row();
+	}
+
+	public function get_by_supervision($eleccion_id, $supervision_id) {
+		return $this->db
+				->select("e.id, CONCAT((e.numero),' - ',(e.nombre)) as escuela, e.anexo, ed.celadores_permitidos, ed.fecha_cierre as fecha_cierre , ed.mesas, COALESCE(SUM(CASE WHEN edp.id IS NULL THEN 0 ELSE 1 END),'') celadores_asignados ")
+				->from('escuela e')
+				->join('supervision s', 'e.supervision_id = s.id')
+				->join('eleccion_desinfeccion ed', 'ed.escuela_id = e.id')
+				->join('eleccion_desinfeccion_persona edp', 'edp.eleccion_desinfeccion_id = ed.id', 'left')
+				->where('s.id', $supervision_id)
+				->where('ed.eleccion_id', $eleccion_id)
+				->where('e.nivel_id=s.nivel_id AND e.dependencia_id=s.dependencia_id')
+				->order_by('e.numero, e.anexo')
+				->group_by('e.id')
+				->get()->result();
+	}
+
+	public function get_celadores($cuil, $dependencia_id, $eleccion_id) {
+		return $this->db->select("p.id, p.nombre, p.apellido, p.cuil, p.documento, dt.descripcion_corta, CASE WHEN r.codigo LIKE '%560201' THEN 1 ELSE 0 END es_celador, (CASE WHEN edp.id IS NULL THEN 0 ELSE 1 END) ya_cargado")
+				->from('persona p')
+				->join('(SELECT edp.id, edp.persona_id, ed.eleccion_id, edp.estado FROM eleccion_desinfeccion_persona edp JOIN eleccion_desinfeccion ed ON edp.eleccion_desinfeccion_id=ed.id) edp', "edp.persona_id = p.id AND edp.eleccion_id=$eleccion_id AND edp.estado='Activo'", 'left')
+				->join('servicio s', 's.persona_id = p.id AND s.fecha_baja is NULL')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id')
+				->join('cargo c', 'c.id = s.cargo_id AND c.fecha_hasta is NULL')
+				->join('escuela e', 'e.id = c.escuela_id')
+				->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1')
+				->where('p.cuil', $cuil)
+				->where('e.dependencia_id', $dependencia_id)
+				->order_by("CASE WHEN r.codigo LIKE '%560201' THEN 0 ELSE 1 END")
+				->group_by("p.id, CASE WHEN r.codigo LIKE '%560201' THEN 0 ELSE 1 END")
+				->limit(1)
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}

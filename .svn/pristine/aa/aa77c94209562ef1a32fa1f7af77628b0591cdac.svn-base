@@ -1,0 +1,42 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Ajax_comedor extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL)); //@TODO ver permisos
+		if (ENVIRONMENT !== 'development') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+	}
+
+	public function get_escuelas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$nombre_escuela = $this->input->get('nombre');
+		$numero_escuela = $this->input->get('numero');
+		$this->load->model('escuela_model');
+
+		if (!empty($nombre_escuela)) {
+			$escuelas = $this->escuela_model->get(array(
+				'nombre like both' => $nombre_escuela
+			));
+		}
+		if (!empty($numero_escuela)) {
+			$escuelas = $this->db->query(
+					"SELECT escuela.id, escuela.nombre as nombre, escuela.numero
+				FROM `escuela`
+				WHERE `escuela`.`numero` = $numero_escuela")->result();
+		}
+
+		if (!empty($escuelas)) {
+			echo json_encode(array('status' => 'success', 'escuelas' => $escuelas));
+			return;
+		}
+		echo json_encode(array('status' => 'error'));
+	}
+}

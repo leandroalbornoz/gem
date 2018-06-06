@@ -1,0 +1,31 @@
+<?php
+
+class TestSoap extends CI_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->library("Nusoap");
+		$this->load->library('encryption');
+	}
+private	function testServiceAlumno($dni) {
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'dni' => $dni,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+		$result2 = $client->call('get_alumno', $params);
+		print_r("Alumno: ");
+		print_r($result2);
+	}
+
+private	function testServiceDocente($dni) {
+		$client = new nusoap_client("https://testing.mendoza.edu.ar/gem/appws/index.php/transporte/service?wsdl");
+		$params = array(
+			'dni' => $dni,
+			'apy_key' => '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874'
+		);
+		$result2 = $client->call('get_docente', $params);
+		print_r("Docente: ");
+		print_r($result2);
+	}
+}

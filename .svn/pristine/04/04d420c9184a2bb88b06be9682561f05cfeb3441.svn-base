@@ -1,0 +1,223 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Materia extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('materia_model');
+		$this->roles_permitidos = array(ROL_ADMIN);
+		$this->roles_editar = array(ROL_ADMIN, ROL_LINEA);
+		$this->nav_route = 'admin/materia';
+	}
+
+	public function listar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Descripción', 'data' => 'descripcion', 'width' => 36),
+				array('label' => 'Es Grupo', 'data' => 'es_grupo', 'width' => 8),
+				array('label' => 'Grupo', 'data' => 'grupo', 'width' => 36),
+				array('label' => 'P.P.', 'data' => 'pareja_pedagogica', 'width' => 8),
+				array('label' => '', 'data' => 'edit', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'materia_table',
+			'source_url' => "materia/listar_data",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_materia_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Materias';
+		$this->load_template('materia/materia_listar', $data);
+	}
+
+	public function listar_data() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('materia.id, materia.descripcion, materia.es_grupo, materia.grupo_id, materia.pareja_pedagogica, grupo.descripcion as grupo')
+			->unset_column('id')
+			->from('materia')
+			->join('materia grupo', 'grupo.id = materia.grupo_id', 'left')
+			->add_column('edit', '<a href="materia/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default"><i class="fa fa-search"></i></a> <a href="materia/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning"><i class="fa fa-pencil"></i></a> <a href="materia/modal_eliminar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger"><i class="fa fa-remove"></i></a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_agregar() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->array_es_grupo_control = $this->materia_model->fields['es_grupo']['array'];
+		$this->array_grupo_control = $array_grupo = $this->get_array('materia', 'descripcion', 'id', null, array('' => '-- Seleccionar materia --'));
+		$this->array_pareja_pedagogica_control = $this->materia_model->fields['pareja_pedagogica']['array'];
+		$this->set_model_validation_rules($this->materia_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->materia_model->create(array(
+					'descripcion' => $this->input->post('descripcion'),
+					'es_grupo' => $this->input->post('es_grupo'),
+					'grupo_id' => $this->input->post('grupo'),
+					'pareja_pedagogica' => $this->input->post('pareja_pedagogica')));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->materia_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->materia_model->get_error());
+				}
+				redirect('materia/listar', 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('materia/listar', 'refresh');
+			}
+		}
+
+		$this->materia_model->fields['grupo']['array'] = $array_grupo;
+		$data['fields'] = $this->build_fields($this->materia_model->fields);
+
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar materia';
+		$this->load->view('materia/materia_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL, $carrera_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_editar) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$materia = $this->materia_model->get(array('id' => $id));
+		if (empty($materia)) {
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+		}
+		if ($this->rol->codigo === ROL_LINEA) {
+			if ($carrera_id === NULL) {
+				$this->modal_error('No tiene permisos para eliminar carreras de otra Linea', 'Acción no autorizada');
+				return;
+			} else {
+				$this->load->model('carrera_model');
+				$carrera = $this->carrera_model->get(array('id' => $carrera_id));
+				if (empty($carrera)) {
+					$this->modal_error('No se encontró el registro de carrera', 'Registro no encontrado');
+					return;
+				}
+				$this->load->model('nivel_model');
+				$nivel = $this->nivel_model->get_one($carrera->nivel_id);
+				if ($nivel->linea_id !== $this->rol->entidad_id) {
+					$this->modal_error('No tiene permisos para eliminar carreras de otra Linea', 'Acción no autorizada');
+					return;
+				}
+			}
+		}
+		$this->array_es_grupo_control = $this->materia_model->fields['es_grupo']['array'];
+		$this->array_grupo_control = $array_grupo = $this->get_array('materia', 'descripcion', 'id', null, array('' => '-- Seleccionar grupo --'));
+		$this->array_pareja_pedagogica_control = $this->materia_model->fields['pareja_pedagogica']['array'];
+		$this->set_model_validation_rules($this->materia_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->materia_model->update(array(
+					'id' => $this->input->post('id'),
+					'descripcion' => $this->input->post('descripcion'),
+					'es_grupo' => $this->input->post('es_grupo'),
+					'grupo_id' => $this->input->post('grupo'),
+					'pareja_pedagogica' => $this->input->post('pareja_pedagogica')));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->materia_model->get_msg());
+					if (!empty($carrera_id)) {
+						redirect("carrera/editar/$carrera_id", 'refresh');
+					} else {
+						redirect('materia/listar', 'refresh');
+					}
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect('materia/listar', 'refresh');
+			}
+		}
+		$datos_materia = $this->materia_model->datos_materia($materia->id);
+		$data['datos_materia'] = $datos_materia;
+		$this->materia_model->fields['grupo']['array'] = $array_grupo;
+		$data['fields'] = $this->build_fields($this->materia_model->fields, $materia);
+
+		$data['materia'] = $materia;
+
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar materia';
+		$this->load->view('materia/materia_modal_abm', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$materia = $this->materia_model->get_one($id);
+		if (empty($materia)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->materia_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->materia_model->get_msg());
+				redirect('materia/listar', 'refresh');
+			}
+		}
+		$datos_materia = $this->materia_model->datos_materia($materia->id);
+
+		$data['datos_materia'] = $datos_materia;
+		$data['fields'] = $this->build_fields($this->materia_model->fields, $materia, TRUE);
+
+		$data['materia'] = $materia;
+
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar materia';
+		$this->load->view('materia/materia_modal_abm', $data);
+	}
+
+	public function modal_ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$materia = $this->materia_model->get_one($id);
+		if (empty($materia)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+		$datos_materia = $this->materia_model->datos_materia($materia->id);
+		
+		$data['datos_materia'] = $datos_materia;
+		$data['fields'] = $this->build_fields($this->materia_model->fields, $materia, TRUE);
+		$data['materia'] = $materia;
+		$data['txt_btn'] = NULL;
+		$data['title'] = 'Ver materia';
+		$this->load->view('materia/materia_modal_abm', $data);
+	}
+}
+/* End of file Materia.php */
+/* Location: ./application/controllers/Materia.php */

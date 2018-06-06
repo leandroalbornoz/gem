@@ -1,0 +1,168 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alertas_model extends CI_Model {
+
+	public function get($rol = null, $location = 'nav') {
+		$alertas = array();
+		switch ($rol->codigo) {
+			case ROL_DIR_ESCUELA:
+			case ROL_SDIR_ESCUELA:
+			case ROL_SEC_ESCUELA:
+				$alertas = $this->get_alertas_escuela($rol->entidad_id);
+				break;
+			case ROL_ADMIN:
+				if ($location === 'nav') {
+					return array();
+				}
+				$alertas = $this->get_alertas_admin();
+				break;
+		}
+		return $alertas;
+	}
+
+	private function get_alertas_admin() {
+		$alertas = array();
+		$servicios_sin_liq = $this->db->query('SELECT COUNT(1) cantidad
+			FROM (
+				SELECT s.id
+				FROM servicio s
+				LEFT JOIN tbcabh t ON s.id=t.servicio_id AND t.vigente=?
+				WHERE s.fecha_baja IS NULL AND t.id IS NULL AND s.liquidacion IS NULL
+			) tbl', array(AMES_LIQUIDACION))->row();
+		if ($servicios_sin_liq->cantidad > 0) {
+			$alertas[] = new Alerta('Servicios activos sin liquidación', $servicios_sin_liq->cantidad, "alertas_admin/servicios_sin_liquidacion");
+		}
+		return $alertas;
+	}
+
+	private function get_alertas_escuela($escuela_id) {
+		$alertas = array();
+		if (empty($escuela_id)) {
+			return array();
+		}
+
+		$email_alumnos = $this->db->select('COUNT(DISTINCT alumno_id) cantidad')
+				->from('alumno_division ad')
+				->join('division d', 'ad.division_id=d.id', 'left')
+				->join('alumno a', 'ad.alumno_id=a.id', 'left')
+				->where('d.escuela_id', $escuela_id)
+				->where("COALESCE(a.email_contacto,'')=''")
+				->where('ad.fecha_hasta IS NULL')
+				->get()->row();
+		if ($email_alumnos->cantidad > 0) {
+			$alertas[] = new Alerta('Alumnos sin email de notificación', $email_alumnos->cantidad, "alertas/alumno_email/$escuela_id");
+		}
+		$divisiones_carreras = $this->db->select('COUNT(1) total, SUM(CASE WHEN carrera_id IS NULL THEN 0 ELSE 1 END) cantidad')
+				->from('division')
+				->where('division.escuela_id', $escuela_id)
+				->where('division.fecha_baja IS NULL')
+				->get()->row();
+		if ($divisiones_carreras->total > $divisiones_carreras->cantidad) {
+			$alertas[] = new Alerta('Divisiones sin carreras', $divisiones_carreras->total - $divisiones_carreras->cantidad, "alertas/divisiones_sin_carreras/$escuela_id");
+		}
+		$cargos_horarios = $this->db->select('COUNT(DISTINCT cargo.id) total, COUNT(DISTINCT COALESCE(horario.cargo_id,cargo_horario.cargo_id)) cantidad')
+				->from('cargo')
+				->join('cargo_horario', 'cargo.id=cargo_horario.cargo_id', 'left')
+				->join('horario', 'cargo.id=horario.cargo_id', 'left')
+				->where('cargo.escuela_id', $escuela_id)
+				->where('cargo.fecha_hasta IS NULL')
+				->get()->row();
+		if ($cargos_horarios->total > $cargos_horarios->cantidad) {
+			$alertas[] = new Alerta('Cargos sin horarios', $cargos_horarios->total - $cargos_horarios->cantidad, "alertas/cargos_sin_horarios/$escuela_id");
+		}
+//		$cargo_horario = $this->db->query('SELECT COUNT(1) cantidad
+//			FROM (
+//				SELECT c.id, SUM(CASE WHEN h.division_id IS NULL THEN 1 ELSE 0 END) c1, SUM(CASE WHEN h.division_id IS NOT NULL THEN 1 ELSE 0 END) c2
+//				FROM cargo c
+//				JOIN horario h ON h.cargo_id=c.id
+//				WHERE c.escuela_id=? AND c.fecha_hasta IS NULL
+//				GROUP BY c.id
+//				HAVING c1>0 AND c2>0
+//			) tbl', array($escuela_id))->row();
+//		if ($cargo_horario->cantidad > 0) {
+//			$alertas[] = new Alerta('Cargos con horarios de división y de cargo', $cargo_horario->cantidad, "alertas/cargos_horarios_inconsistentes/$escuela_id");
+//		}
+		$servicio_funcion = $this->db->query('SELECT COUNT(1) as cantidad
+			FROM (
+				SELECT s.id
+				FROM servicio s
+				JOIN servicio_funcion sf ON s.id=sf.servicio_id AND sf.fecha_hasta IS NULL
+				JOIN cargo c ON c.id=s.cargo_id
+				WHERE c.escuela_id=?
+				GROUP BY s.id
+				HAVING COUNT(sf.id) > 1
+			) tbl', array($escuela_id))->row();
+		if ($servicio_funcion->cantidad > 0) {
+			$alertas[] = new Alerta('Servicios con más de 1 función activa', $servicio_funcion->cantidad, "alertas/servicio_funciones/$escuela_id");
+		}
+		//Alerta de egreso de alumnos
+		$alumno_egreso = $this->db->select('COUNT(1) cantidad')
+				->from('alumno_division ad')
+				->join('division d', 'ad.division_id=d.id', 'left')
+				->where('d.escuela_id', $escuela_id)
+				->where('ad.estado_id', 2)
+				->get()->row();
+		if ($alumno_egreso->cantidad > 0) {
+			$alertas[] = new Alerta('Alumnos con ingreso en otra escuela', $alumno_egreso->cantidad, "alertas/alumno_egreso/$escuela_id");
+		}
+		
+		//Alerta de alumno con pase desde otra escuela
+		$alumno_pase = $this->db->select('COUNT(1) cantidad')
+				->from('alumno_pase ap')
+				->where('ap.escuela_destino_id', $escuela_id)
+				->where('ap.estado', 'Pendiente')
+				->get()->row();
+		if ($alumno_pase->cantidad > 0) {
+			$alertas[] = new Alerta('Alumnos con pase desde otra escuela', $alumno_pase->cantidad, "alertas/alumno_pase/$escuela_id");
+		}
+		
+		$novedad_pendiente = $this->db->select('COUNT(1) cantidad')
+				->from('servicio s')
+				->join('servicio_novedad sn', 'sn.servicio_id=s.id', 'left')
+				->join('cargo c', 's.cargo_id=c.id', 'left')
+				->where('sn.estado', 'Pendiente')
+				->where('sn.planilla_baja_id IS NULL')
+				->where('c.escuela_id', $escuela_id)
+				->get()->row();
+		$novedad_pendiente_otros = $this->db->select('COUNT(1) cantidad2')
+				->from('servicio s')
+				->join('servicio_novedad sn', 'sn.servicio_id=s.id', 'left')
+				->join('cargo c', 's.cargo_id=c.id', 'left')
+				->join('servicio_funcion sf', 's.id = sf.servicio_id AND sf.fecha_hasta IS NULL', 'left')
+				->where('sn.estado', 'Pendiente')
+				->where('sn.planilla_baja_id IS NULL')
+				->where('sf.escuela_id', $escuela_id)
+				->get()->row();
+		if ($novedad_pendiente->cantidad > 0 || $novedad_pendiente_otros->cantidad2 > 0) {
+			$alertas[] = new Alerta('Novedades pendientes', $novedad_pendiente->cantidad + $novedad_pendiente_otros->cantidad2, "alertas/novedades_pendientes/$escuela_id");
+		}
+//		$servicios_separar = $this->db->query('SELECT COUNT(1) as cantidad
+//			FROM servicio s
+//			JOIN cargo c ON c.id=s.cargo_id
+//			WHERE c.escuela_id=?
+//			AND (
+//				s.liquidacion_regimen_id != c.regimen_id OR s.liquidacion_carga_horaria != c.carga_horaria
+//			)', array($escuela_id))->row();
+//		if ($servicios_separar->cantidad > 0) {
+//			$alertas[] = new Alerta('Servicios con cargo a separar', $servicios_separar->cantidad, "alertas/servicios_separar/$escuela_id");
+//		}
+		return $alertas;
+	}
+}
+
+class Alerta {
+
+	public $url;
+	public $label;
+	public $value;
+
+	public function __construct($label, $value, $url) {
+		$this->label = $label;
+		$this->value = $value;
+		$this->url = $url;
+	}
+}
+/* End of file Alertas_model.php */
+/* Location: ./application/models/Alertas_model.php */

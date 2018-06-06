@@ -1,0 +1,729 @@
+<style>
+	.dia_0,.dia_6{
+		background-color: lightgray;
+	}
+	.mes_asistencia{
+		width: 50px;
+		height: 50px;
+		border: darkgray thin solid;
+		border-radius: 5px;
+		margin-right: 5px;
+		text-align: center;
+		font-weight: bold;
+	}
+	.mes_asistencia.active{
+		background-color: #00c0ef;
+		border-color: #0044cc;
+	}
+	.info-box-icon{
+		float: left;
+    height: 40px;
+    width: 40px;
+    text-align: center;
+    font-size: 32px;
+    line-height: 40px;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Alumnos de <?= "$division->curso $division->division"; ?> - <label class="label label-default"><?php echo $ciclo_lectivo; ?></label>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="escuela/ver/<?= $escuela->id; ?>"><?= "Esc. $escuela->nombre_corto"; ?></a></li>
+			<li><a href="division/listar/<?= $escuela->id ?>">Cursos y Divisiones</a></li>
+			<?php if (!empty($division)): ?>
+				<li><a href="division/ver/<?= $division->id ?>"><?php echo "$division->curso $division->division"; ?></a></li>
+			<?php endif; ?>
+			<li><a href="division_inasistencia/listar/<?php echo "$division->id/$ciclo_lectivo"; ?>"><?php echo "Inasistencias"; ?></a></li>
+			<?php if ($division_inasistencia->resumen_mensual !== 'No'): ?>		
+				<li class="active"><?php echo "Carga mensual"; ?></li>
+			<?php else: ?>
+				<li class="active"><?php echo "Carga diaria"; ?></li>
+			<?php endif; ?>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<?php $dias_semana = array('Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'); ?>
+							<?php $fecha_ini_m = new DateTime($mes . '01'); ?>
+							<?php $fecha_ini_p = new DateTime($division_inasistencia->fecha_inicio); ?>
+							<?php $fecha_fin_m = new DateTime($mes . '01 +1 month'); ?>
+							<?php $fecha_fin_p = new DateTime($division_inasistencia->fecha_fin . ' +1 day'); ?>
+							<?php $fecha_ini = max(array($fecha_ini_m, $fecha_ini_p)); ?>
+							<?php $fecha_fin = min(array($fecha_fin_m, $fecha_fin_p)); ?>
+							<?php $dia = DateInterval::createFromDateString('1 day'); ?>
+							<?php $fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin); ?>
+							Inasistencias <?php echo "{$division_inasistencia->periodo}° $division_inasistencia->nombre_periodo"; ?> - Mes de <?php echo $this->nombres_meses[substr($mes, 4, 2)] . ' ' . $ciclo_lectivo; ?> (<?php echo $fecha_ini->format('d/m'); ?> al <?php echo (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'))->format('d/m'); ?>)</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta" href="division/ver/<?php echo (!empty($division->id)) ? $division->id : ''; ?>">
+							<i class="fa fa-search" id="btn-ver"></i> Ver división
+						</a>
+						<a class="btn btn-app btn-app-zetta" href="division/alumnos/<?php echo $division->id; ?>">
+							<i class="fa fa-users"></i> Alumnos
+						</a>
+						<a class="btn btn-app btn-app-zetta" href="division_inasistencia/listar/<?php echo "$division->id/$ciclo_lectivo"; ?>">
+							<i class="fa fa-clock-o"></i> Asistencia
+						</a>
+						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="division_inasistencia/ver/<?php echo "$division_inasistencia->id"; ?>">
+							<i class="fa fa-<?php echo empty($division_inasistencia->fecha_cierre) ? 'calendar-o' : 'calendar-check-o'; ?>"></i> <?php echo $this->nombres_meses[substr($mes, 4, 2)]; ?>
+						</a>
+						<?php if (empty($division_inasistencia->fecha_cierre)): ?>
+							<a data-remote="false" data-toggle="modal" data-target="#remote_modal"  href="division_inasistencia/modal_cerrar_mes/<?php echo "$division_inasistencia->division_id/$division_inasistencia->ciclo_lectivo/$division_inasistencia->periodo/" . $mes . "/" . (new DateTime($fecha_ini->format('Y-m-d')))->format('d') . "/" . (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'))->format('d'); ?>" class="btn bg-red btn-app pull-right" title="Cerrar Mes"><i class="fa fa-lock"></i>Cerrar Mes</a>
+						<?php endif; ?>
+
+						<!-- Tabla inasistencias dia a dia Cerrada-->
+						<?php if ($division_inasistencia->resumen_mensual !== 'Si'): ?>
+							<?php if ($division_inasistencia->fecha_cierre): ?>
+								<table id="inasistencia_table" class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+									<thead>
+										<tr>
+											<th style="width: 340px;" colspan="<?php echo ($division_inasistencia->resumen_mensual !== 'Si') ? "10" : "7"; ?>" class="text-center"><?php echo "{$division_inasistencia->periodo}° $division_inasistencia->nombre_periodo"; ?> - Mes de <?php echo $this->nombres_meses[$fecha_ini->format('m')]; ?></th>
+										</tr>
+										<tr>
+											<th style="width: 15px;" rowspan="2">Documento</th>
+											<th style="width: 50px;" rowspan="2">Nombre</th>
+											<th style="width: 50px;" rowspan="2">Fecha de ingreso</th>
+											<th style="width: 50px;" rowspan="2">Fecha de Egreso</th>
+											<th style="text-align: center; width: 50px;" colspan="2">Resumen Mensual</th>
+											<th style="width: 50px;" rowspan="2">Anterior</th>
+											<th style="width: 50px;" rowspan="2">Total de Inasistencias</th>
+											<th style="width: 50px;" rowspan="2">Asistencia Ideal</th>
+											<th style="width: 50px;" rowspan="2">Asistencia media</th>
+										</tr>
+										<tr>
+											<th style="text-align: center; width: 25px;" title="Justificadas">J</th>
+											<th style="text-align: center; width: 25px;" title="Injustificadas">I</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($alumnos as $alumno): ?>
+											<tr>
+												<td><?php echo "$alumno->documento_tipo $alumno->documento"; ?></td>
+												<td><?php echo "$alumno->persona"; ?></td>
+												<td style="text-align: center;">
+													<?= empty($alumno->fecha_desde) ? '' : (new DateTime($alumno->fecha_desde))->format('d/m/Y'); ?>
+												</td>
+												<td style="text-align: center;">
+													<?= empty($alumno->fecha_hasta) ? '' : (new DateTime($alumno->fecha_hasta))->format('d/m/Y'); ?>
+												</td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['Si']) ? $inasistencias_resumen[$alumno->id]['Si'] : ''; ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['No']) ? $inasistencias_resumen[$alumno->id]['No'] : ''; ?>"></td>
+												<?php $total_inasistencias = (isset($inasistencias_resumen[$alumno->id]['No']) ? $inasistencias_resumen[$alumno->id]['No'] : 0) + (isset($inasistencias_resumen[$alumno->id]['Si']) ? $inasistencias_resumen[$alumno->id]['Si'] : 0); ?>
+												<?php $total_general_inasistencias += $total_inasistencias; ?>
+												<?php $asistencia_ideal = $division_inasistencia->dias - (isset($inasistencias_NC[$alumno->id]['NC']) ? $inasistencias_NC[$alumno->id]['NC'] : 0); ?>
+												<?php $total_general_asistencia_ideal += $asistencia_ideal; ?>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo (isset($total_inasistencias) ? $total_inasistencias : 0); ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo (isset($total_inasistencias) ? $total_inasistencias : 0); ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo $asistencia_ideal; ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:50px"value="<?php echo number_format((($asistencia_ideal - $total_inasistencias) / $asistencia_ideal), 3, '.', '') * 100; ?> %"></td>
+											<?php endforeach; ?>
+									</tbody>
+								</table>
+								<?php if (!empty($division_inasistencia->fecha_cierre)): ?>
+									<div class="row">
+										<div class="col-md-12">
+											<h5><u><strong>Informacion general del curso:</strong></u></h5>
+											<div class="info-box bg-gray-light" style="min-height:40px;" >
+												<span class="info-box-icon bg-green info-box-icon"><i class="fa fa-bar-chart"></i></span>
+												<div class="form-group col-md-1">
+													<h5 style="text-align: center;"><strong>Días Hábiles:</strong><br><?php echo $division_inasistencia->dias; ?></h5>
+												</div>
+												<div class="form-group col-md-1">
+													<h5 style="text-align: center;"><strong>Días Hábiles acumulados:</strong><br><?php echo $division_inasistencia->dias; ?></h5>
+												</div>
+												<div class="form-group col-md-2">
+													<h5 style="text-align: center;"><strong>Total inasistencias:</strong><br><?php echo $total_general_inasistencias; ?></h5>
+												</div>
+												<div class="form-group col-md-2">
+													<h5 style="text-align: center;"><strong>Asistencia ideal:</strong><br><?php echo $total_general_asistencia_ideal; ?></h5>
+												</div>
+												<div class="form-group col-md-2">
+													<?php $total_general_asistencia_real = $total_general_asistencia_ideal - $total_general_inasistencias; ?>
+													<h5 style="text-align: center;"><strong>Asistencia Real:</strong><br><?php echo $total_general_asistencia_real; ?></h5>
+												</div>
+												<div class="form-group col-md-2">
+													<h5 style="text-align: center;"><strong>Asistencia Media:</strong><br><?php echo number_format((($total_general_asistencia_ideal - $total_general_inasistencias) / $total_general_asistencia_ideal), 3, '.', '') * 100; ?>%</h5>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div class="box-body">
+										<table class="table table-bordered">
+											<tr>
+												<th style="width: 600px">Movimientos</th>
+												<th>V</th>
+												<th>M</th>
+												<th style="width: 40px">Total</th>
+											</tr>
+											<tr>
+												<td>Inscripción 1° día</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td><span class="badge bg-red">55</span></td>
+											</tr>
+											<tr>
+												<td>Entrados a la Secc.</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td><span class="badge bg-yellow">70</span></td>
+											</tr>
+											<tr>
+												<td>Entrados a la Esc.</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td><span class="badge bg-yellow">70</span></td>
+											</tr>
+											<tr>
+												<td>Salidos de la Secc.</td>
+												<td>
+													<span class="badge bg-light-blue">30</span>
+												</td>
+												<td>
+													<span class="badge bg-light-blue">30</span>
+												</td>
+												<td><span class="badge bg-light-blue">30</span></td>
+											</tr>
+											<tr>
+												<td>Salidos de la Esc.</td>
+												<td>
+													<span class="badge bg-light-blue">30</span>
+												</td>
+												<td>
+													<span class="badge bg-light-blue">30</span>
+												</td>
+												<td><span class="badge bg-light-blue">30</span></td>
+											</tr>
+											<tr>
+												<td>Quedan último día (1)</td>
+												<td>
+													<span class="badge bg-green">90</span>
+												</td>
+												<td>
+													<span class="badge bg-green">90</span>
+												</td>
+												<td><span class="badge bg-green">90</span></td>
+											</tr>
+										</table>
+										<table class="table table-bordered">
+											<tr>
+												<th style="width: 600px">Asistencias</th>
+												<th>V</th>
+												<th>M</th>
+												<th style="width: 40px">Total</th>
+											</tr>
+											<tr>
+												<td>Total asistencias</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td><span class="badge bg-red"><?php echo $total_general_asistencia_real; ?></span></td>
+											</tr>
+											<tr>
+												<td>Total inasistencias</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td><span class="badge bg-yellow"><?php echo $total_general_inasistencias; ?></span></td>
+											</tr>
+											<tr>
+												<td>No inscriptos</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td><span class="badge bg-yellow">70</span></td>
+											</tr>
+											<tr>
+												<td style="width: 600px"><strong>Asistencia Media</strong></td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td>
+													<span class="badge bg-yellow">70</span>
+												</td>
+												<td><span class="badge bg-yellow">70</span></td>
+											</tr>
+										</table>
+
+									</div>
+								<?php endif; ?>
+								<br>
+							<?php endif; ?>
+						<?php endif; ?>			
+
+						<!-- Tabla inasistencias mensual -->
+						<?php if ($division_inasistencia->resumen_mensual !== 'No'): ?>		
+							<table id="inasistencia_table" class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+								<thead>
+									<tr>
+										<th style="width: 340px;" colspan="<?php echo ($division_inasistencia->resumen_mensual !== 'Si') ? "2" : "8"; ?>" class="text-center"><?php echo "{$division_inasistencia->periodo}° $division_inasistencia->nombre_periodo"; ?> - Mes de <?php echo $this->nombres_meses[$fecha_ini->format('m')]; ?></th>
+										<?php if ($division_inasistencia->fecha_cierre) { ?>
+											<th colspan="2" style="text-align: center;">
+												<span class="label bg-yellow"> MES CERRADO</span>
+											</th>
+										<?php } else { ?>
+											<th colspan="2" style="text-align: center;">
+												<a class="btn btn-success btn-xs" href="division_inasistencia/agregar_resumen_mensual/<?php echo "$division_inasistencia->id"; ?>" title="Agregar"><i class="fa fa-plus"></i>
+												</a>
+											</th>
+										<?php } ?>
+									</tr>
+									<tr>
+										<th style="width: 50px;" rowspan="2">Documento</th>
+										<th style="width: 100px;" rowspan="2">Nombre</th>
+										<th style="width: 50px;" rowspan="2">Fecha de ingreso</th>
+										<th style="width: 50px;" rowspan="2">Fecha de Egreso</th>
+										<th style="width: 50px;" rowspan="2">Asistencia Ideal</th>
+										<th style="width: 50px;" rowspan="2">Asistencia media</th>
+										<th style="text-align: center; width: 50px;" colspan="2">Resumen Mensual</th>
+										<th style="width: 50px; text-align: center;" rowspan="2">Total de Inasistencias</th>
+									</tr>
+									<tr>
+										<th style="text-align: center; width: 25px;" title="Justificadas">J</th>
+										<th style="text-align: center; width: 25px;" title="Injustificadas">I</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($alumnos_resumen_mensual as $alumno): ?>
+										<tr>
+											<td><?php echo "$alumno->documento_tipo $alumno->documento"; ?></td>
+											<td><?php echo "$alumno->persona"; ?></td>
+											<td>
+												<?= empty($alumno->fecha_desde) ? '' : (new DateTime($alumno->fecha_desde))->format('d/m/Y'); ?>
+											</td>
+											<td>
+												<?= empty($alumno->fecha_hasta) ? '' : (new DateTime($alumno->fecha_hasta))->format('d/m/Y'); ?>
+											</td>
+											<?php if ($division_inasistencia->resumen_mensual !== 'Si'): ?>
+												<?php foreach ($fechas as $fecha): ?>
+													<?php $dia_semana = $fecha->format('w'); ?>
+													<td class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+														<br/>
+													</td>
+												<?php endforeach; ?>
+											<?php endif; ?>
+											<?php $total_inasistencias = (isset($alumno->No) ? $alumno->No->falta : 0) + (isset($alumno->Si) ? $alumno->Si->falta : 0); ?>
+											<?php $total_general_inasistencias += $total_inasistencias; ?> 
+											<?php $dias_NC = (isset($alumno->Prev) ? $alumno->Prev->falta : 0) + (isset($alumno->Post) ? $alumno->Post->falta : 0); ?>
+											<?php $asistencia_ideal = $division_inasistencia->dias - $dias_NC; ?>
+											<?php $total_general_asistencia_ideal += $asistencia_ideal; ?> 
+											<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo $asistencia_ideal; ?>"></td>
+											<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:50px"value="<?php echo number_format(((($division_inasistencia->dias - ($dias_NC)) - $total_inasistencias) / ($division_inasistencia->dias - ($dias_NC))), 3, '.', '') * 100; ?> %"></td>
+											<?php if (isset($alumno->Si)): ?>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo $alumno->Si->falta; ?>"></td>
+											<?php else: ?>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"></td>
+											<?php endif; ?>
+											<?php if (isset($alumno->No)): ?>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo $alumno->No->falta; ?>"></td>
+											<?php else: ?>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"></td>
+											<?php endif; ?>
+											<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px"value="<?php echo (isset($total_inasistencias) ? $total_inasistencias : 0); ?>"></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+							<?php if (!empty($division_inasistencia->fecha_cierre)): ?>
+								<div class="row">
+									<div class="col-md-12">
+										<h5><u><strong>Informacion general del curso:</strong></u></h5>
+										<div class="info-box bg-gray-light" style="min-height:40px;" >
+											<span class="info-box-icon bg-green info-box-icon"><i class="fa fa-bar-chart"></i></span>
+											<div class="form-group col-md-2">
+												<h5  style="text-align: center;"><strong>Días Hábiles:</strong><br><?php echo $division_inasistencia->dias; ?>
+												</h5>
+											</div>
+											<div class="form-group col-md-2">
+												<h5 style="text-align: center;"><strong>Total inasistencias:</strong> <br><?php echo $total_general_inasistencias; ?> </h5>
+											</div>
+											<div class="form-group col-md-2">
+												<h5 style="text-align: center;"><strong>Asistencia ideal:</strong><br> <?php echo $total_general_asistencia_ideal; ?></h5>
+											</div>
+											<div class="form-group col-md-2">
+												<?php $total_general_asistencia_real = $total_general_asistencia_ideal - $total_general_inasistencias; ?>
+												<h5 style="text-align: center;"><strong>Asistencia Real:</strong> <br><?php echo $total_general_asistencia_real; ?></h5>
+											</div>
+											<div class="form-group col-md-2">
+												<h5 style="text-align: center;"><strong>Asistencia Media:</strong> <br><?php echo number_format((($total_general_asistencia_ideal - $total_general_inasistencias) / $total_general_asistencia_ideal), 3, '.', '') * 100; ?>%</h5>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="box-body">
+									<table class="table table-bordered">
+										<tr>
+											<th style="width: 600px">Movimientos</th>
+											<th>V</th>
+											<th>M</th>
+											<th style="width: 40px">Total</th>
+										</tr>
+										<tr>
+											<td>Inscripción 1° día</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td><span class="badge bg-red">55</span></td>
+										</tr>
+										<tr>
+											<td>Entrados a la Secc.</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+										<tr>
+											<td>Entrados a la Esc.</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+										<tr>
+											<td>Salidos de la Secc.</td>
+											<td>
+												<span class="badge bg-light-blue">30</span>
+											</td>
+											<td>
+												<span class="badge bg-light-blue">30</span>
+											</td>
+											<td><span class="badge bg-light-blue">30</span></td>
+										</tr>
+										<tr>
+											<td>Salidos de la Esc.</td>
+											<td>
+												<span class="badge bg-light-blue">30</span>
+											</td>
+											<td>
+												<span class="badge bg-light-blue">30</span>
+											</td>
+											<td><span class="badge bg-light-blue">30</span></td>
+										</tr>
+										<tr>
+											<td>Quedan último día (1)</td>
+											<td>
+												<span class="badge bg-green">90</span>
+											</td>
+											<td>
+												<span class="badge bg-green">90</span>
+											</td>
+											<td><span class="badge bg-green">90</span></td>
+										</tr>
+									</table>
+									<table class="table table-bordered">
+										<tr>
+											<th style="width: 600px">Asistencias</th>
+											<th>V</th>
+											<th>M</th>
+											<th style="width: 40px">Total</th>
+										</tr>
+										<tr>
+											<td>Total asistencias</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td><span class="badge bg-red"><?php echo $total_general_asistencia_real; ?></span></td>
+										</tr>
+										<tr>
+											<td>Total inasistencias</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow"><?php echo $total_general_inasistencias; ?></span></td>
+										</tr>
+										<tr>
+											<td>No inscriptos</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+										<tr>
+											<td style="width: 600px"><strong>Asistencia Media</strong></td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+									</table>
+									<table class="table table-bordered">
+										<tr>
+											<th style="width: 600px">EDADES (al 30/06)</th>
+											<th>V</th>
+											<th>M</th>
+											<th style="width: 40px">Total</th>
+										</tr>
+										<?php for ($i = 6; $i <= 16; $i++):; ?>
+											<tr>
+												<td>de <?php echo $i; ?> años</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td>
+													<span class="badge bg-red">55</span>
+												</td>
+												<td><span class="badge bg-red"><?php echo $total_general_asistencia_real; ?></span></td>
+											</tr>
+										<?php endfor; ?>
+										<tr>
+											<td style="width: 600px"><strong>TOTALES</strong></td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+									</table>
+									<table class="table table-bordered">
+										<tr>
+											<th style="width: 600px">Nacionalidades</th>
+											<th>V</th>
+											<th>M</th>
+											<th style="width: 40px">Total</th>
+										</tr>
+										<tr>
+											<td>Argentinos</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td><span class="badge bg-red">55</span></td>
+										</tr>
+										<tr>
+											<td>Extrangeros</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td>
+												<span class="badge bg-red">55</span>
+											</td>
+											<td><span class="badge bg-red">55</span></td>
+										</tr>
+										<tr>
+											<td style="width: 600px"><strong>TOTALES</strong></td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td>
+												<span class="badge bg-yellow">70</span>
+											</td>
+											<td><span class="badge bg-yellow">70</span></td>
+										</tr>
+									</table>
+								</div>
+							<?php endif; ?>
+						<?php endif; ?>	
+
+						<!-- Tabla inasistencias dia a dia-->
+						<?php if ($division_inasistencia->resumen_mensual !== 'Si'): ?>
+							<?php if (empty($division_inasistencia->fecha_cierre)): ?>
+								<table id="inasistencia_table" class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+									<thead>
+										<tr>
+											<th style="width: 340px;" colspan="<?php echo ($division_inasistencia->resumen_mensual !== 'Si') ? "2" : "7"; ?>" class="text-center"><?php echo "{$division_inasistencia->periodo}° $division_inasistencia->nombre_periodo"; ?> - Mes de <?php echo $this->nombres_meses[$fecha_ini->format('m')]; ?></th>
+											<th colspan="2" style="text-align: center;">
+											</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+												<th class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+													<a class="btn btn-success btn-xs" href="division_inasistencia/agregar_dia/<?php echo "$division_inasistencia->id/" . $fecha->format('Ymd'); ?>" title="Agregar"><i class="fa fa-plus"></i>
+													</a>
+												</th>
+											<?php endforeach; ?>
+										</tr>
+										<tr>
+											<th style="width: 50px;" rowspan="2">Documento</th>
+											<th style="width: 100px;" rowspan="2">Nombre</th>
+											<th style="text-align: center; width: 50px;" colspan="2">Inasistencias</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+												<th class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+													<?php echo $fecha->format('d'); ?>
+												</th>
+											<?php endforeach; ?>
+										</tr>
+										<tr>
+											<th style="text-align: center; width: 25px;" title="Justificadas">J</th>
+											<th style="text-align: center; width: 25px;" title="Injustificadas">I</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+												<th class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+													<?php echo $dias_semana[$dia_semana]; ?>
+												</th>
+											<?php endforeach; ?>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($alumnos as $alumno): ?>
+											<tr>
+												<td><?php echo "$alumno->documento_tipo $alumno->documento"; ?></td>
+												<td><?php echo "$alumno->persona"; ?></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['Si']) ? $inasistencias_resumen[$alumno->id]['Si'] : ''; ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['No']) ? $inasistencias_resumen[$alumno->id]['No'] : ''; ?>"></td>
+												<?php foreach ($fechas as $fecha): ?>
+													<?php $dia_semana = $fecha->format('w'); ?>
+													<?php $inasistencia = isset($inasistencias_mes[$alumno->id][$fecha->format('Y-m-d')]) ? $inasistencias_mes[$alumno->id][$fecha->format('Y-m-d')] : FALSE; ?>
+													<td class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+														<?php echo $inasistencia ? $inasistencia->falta : ''; ?><br/>
+													</td>
+												<?php endforeach; ?>
+											</tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>		
+							<?php endif; ?>
+						<?php endif; ?>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="division_inasistencia/<?php echo empty($txt_btn) ? "listar/$division->id" : ""; ?>" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Tabla inasistencias dia a dia Cerrada-->
+		<?php if ($division_inasistencia->resumen_mensual !== 'Si'): ?>		
+			<?php if ($division_inasistencia->fecha_cierre): ?>	
+				<div class="row">
+					<div class="col-xs-12">
+						<div class="box box-primary">
+							<div class="box-header with-border">
+								<h3 class="box-title">Informe de asistencia por día</h3>
+								<div class="box-tools pull-right">
+									<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+								</div>
+							</div>
+							<div class="box-body">
+
+								<table id="inasistencia_table" class="table table-hover table-bordered table-condensed text-sm" role="grid" >
+									<thead>
+										<tr>
+											<th style="width: 340px;" colspan="<?php echo ($division_inasistencia->resumen_mensual !== 'Si') ? "2" : "7"; ?>" class="text-center"><?php echo "{$division_inasistencia->periodo}° $division_inasistencia->nombre_periodo"; ?> - Mes de <?php echo $this->nombres_meses[$fecha_ini->format('m')]; ?></th>
+											<th colspan="2" style="text-align: center;">
+												<span class="label bg-yellow"> MES CERRADO</span>
+											</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+
+												<th></th>
+											<?php endforeach; ?>
+										</tr>
+										<tr>
+											<th style="width: 50px;" rowspan="2">Documento</th>
+											<th style="width: 100px;" rowspan="2">Nombre</th>
+											<th style="text-align: center; width: 50px;" colspan="2">Inasistencias</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+												<th class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+													<?php echo $fecha->format('d'); ?>
+												</th>
+											<?php endforeach; ?>
+										</tr>
+										<tr>
+											<th style="text-align: center; width: 25px;" title="Justificadas">J</th>
+											<th style="text-align: center; width: 25px;" title="Injustificadas">I</th>
+											<?php foreach ($fechas as $fecha): ?>
+												<?php $dia_semana = $fecha->format('w'); ?>
+												<th class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+													<?php echo $dias_semana[$dia_semana]; ?>
+												</th>
+											<?php endforeach; ?>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($alumnos as $alumno): ?>
+											<tr>
+												<td><?php echo "$alumno->documento_tipo $alumno->documento"; ?></td>
+												<td><?php echo "$alumno->persona"; ?></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['Si']) ? $inasistencias_resumen[$alumno->id]['Si'] : ''; ?>"></td>
+												<td style="text-align: center; width: 25px;"><input disabled style="text-align:center; width:25px" value="<?php echo isset($inasistencias_resumen[$alumno->id]['No']) ? $inasistencias_resumen[$alumno->id]['No'] : ''; ?>"></td>
+												<?php foreach ($fechas as $fecha): ?>
+													<?php $dia_semana = $fecha->format('w'); ?>
+													<?php $inasistencia = isset($inasistencias_mes[$alumno->id][$fecha->format('Y-m-d')]) ? $inasistencias_mes[$alumno->id][$fecha->format('Y-m-d')] : FALSE; ?>
+													<td class="dia_<?php echo $dia_semana; ?>" style="text-align: center; width: 20px;">
+														<?php echo $inasistencia ? $inasistencia->falta : ''; ?><br/>
+													</td>
+												<?php endforeach; ?>
+											</tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>		
+
+							</div>
+							<div class="box-footer">
+							</div>
+						</div>
+					</div>
+				</div>
+			<?php endif; ?>		
+		<?php endif; ?>
+	</section>
+</div>

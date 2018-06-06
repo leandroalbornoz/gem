@@ -1,0 +1,674 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Bajas extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('planilla_asisnov_model');
+		$this->load->model('planilla_tipo_model');
+		$this->load->model('liquidaciones/bajas_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_CONSULTA, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION);
+		$this->roles_escuelas = array(ROL_ADMIN, ROL_USI, ROL_DIR_ESCUELA, ROL_SDIR_ESCUELA, ROL_SEC_ESCUELA, ROL_ESCUELA_CAR, ROL_JEFE_LIQUIDACION, ROL_LIQUIDACION, ROL_LINEA, ROL_SUPERVISION, ROL_REGIONAL, ROL_GRUPO_ESCUELA, ROL_CONSULTA, ROL_CONSULTA_LINEA);
+		if (in_array($this->rol->codigo, array(ROL_CONSULTA)) || !in_array($this->rol->codigo, $this->roles_permitidos)) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'liquidaciones/bajas';
+	}
+
+	public function aud_escuelas($planilla_tipo_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $planilla_tipo_id == NULL || !ctype_digit($planilla_tipo_id) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$planilla_tipo = $this->planilla_tipo_model->get_one($planilla_tipo_id);
+		if (empty($planilla_tipo)) {
+			show_error('No se encontró el registro del tipo de planilla', 500, 'Registro no encontrado');
+		}
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			$mes = $this->planilla_asisnov_model->get_mes_auditoria();
+			redirect("liquidaciones/bajas/aud_escuelas/$planilla_tipo_id/$mes", 'refresh');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'N°', 'data' => 'numero', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Anexo', 'data' => 'anexo', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Escuela', 'data' => 'nombre', 'width' => 20),
+				array('label' => 'Departamento', 'data' => 'departamento', 'width' => 15),
+				array('label' => 'Nivel', 'data' => 'nivel', 'width' => 15),
+				array('label' => 'Bajas Cargadas', 'data' => 'bajas_cargadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Bajas Auditadas', 'data' => 'bajas_auditadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => '', 'data' => 'menu', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Teléfono', 'data' => 'telefono', 'width' => 10, 'responsive_class' => 'none')
+			),
+			'table_id' => 'bajas_table',
+			'source_url' => "liquidaciones/bajas/aud_escuelas_data/$planilla_tipo_id/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(2, 'asc')),
+			'details_format' => 'bajas_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_bajas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['planilla_tipo'] = $planilla_tipo;
+		$data['mes'] = $mes;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Auditoria de Bajas - Escuelas';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('bajas/bajas_aud_escuelas', $data);
+	}
+
+	public function aud_escuelas_data($planilla_tipo_id = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $planilla_tipo_id == NULL || !ctype_digit($planilla_tipo_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select("e.id, e.numero, e.anexo, e.nombre, e.telefono, COALESCE(d.descripcion, 'N/D') as departamento, n.descripcion as nivel, COUNT(DISTINCT sn_baja.id) as bajas_cargadas, COUNT(DISTINCT CASE WHEN sn_baja.estado='Cargado' THEN NULL ELSE sn_baja.id END) as bajas_auditadas")
+			->unset_column('id')
+			->from('servicio_novedad sn_baja')
+			->join('novedad_tipo nt', 'sn_baja.novedad_tipo_id = nt.id')
+			->join('servicio s', 'sn_baja.servicio_id = s.id')
+			->join('situacion_revista sr', 's.situacion_revista_id = sr.id')
+			->join('cargo c', 's.cargo_id = c.id')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id = 1')
+			->join('escuela e', 'c.escuela_id = e.id AND e.dependencia_id = 1')
+			->join('nivel n', 'e.nivel_id = n.id')
+			->join('localidad l', 'e.localidad_id = l.id', 'left')
+			->join('departamento d', 'l.departamento_id = d.id', 'left')
+			->where('nt.novedad', 'B')
+			->where('sr.planilla_tipo_id', $planilla_tipo_id)
+			->where('sn_baja.ames', $mes)
+			->where('sn_baja.planilla_baja_id IS NULL')
+			->group_by('e.id')
+			->add_column('', '', 'id')
+			->add_column('menu', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="liquidaciones/bajas/aud_escuela/$1/' . $planilla_tipo_id . '/' . $mes . '" title="Auditar"><i class="fa fa-search"></i> Auditar</a>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function departamento($planilla_tipo_id = NULL, $mes = NULL, $departamento_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $planilla_tipo_id == NULL || !ctype_digit($planilla_tipo_id) || $departamento_id === NULL || !ctype_digit($departamento_id) || ($mes != NULL && !ctype_digit($mes))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$planilla_tipo = $this->planilla_tipo_model->get_one($planilla_tipo_id);
+		if (empty($planilla_tipo)) {
+			show_error('No se encontró el registro del tipo de planilla', 500, 'Registro no encontrado');
+		}
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			$mes = $this->planilla_asisnov_model->get_mes_auditoria();
+			redirect("liquidaciones/bajas/departamento/$planilla_tipo_id/$mes/$departamento_id", 'refresh');
+		}
+		if ($departamento_id !== '0') {
+			$this->load->model('departamento_model');
+			$data['departamento'] = $this->departamento_model->get_one($departamento_id);
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'N°', 'data' => 'numero', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Anexo', 'data' => 'anexo', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Escuela', 'data' => 'nombre', 'width' => 25),
+				array('label' => 'Nivel', 'data' => 'nivel', 'width' => 15),
+				array('label' => 'Cargadas', 'data' => 'bajas_cargadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Pendientes', 'data' => 'bajas_pendientes', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Rechazadas', 'data' => 'bajas_rechazadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => '', 'data' => 'menu', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Teléfono', 'data' => 'telefono', 'width' => 10, 'responsive_class' => 'none')
+			),
+			'table_id' => 'bajas_table',
+			'source_url' => "liquidaciones/bajas/departamento_data/$planilla_tipo_id/$departamento_id/0/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(2, 'asc')),
+			'details_format' => 'bajas_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_bajas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$tableData_2 = array(
+			'columns' => array(
+				array('label' => '', 'data' => '', 'width' => 2, 'class' => '', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'N°', 'data' => 'numero', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Anexo', 'data' => 'anexo', 'width' => 8, 'class' => 'dt-body-right'),
+				array('label' => 'Escuela', 'data' => 'nombre', 'width' => 25),
+				array('label' => 'Nivel', 'data' => 'nivel', 'width' => 15),
+				array('label' => 'Cargadas', 'data' => 'bajas_cargadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Pendientes', 'data' => 'bajas_pendientes', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => 'Rechazadas', 'data' => 'bajas_rechazadas', 'width' => 10, 'class' => 'text-sm dt-body-center'),
+				array('label' => '', 'data' => 'menu', 'width' => 12, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false'),
+				array('label' => 'Teléfono', 'data' => 'telefono', 'width' => 10, 'responsive_class' => 'none')
+			),
+			'table_id' => 'bajas_auditadas_table',
+			'source_url' => "liquidaciones/bajas/departamento_data/$planilla_tipo_id/$departamento_id/1/$mes/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'order' => array(array(1, 'asc'), array(2, 'asc')),
+			'details_format' => 'bajas_auditadas_table_detalles',
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_bajas_auditadas_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['planilla_tipo'] = $planilla_tipo;
+		$data['mes'] = $mes;
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+		$data['html_table_2'] = buildHTML($tableData_2);
+		$data['js_table_2'] = buildJS($tableData_2);
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Auditoria de Bajas - Departamento';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('bajas/bajas_departamento', $data);
+	}
+
+	public function departamento_data($planilla_tipo_id = NULL, $departamento = NULL, $auditadas = NULL, $mes = NULL, $rol_codigo = NULL, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $planilla_tipo_id == NULL || !ctype_digit($planilla_tipo_id) || $departamento == NULL || !ctype_digit($departamento) || $auditadas == NULL || !ctype_digit($auditadas) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+
+		$this->datatables
+			->select("e.id, e.numero, e.anexo, e.nombre, e.telefono, COALESCE(d.descripcion, 'N/D') as departamento, n.descripcion as nivel, COUNT(DISTINCT sn_baja.id) as bajas_cargadas, COUNT(DISTINCT CASE WHEN sn_baja.estado='Cargado' THEN sn_baja.id ELSE NULL END) as bajas_pendientes, COUNT(DISTINCT CASE WHEN sn_baja.estado='Rechazado' THEN sn_baja.id ELSE NULL END) as bajas_rechazadas")
+			->unset_column('id')
+			->from('servicio_novedad sn_baja')
+			->join('novedad_tipo nt', 'sn_baja.novedad_tipo_id = nt.id')
+			->join('servicio s', 'sn_baja.servicio_id = s.id')
+			->join('situacion_revista sr', 's.situacion_revista_id = sr.id')
+			->join('cargo c', 's.cargo_id = c.id')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id = 1')
+			->join('escuela e', 'c.escuela_id = e.id AND e.dependencia_id = 1')
+			->join('nivel n', 'e.nivel_id = n.id')
+			->join('localidad l', 'e.localidad_id = l.id', 'left')
+			->join('departamento d', 'l.departamento_id = d.id', 'left')
+			->where('nt.novedad', 'B')
+			->where('sr.planilla_tipo_id', $planilla_tipo_id)
+			->where('sn_baja.ames', $mes)
+			->where('sn_baja.planilla_baja_id IS NULL')
+			->group_by('e.id')
+			->add_column('', '', 'id');
+		if ($departamento === '0') {
+			$this->datatables->where('d.id IS NULL');
+		} else {
+			$this->datatables->where('d.id', $departamento);
+		}
+		if ($auditadas) {
+			$this->datatables->having("COUNT(DISTINCT CASE WHEN sn_baja.estado='Cargado' THEN sn_baja.id ELSE NULL END) = 0")
+				->add_column('menu', '<div class="btn-group" role="group">'
+					. '<a class="btn btn-xs btn-default" href="liquidaciones/bajas/aud_escuela/$1/' . $planilla_tipo_id . '/' . $mes . '" title="Auditar"><i class="fa fa-search"></i> Ver</a>', 'id');
+		} else {
+			$this->datatables->having("COUNT(DISTINCT CASE WHEN sn_baja.estado='Cargado' THEN sn_baja.id ELSE NULL END) > 0")
+				->add_column('menu', '<div class="btn-group" role="group">'
+					. '<a class="btn btn-xs btn-default" href="liquidaciones/bajas/aud_escuela/$1/' . $planilla_tipo_id . '/' . $mes . '" title="Auditar"><i class="fa fa-search"></i> Auditar</a>', 'id');
+		}
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_ver($escuela_id = NULL, $mes = NULL, $baja_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_escuelas) ||
+			$mes == NULL || $baja_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($baja_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && $mes <= '201710') {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('servicio_novedad_model');
+		unset($this->servicio_novedad_model->fields['estado']);
+		$baja = $this->servicio_novedad_model->get_one($baja_id);
+		if (empty($baja)) {
+			$this->modal_error('No se encontró la baja', 'Registro no encontrado');
+			return;
+		}
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($baja->servicio_id);
+		if (empty($servicio) || $escuela_id !== $servicio->escuela_id) {
+			$this->modal_error('No se encontró el servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$this->servicio_novedad_model->fields['dias']['type'] = 'number';
+		$this->servicio_novedad_model->fields['obligaciones']['type'] = 'number';
+		unset($this->servicio_novedad_model->fields['fecha_hasta']);
+
+		$novedades = $this->servicio_novedad_model->get(array(
+			'join' => $this->servicio_novedad_model->default_join,
+			'servicio_id' => $servicio->id,
+			'ames' => $mes,
+			'id !=' => $baja->id,
+			'where' => array('planilla_baja_id IS NULL'),
+		));
+
+		$this->servicio_novedad_model->fields['fecha_desde']['label'] = 'Fecha Baja';
+		$this->servicio_novedad_model->fields['dias']['max'] = '30';
+		$this->servicio_novedad_model->fields['obligaciones']['max'] = $servicio->carga_horaria * 4;
+		$this->servicio_novedad_model->fields['dias_pagar'] = $this->servicio_novedad_model->fields['dias'];
+		$this->servicio_novedad_model->fields['dias_pagar']['label'] = 'Días a pagar';
+		$this->servicio_novedad_model->fields['obligaciones_pagar'] = $this->servicio_novedad_model->fields['obligaciones'];
+		$this->servicio_novedad_model->fields['obligaciones_pagar']['label'] = 'Oblig. a pagar';
+		$baja->dias_pagar = $this->servicio_novedad_model->fields['dias']['max'] - $baja->dias;
+		$baja->obligaciones_pagar = $this->servicio_novedad_model->fields['obligaciones']['max'] - $baja->obligaciones;
+		$data['servicio'] = $servicio;
+		if ($servicio->regimen_tipo_id !== '1') {
+			$this->load->model('horario_model');
+			$data['horarios'] = $this->horario_model->get_horarios($servicio->cargo_id);
+		}
+
+		$data['novedades'] = $novedades;
+		$data['baja'] = $baja;
+		$this->servicio_novedad_model->fields['novedad_tipo']['label'] = 'Motivo Baja';
+		$data['fields'] = $this->build_fields($this->servicio_novedad_model->fields, $baja, TRUE);
+
+		$data['title'] = "Ver baja de <b>$servicio->apellido, $servicio->nombre</b> ($servicio->cuil <b>" . substr($servicio->liquidacion, -2) . "</b>)";
+		$this->load->view('liquidaciones/bajas/bajas_modal_ver', $data);
+	}
+
+	public function modal_editar($escuela_id = NULL, $mes = NULL, $baja_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$mes == NULL || $baja_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($baja_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		if ($mes !== $this->planilla_asisnov_model->get_mes_auditoria_habilitada()) {
+			$this->edicion = FALSE;
+		}
+		if (!$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('novedad_tipo_model');
+		$array_novedad_tipo = $this->novedad_tipo_model->get_tipos_novedades('B');
+		$this->array_novedad_tipo_control = $array_novedad_tipo;
+		$this->load->model('servicio_novedad_model');
+		unset($this->servicio_novedad_model->fields['estado']);
+		$baja = $this->servicio_novedad_model->get_one($baja_id);
+		if (empty($baja)) {
+			$this->modal_error('No se encontró la baja', 'Registro no encontrado');
+			return;
+		}
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($baja->servicio_id);
+		if (empty($servicio) || $escuela_id !== $servicio->escuela_id) {
+			$this->modal_error('No se encontró el servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$this->servicio_novedad_model->fields['dias']['type'] = 'number';
+		$this->servicio_novedad_model->fields['obligaciones']['type'] = 'number';
+		unset($this->servicio_novedad_model->fields['fecha_hasta']);
+		$this->set_model_validation_rules($this->servicio_novedad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$planilla_id = $this->planilla_asisnov_model->get_planilla_abierta($escuela_id, $mes, $servicio->planilla_tipo_id);
+				$trans_ok &= $planilla_id > 0;
+
+				if ($trans_ok) {
+					$trans_ok &= $this->servicio_novedad_model->update(array(
+						'id' => $baja->id,
+						'servicio_id' => $servicio->id,
+						'ames' => $mes,
+						'novedad_tipo_id' => $this->input->post('novedad_tipo'),
+						'fecha_desde' => $this->get_date_sql('fecha_desde'),
+						'fecha_hasta' => (new DateTime($mes . '01 +1 month -1 day'))->format('Y-m-d'),
+						'dias' => $this->input->post('dias'),
+						'obligaciones' => $servicio->regimen_tipo_id === '1' ? '0' : $this->input->post('obligaciones'),
+						'estado' => 'Cargado',
+						'planilla_alta_id' => $planilla_id
+						), FALSE);
+					$trans_ok &= $this->servicio_model->update(array(
+						'id' => $servicio->id,
+						'fecha_baja' => $this->get_date_sql('fecha_desde'),
+						'motivo_baja' => $array_novedad_tipo[$this->input->post('novedad_tipo')]
+						), FALSE);
+				}
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->servicio_novedad_model->get_msg());
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->servicio_novedad_model->get_error());
+				}
+				redirect("liquidaciones/bajas/aud_escuela/$escuela_id/$servicio->planilla_tipo_id/$mes", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("liquidaciones/bajas/aud_escuela/$escuela_id/$servicio->planilla_tipo_id/$mes", 'refresh');
+			}
+		}
+		$novedades = $this->servicio_novedad_model->get(array(
+			'join' => $this->servicio_novedad_model->default_join,
+			'servicio_id' => $servicio->id,
+			'ames' => $mes,
+			'id !=' => $baja->id,
+			'where' => array('planilla_baja_id IS NULL'),
+		));
+
+		$fechas_inhabilitadas = array();
+		if (!empty($novedades)) {
+			foreach ($novedades as $novedad) {
+				$desde = new DateTime($novedad->fecha_desde);
+				$hasta = new DateTime($novedad->fecha_hasta);
+				for ($fecha = $desde; $fecha <= $hasta; $fecha->modify('+1 day')) {
+					$fechas_inhabilitadas[] = $fecha->format('d/m/Y');
+				}
+			}
+		}
+
+		$this->servicio_novedad_model->fields['fecha_desde']['label'] = 'Fecha Baja';
+		$this->servicio_novedad_model->fields['dias']['max'] = '30';
+		$this->servicio_novedad_model->fields['obligaciones']['max'] = $servicio->carga_horaria * 4;
+		$this->servicio_novedad_model->fields['dias_pagar'] = $this->servicio_novedad_model->fields['dias'];
+		$this->servicio_novedad_model->fields['dias_pagar']['label'] = 'Días a pagar';
+		$this->servicio_novedad_model->fields['dias_pagar']['readonly'] = TRUE;
+		$this->servicio_novedad_model->fields['obligaciones_pagar'] = $this->servicio_novedad_model->fields['obligaciones'];
+		$this->servicio_novedad_model->fields['obligaciones_pagar']['label'] = 'Oblig. a pagar';
+		$this->servicio_novedad_model->fields['obligaciones_pagar']['readonly'] = TRUE;
+		$this->servicio_novedad_model->fields['novedad_tipo']['array'] = $array_novedad_tipo;
+		$baja->dias_pagar = $this->servicio_novedad_model->fields['dias']['max'] - $baja->dias;
+		$baja->obligaciones_pagar = $this->servicio_novedad_model->fields['obligaciones']['max'] - $baja->obligaciones;
+		$data['servicio'] = $servicio;
+		if ($servicio->regimen_tipo_id !== '1') {
+			$this->load->model('horario_model');
+			$data['horarios'] = $this->horario_model->get_horarios($servicio->cargo_id);
+		}
+
+		if (!empty($servicio->fecha_alta)) {
+			$f1 = $mes . '01';
+			$f2 = (new DateTime($servicio->fecha_alta))->format('Ymd');
+			$data['fecha_desde'] = (new DateTime(max(array($f1, $f2))))->format('d/m/Y');
+		} else {
+			$data['fecha_desde'] = (new DateTime($mes . '01'))->format('d/m/Y');
+		}
+
+		$data['fecha_hasta'] = (new DateTime($mes . '01 +1 month -1 day'))->format('d/m/Y');
+		$data['novedades'] = $novedades;
+		$data['baja'] = $baja;
+		$data['fechas_inhabilitadas'] = $fechas_inhabilitadas;
+		$this->servicio_novedad_model->fields['novedad_tipo']['label'] = 'Motivo Baja';
+		$data['fields'] = $this->build_fields($this->servicio_novedad_model->fields, $baja);
+
+		$data['title'] = "Editar baja a <b>$servicio->apellido, $servicio->nombre</b> ($servicio->cuil <b>" . substr($servicio->liquidacion, -2) . "</b>)";
+		$this->load->view('liquidaciones/bajas/bajas_modal_editar', $data);
+	}
+
+	public function modal_rechazar($escuela_id = NULL, $mes = NULL, $baja_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $mes == NULL || !ctype_digit($mes) || $baja_id == NULL || !ctype_digit($baja_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		if ($mes !== $this->planilla_asisnov_model->get_mes_auditoria_habilitada()) {
+			$this->edicion = FALSE;
+		}
+		if (!$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+
+		if (empty($escuela) || !$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('servicio_novedad_model');
+		$baja = $this->servicio_novedad_model->get_one($baja_id);
+		if (empty($baja)) {
+			$this->modal_error('No se encontró el registro de la baja', 'Registro no encontrado');
+			return;
+		}
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($baja->servicio_id);
+		if (empty($servicio) || $escuela->id !== $servicio->escuela_id) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$rechazar_model = new stdClass();
+		$rechazar_model->fields = array(
+			'motivo_rechazo' => array('label' => 'Motivo Rechazo', 'maxlength' => '100', 'required' => TRUE)
+		);
+		$baja->persona = "$servicio->cuil $servicio->apellido, $servicio->nombre";
+		$baja->regimen = $servicio->regimen;
+		$this->set_model_validation_rules($rechazar_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($escuela_id !== $this->input->post('escuela_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($baja_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->servicio_novedad_model->update(array(
+					'id' => $baja->id,
+					'motivo_rechazo' => $this->input->post('motivo_rechazo'),
+					'estado' => 'Rechazado'
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->servicio_novedad_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->servicio_novedad_model->get_error());
+				}
+				redirect("liquidaciones/bajas/aud_escuela/$escuela_id/$servicio->planilla_tipo_id/$mes", 'refresh');
+			}
+		}
+
+		$data['escuela'] = $escuela;
+		$data['mes'] = $mes;
+		$data['baja'] = $baja;
+		$data['servicio'] = $servicio;
+		$data['fields'] = $this->build_fields($rechazar_model->fields, $baja);
+
+		$data['title'] = 'Rechazar Baja';
+		$this->load->view('bajas/bajas_modal_rechazar', $data);
+	}
+
+	public function modal_ver_auditoria($escuela_id = NULL, $mes = NULL, $baja_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_escuelas) ||
+			$mes == NULL || $baja_id == NULL || $escuela_id == NULL ||
+			!ctype_digit($mes) || !ctype_digit($baja_id) || !ctype_digit($escuela_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && $mes <= '201710') {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->load->model('servicio_novedad_model');
+		$baja = $this->servicio_novedad_model->get_one($baja_id);
+		if (empty($baja)) {
+			$this->modal_error('No se encontró la baja', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('servicio_model');
+		$servicio = $this->servicio_model->get_one($baja->servicio_id);
+		if (empty($servicio)) {
+			$this->modal_error('No se encontró el servicio', 'Registro no encontrado');
+			return;
+		}
+		$data['servicio'] = $servicio;
+
+		$data['baja'] = $baja;
+		$data['historicos'] = $this->servicio_novedad_model->get_auditoria($baja->id);
+		$data['title'] = "Ver auditoría de baja de <b>$servicio->apellido, $servicio->nombre</b> ($servicio->cuil <b>" . substr($servicio->liquidacion, -2) . "</b>)";
+		$this->load->view('liquidaciones/bajas/bajas_modal_ver_auditoria', $data);
+	}
+
+	public function aud_escuela($escuela_id = NULL, $planilla_tipo_id = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_escuelas) || $escuela_id == NULL || !ctype_digit($escuela_id) || $planilla_tipo_id == NULL || !ctype_digit($planilla_tipo_id) || $mes == NULL || !ctype_digit($mes)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) && $mes <= '201710') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$planilla_tipo = $this->planilla_tipo_model->get_one($planilla_tipo_id);
+		if (empty($planilla_tipo)) {
+			show_error('No se encontró el registro del tipo de planilla', 500, 'Registro no encontrado');
+		}
+		if ($mes !== $this->planilla_asisnov_model->get_mes_auditoria_habilitada()) {
+			$this->edicion = FALSE;
+		}
+
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($escuela_id);
+
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->form_validation->set_rules('aprobar', 'Aprobar', 'integer');
+		$this->form_validation->set_rules('revertir', 'Revertir', 'integer');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($escuela_id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$this->load->model('servicio_novedad_model');
+				if ($this->input->post('aprobar')) {
+					$trans_ok &= $this->servicio_novedad_model->update(array(
+						'id' => $this->input->post('aprobar'),
+						'estado' => 'Auditado',
+						'motivo_rechazo' => 'NULL'
+					));
+				} elseif ($this->input->post('revertir')) {
+					$trans_ok &= $this->servicio_novedad_model->update(array(
+						'id' => $this->input->post('revertir'),
+						'estado' => 'Cargado',
+						'motivo_rechazo' => 'NULL'
+					));
+				}
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->servicio_novedad_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->servicio_novedad_model->get_error());
+				}
+				redirect("liquidaciones/bajas/aud_escuela/$escuela->id/$planilla_tipo_id/$mes", 'refresh');
+			}
+		}
+
+		$data['escuela'] = $escuela;
+		$data['planilla_tipo'] = $planilla_tipo;
+		$data['mes'] = $mes;
+		$data['bajas'] = $this->bajas_model->get_bajas_escuela($planilla_tipo->id, $mes, $escuela->id);
+		$this->load->model('escuela_autoridad_model');
+		$autoridades = $this->escuela_autoridad_model->get(array(
+			'escuela_id' => $escuela->id,
+			'join' => array(
+				array('autoridad_tipo', 'autoridad_tipo.id = escuela_autoridad.autoridad_tipo_id', 'left', array('autoridad_tipo.descripcion as autoridad')),
+				array('persona', 'persona.id = escuela_autoridad.persona_id', 'left', array('CONCAT(persona.apellido, \', \', persona.nombre) as persona', 'persona.cuil', 'persona.telefono_fijo', 'persona.telefono_movil', 'persona.email'))),
+		));
+
+		$data['autoridades'] = $autoridades;
+		$data['rol_escuela'] = !in_array($this->rol->codigo, $this->roles_permitidos);
+		$data['error'] = (validation_errors() ? validation_errors() : (!empty($errors) ? $errors : $this->session->flashdata('error')));
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Auditoria de Bajas - Escuelas';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+
+		$this->load_template('bajas/bajas_aud_escuela', $data);
+	}
+
+	public function cambiar_mes($planilla_tipo_id, $mes, $escuela_id = '') {
+		$model = new stdClass();
+		$model->fields = array(
+			'mes' => array('label' => 'Mes', 'type' => 'date', 'required' => TRUE)
+		);
+		$this->set_model_validation_rules($model);
+		if ($this->form_validation->run() === TRUE) {
+			$mes = (new DateTime($this->get_date_sql('mes')))->format('Ym');
+			$this->session->set_flashdata('message', 'Mes cambiado correctamente');
+		} else {
+			$this->session->set_flashdata('error', 'Error al cambiar mes');
+		}
+		if (empty($escuela_id)) {
+			redirect("liquidaciones/bajas/aud_escuelas/$planilla_tipo_id/$mes", 'refresh');
+		} else {
+			redirect("liquidaciones/bajas/aud_escuela/$escuela_id/$planilla_tipo_id/$mes", 'refresh');
+		}
+	}
+
+	public function ajax_get_bajas() {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$escuela_id = $this->input->get('escuela_id');
+		$planilla_tipo_id = $this->input->get('planilla_tipo_id');
+		$mes = $this->input->get('mes');
+		if (empty($escuela_id) || empty($planilla_tipo_id) || empty($mes)) {
+			show_error('No se han recibido los parámetros necesarios', 500, 'Acción no autorizada');
+		}
+
+		$bajas = $this->bajas_model->get_bajas_escuela($planilla_tipo_id, $mes, $escuela_id);
+
+		if (!empty($bajas)) {
+			echo json_encode($bajas);
+			return;
+		} else {
+			echo json_encode(array());
+		}
+	}
+}
+/* End of file Bajas.php */
+/* Location: ./application/controllers/Bajas.php */

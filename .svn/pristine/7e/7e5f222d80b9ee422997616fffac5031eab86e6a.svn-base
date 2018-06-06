@@ -1,0 +1,173 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_antiguedad extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('persona_model');
+		$this->load->model('persona_antiguedad_model');
+		$this->load->model('servicio_model');
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL, ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/persona_antiguedad';
+	}
+
+	public function modal_agregar($servicio_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			$this->modal_error('No se encontró el registro de servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$this->persona_antiguedad_model->fields['escuela']['value'] = $escuela->nombre_largo;
+
+		$this->set_model_validation_rules($this->persona_antiguedad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_antiguedad_model->create(array(
+					'persona_id' => $servicio->persona_id,
+					'escuela_id' => $servicio->escuela_id,
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'fecha_hasta' => $this->get_date_sql('fecha_hasta')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_antiguedad_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->persona_antiguedad_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("datos_personal/antiguedad/$servicio->id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($this->persona_antiguedad_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar antigüedad a persona';
+		$this->load->view('persona_antiguedad/persona_antiguedad_modal_abm', $data);
+	}
+
+	public function modal_editar($servicio_id, $id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$persona_antiguedad = $this->persona_antiguedad_model->get_one($id);
+		if (empty($persona_antiguedad)) {
+			$this->modal_error('No se encontró el registro a editar', 'Registro no encontrado');
+			return;
+		}
+
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio) || $servicio->persona_id !== $persona_antiguedad->persona_id) {
+			$this->modal_error('No se encontró el registro de servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$persona_antiguedad->escuela = $escuela->nombre_largo;
+
+		$this->set_model_validation_rules($this->persona_antiguedad_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($persona_antiguedad->id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Error general');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->persona_antiguedad_model->update(array(
+					'id' => $persona_antiguedad->id,
+					'fecha_desde' => $this->get_date_sql('fecha_desde'),
+					'fecha_hasta' => $this->get_date_sql('fecha_hasta')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->persona_antiguedad_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->persona_antiguedad_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("datos_personal/antiguedad/$servicio->id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($this->persona_antiguedad_model->fields, $persona_antiguedad);
+		$data['persona_antiguedad'] = $persona_antiguedad;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar antigüedad de persona';
+		$this->load->view('persona_antiguedad/persona_antiguedad_modal_abm', $data);
+	}
+
+	public function modal_eliminar($servicio_id, $id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !$this->edicion) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$persona_antiguedad = $this->persona_antiguedad_model->get_one($id);
+		if (empty($persona_antiguedad)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio) || $servicio->persona_id !== $persona_antiguedad->persona_id) {
+			$this->modal_error('No se encontró el registro de servicio', 'Registro no encontrado');
+			return;
+		}
+
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+
+		$persona_antiguedad->escuela = $escuela->nombre_largo;
+
+		if (isset($_POST) && !empty($_POST)) {
+			if ($persona_antiguedad->id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Error general');
+				return;
+			}
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_antiguedad_model->delete(array('id' => $persona_antiguedad->id));
+
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->persona_antiguedad_model->get_msg());
+			} else {
+				$this->session->set_flashdata('error', $this->persona_antiguedad_model->get_error());
+			}
+			redirect("datos_personal/antiguedad/$servicio->id", 'refresh');
+		}
+		$data['fields'] = $this->build_fields($this->persona_antiguedad_model->fields, $persona_antiguedad, TRUE);
+		$data['persona_antiguedad'] = $persona_antiguedad;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar antigüedad de persona';
+		$this->load->view('persona_antiguedad/persona_antiguedad_modal_abm', $data);
+	}
+}
+/* End of file Persona_antiguedad.php */
+/* Location: ./application/controllers/Persona_antiguedad.php */

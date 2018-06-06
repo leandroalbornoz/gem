@@ -1,0 +1,128 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Caracteristica_valor extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('caracteristica_valor_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI);
+		$this->nav_route = 'menu/caracteristica_valor';
+	}
+
+	public function modal_eliminar($id = NULL, $caracteristica_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id) || $caracteristica_id == NULL || !ctype_digit($caracteristica_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$caracteristica_valor = $this->caracteristica_valor_model->get_one($id);
+		if (empty($caracteristica_valor)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+
+			$trans_ok = TRUE;
+			$trans_ok &= $this->caracteristica_valor_model->delete(array('id' => $this->input->post('id')));
+			if ($trans_ok) {
+				$this->session->set_flashdata('message', $this->caracteristica_valor_model->get_msg());
+				redirect("caracteristica/editar_valores/$caracteristica_id", 'refresh');
+			}
+		}
+		$data['fields'] = $this->build_fields($this->caracteristica_valor_model->fields, $caracteristica_valor, TRUE);
+		$data['caracteristica_valor'] = $caracteristica_valor;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar valor de característica';
+		$this->load->view('caracteristica_valor/caracteristica_valor_modal_abm', $data);
+	}
+
+	public function modal_editar($id = NULL, $caracteristica_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id) || $caracteristica_id == NULL || !ctype_digit($caracteristica_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$caracteristica_valor = $this->caracteristica_valor_model->get_one($id);
+		if (empty($caracteristica_valor)) {
+			$this->modal_error('No se encontró el registro a eliminar', 'Registro no encontrado');
+			return;
+		}
+		unset($this->caracteristica_valor_model->fields['caracteristica']['input_type']);
+		$this->caracteristica_valor_model->fields['caracteristica']['readonly'] = TRUE;
+
+		$this->set_model_validation_rules($this->caracteristica_valor_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->caracteristica_valor_model->update(array(
+					'id' => $this->input->post('id'),
+					'valor' => $this->input->post('valor')
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->caracteristica_valor_model->get_msg());
+					redirect("caracteristica/editar_valores/$caracteristica_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("caracteristica/editar_valores/$caracteristica_id", 'refresh');
+			}
+		}
+		$data['fields'] = $this->build_fields($this->caracteristica_valor_model->fields, $caracteristica_valor);
+		$data['caracteristica_valor'] = $caracteristica_valor;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar valor de característica';
+		$this->load->view('caracteristica_valor/caracteristica_valor_modal_abm', $data);
+	}
+
+	public function modal_agregar($caracteristica_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $caracteristica_id == NULL || !ctype_digit($caracteristica_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('caracteristica_model');
+		$caracteristica = $this->caracteristica_model->get(array('id' => $caracteristica_id));
+		if (empty($caracteristica)) {
+			$this->modal_error('No se encontró el registro a agregar', 'Registro no encontrado');
+			return;
+		}
+		unset($this->caracteristica_valor_model->fields['caracteristica']['input_type']);
+		$this->caracteristica_valor_model->fields['caracteristica']['readonly'] = TRUE;
+		$this->caracteristica_valor_model->fields['caracteristica']['value'] = $caracteristica->descripcion;
+
+		$this->set_model_validation_rules($this->caracteristica_valor_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->caracteristica_valor_model->create(array(
+					'caracteristica_id' => $caracteristica->id,
+					'valor' => $this->input->post('valor')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->caracteristica_valor_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->caracteristica_valor_model->get_error());
+				}
+				redirect("caracteristica/editar_valores/$caracteristica->id", 'refresh');
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("caracteristica/editar_valores/$caracteristica->id", 'refresh');
+			}
+		}
+
+		$data['fields'] = $this->build_fields($this->caracteristica_valor_model->fields);
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar valor de característica';
+		$this->load->view('caracteristica_valor/caracteristica_valor_modal_abm', $data);
+	}
+}
+/* End of file Caracteristica_valor.php */
+/* Location: ./application/controllers/Caracteristica_valor.php */

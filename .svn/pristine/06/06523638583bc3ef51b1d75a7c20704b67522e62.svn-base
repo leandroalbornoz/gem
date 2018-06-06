@@ -1,0 +1,200 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cargo_cursada extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('cargo_cursada_model');
+		$this->load->model('cursada_model');
+		$this->load->model('cargo_model');
+		$this->load->model('division_model');
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/cursada';
+	}
+
+	public function modal_agregar($cargo_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $cargo_id == NULL || !ctype_digit($cargo_id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		if ($this->edicion === FALSE) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$cargo = $this->cargo_model->get_one($cargo_id);
+		if (empty($cargo)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($cargo->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$this->set_model_validation_rules($this->cargo_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($cargo->id !== $this->input->post('cargo_id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$cursada_id = $this->input->post('cursada_id');
+				$cursada_carga_horaria = $this->cargo_cursada_model->get_cursada_carga_horaria($cursada_id);
+				$trans_ok = TRUE;
+				$trans_ok &= $this->cargo_cursada_model->create(array(
+					'cargo_id' => $cargo->id,
+					'carga_horaria' => $cursada_carga_horaria->carga_horaria - $cursada_carga_horaria->carga_horaria_cubierta,
+					'cursada_id' => $cursada_id)
+				);
+				if ($trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->cargo_cursada_model->get_msg());
+					redirect("cargo/ver/$cargo->id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->cargo_cursada_model->get_error());
+					redirect("cargo/ver/$cargo->id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cargo/ver/$cargo->id", 'refresh');
+			}
+		}
+
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['cursadas'] = $this->cursada_model->buscar_cursadas_escuela($cargo->id, $escuela->id);
+		$data['cargo'] = $cargo;
+		$data['escuela'] = $escuela;
+		$this->load->view('cargo_cursada/cargo_cursada_modal_agregar', $data);
+	}
+
+	public function modal_editar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		if ($this->edicion === FALSE) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$cargo_cursada = $this->cargo_cursada_model->get_one($id, array('cursada', 'espacio_curricular', 'materia', 'division', 'curso'));
+		unset($this->cargo_cursada_model->fields['persona']);
+		if (empty($cargo_cursada)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		$cursada = $this->cursada_model->get_one($cargo_cursada->cursada_id);
+		if (empty($cursada)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		$division = $this->division_model->get_one($cargo_cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			return $this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$this->cargo_cursada_model->fields['carga_horaria']['max'] = $cursada->carga_horaria - ($cursada->carga_horaria_cargos - $cargo_cursada->carga_horaria);
+		$this->cargo_cursada_model->fields['carga_horaria']['min'] = 1;
+
+		$this->set_model_validation_rules($this->cargo_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->cargo_cursada_model->update(array(
+					'id' => $this->input->post('id'),
+					'carga_horaria' => $this->input->post('carga_horaria')
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->cargo_cursada_model->get_msg());
+					redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->cargo_cursada_model->get_error());
+					redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->cargo_cursada_model->get_error() ? $this->cargo_cursada_model->get_error() : $this->session->flashdata('error')));
+
+		$data['fields'] = $this->build_fields($this->cargo_cursada_model->fields, $cargo_cursada);
+		$data['cargo_cursada'] = $cargo_cursada;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = TITLE . ' - Editar cursada para este cargo';
+		$this->load->view('cargo_cursada/cargo_cursada_modal_abm', $data);
+	}
+
+	public function modal_eliminar($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		if ($this->edicion === FALSE) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$cargo_cursada = $this->cargo_cursada_model->get_one($id, array('cursada', 'espacio_curricular', 'materia', 'division', 'curso'));
+		unset($this->cargo_cursada_model->fields['persona']);
+		if (empty($cargo_cursada)) {
+			return $this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+		}
+		$division = $this->division_model->get_one($cargo_cursada->division_id);
+		if (empty($division) || !empty($division->fecha_baja)) {
+			return $this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			return $this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+		}
+
+		$this->set_model_validation_rules($this->cargo_cursada_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->cargo_cursada_model->delete(array('id' => $this->input->post('id')));
+				if ($trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->cargo_cursada_model->get_msg());
+					redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->cargo_cursada_model->get_error());
+					redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("cargo/ver/$cargo_cursada->cargo_id", 'refresh');
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : ($this->cargo_cursada_model->get_error() ? $this->cargo_cursada_model->get_error() : $this->session->flashdata('error')));
+		$data['fields'] = $this->build_fields($this->cargo_cursada_model->fields, $cargo_cursada, TRUE);
+		$data['cargo_cursada'] = $cargo_cursada;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = TITLE . ' - Eliminar cursada para este cargo';
+		$this->load->view('cargo_cursada/cargo_cursada_modal_abm', $data);
+	}
+}
+/* End of file Cargo_cursada.php */
+/* Location: ./application/controllers/Cargo_cursada.php */

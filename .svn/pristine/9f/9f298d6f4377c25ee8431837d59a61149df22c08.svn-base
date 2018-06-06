@@ -1,0 +1,100 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('persona_model');
+		$this->load->model('familia_model');
+		$this->load->model('alumno_model');
+		$this->load->model('division_model');
+		$this->load->model('alumno_division_model');
+		$this->load->model('calendario_model');
+		$this->load->model('division_inasistencia_model');
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = explode(',', ROLES);
+		$this->roles_agregar = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_PORTAL, ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/escuela';
+	}
+
+	public function index() {
+		if (!PORTAL) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$cuil = $this->session->userdata('usuario')->cuil;
+		if (empty($cuil)) {
+			show_error('No se encontró el registro de padre', 500, 'Registro no encontrado');
+		}
+
+		$persona_id = $this->persona_model->get(array('cuil' => $cuil));
+		$persona = $this->persona_model->get_one($persona_id[0]->id);
+		$hijos = $this->familia_model->get_hijos($persona->id);
+		$hijo_persona = array();
+		$hijo_alumno = array();
+		$alumno_tipo_inasistencia_diaria = array();
+		$alumno_inasistencia = array();
+		$inasistencias = array();
+		$periodos = array();
+		$trayectoria = array();
+
+		$alumno = $this->alumno_model->get(array('persona_id' => $persona_id[0]->id));
+		if (!empty($alumno)) {
+			$trayectoria_alumno = $this->alumno_division_model->get_trayectoria_alumno($alumno[0]->id);
+		}
+		$alumno_tipo_inasistencia_diaria_alumno = array();
+		$alumno_inasistencia_alumno = array();
+		$inasistencias_alumno = array();
+		$periodos_alumno = array();
+
+		if (!empty($hijos)) {
+			foreach ($hijos as $hijo) {
+				$hijo_persona[$hijo->persona_id] = $this->persona_model->get_one($hijo->persona_id);
+				$hijo_alumno[$hijo->persona_id] = $this->alumno_model->get_one($hijo->alumno_id);
+				if (!empty($hijo->alumno_id)) {
+					$trayectoria[$hijo->persona_id] = $this->alumno_division_model->get_trayectoria_alumno($hijo->alumno_id);
+					if (!empty($trayectoria[$hijo->persona_id])) {
+						foreach ($trayectoria[$hijo->persona_id] as $ad) {
+							$alumno_tipo_inasistencia_diaria[$hijo->persona_id][$ad->id] = $this->alumno_division_model->get_alumno_tipo_inasistencia($ad->id);
+							$alumno_inasistencia[$hijo->persona_id][$ad->id] = $this->alumno_division_model->get_alumno_inasistencia($ad->id);
+							$inasistencias[$hijo->persona_id][$ad->id] = $this->division_inasistencia_model->get_registros($ad->division_id, $ad->ciclo_lectivo);
+							$periodos[$hijo->persona_id][$ad->id] = $this->calendario_model->get_periodos($ad->calendario_id, $ad->ciclo_lectivo);
+						}
+					}
+				}
+			}
+		}
+
+		if (!empty($alumno)) {
+			foreach ($trayectoria_alumno as $ad) {
+				$alumno_tipo_inasistencia_diaria_alumno[$ad->id] = $this->alumno_division_model->get_alumno_tipo_inasistencia($ad->id);
+				$alumno_inasistencia_alumno[$ad->id] = $this->alumno_division_model->get_alumno_inasistencia($ad->id);
+				$inasistencias_alumno[$ad->id] = $this->division_inasistencia_model->get_registros($ad->division_id, $ad->ciclo_lectivo);
+				$periodos_alumno[$ad->id] = $this->calendario_model->get_periodos($ad->calendario_id, $ad->ciclo_lectivo);
+			}
+		}
+
+		$data['hijo_persona'] = $hijo_persona;
+		$data['alumno_tipo_inasistencia_diaria'] = $alumno_tipo_inasistencia_diaria;
+		$data['alumno_inasistencia'] = $alumno_inasistencia;
+		$data['inasistencias'] = $inasistencias;
+		$data['periodos'] = $periodos;
+		$data['trayectoria'] = $trayectoria;
+		$data['hijos'] = $hijos;
+		$data['persona'] = $persona;
+
+		if (!empty($alumno)) {
+			$data['alumno_tipo_inasistencia_diaria_alumno'] = $alumno_tipo_inasistencia_diaria_alumno;
+			$data['alumno_inasistencia_alumno'] = $alumno_inasistencia_alumno;
+			$data['inasistencias_alumno'] = $inasistencias_alumno;
+			$data['periodos_alumno'] = $periodos_alumno;
+			$data['trayectoria_alumno'] = $trayectoria_alumno;
+		}
+
+		$this->load_template('escritorio/escritorio', $data);
+	}
+}

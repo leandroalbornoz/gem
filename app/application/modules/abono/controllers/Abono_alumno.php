@@ -123,7 +123,7 @@ class Abono_alumno extends MY_Controller {
 		}
 		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
 			$mes = date('Ym');
-			redirect("abono/abono_alumno/listar/$escuela_id/$mes", 'refresh');
+			redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id/$mes", 'refresh');
 		}
 		if (!empty($this->abono_alumno_model->get_abonos_ames($escuela_id, (new DateTime($mes . '01 -1 month'))->format('Ym'))) && empty($this->abono_alumno_model->get_abonos_ames($escuela_id, $mes))) {
 			$escuela_mes = true;
@@ -576,6 +576,9 @@ class Abono_alumno extends MY_Controller {
 			),
 			'table_id' => 'abono_alumno_table',
 			'source_url' => 'abono/abono_alumno/listar_anteriores_data/' . $escuela_id . '/' . $mes_anterior,
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_alumno_table",
+			'footer' => TRUE,
 			'disablePagination' => TRUE,
 			'dom' => 'rt'
 		);

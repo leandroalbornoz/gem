@@ -1,0 +1,19 @@
+select d.*, d2.*
+from division d
+join division d2 on d.id<d2.id AND d.escuela_id=d2.escuela_id and d.turno_id=d2.turno_id and d.curso_id=d2.curso_id and d.division=d2.division;
+
+select sf.*, sf2.*
+from servicio_funcion sf
+join servicio_funcion sf2 on sf.id<sf2.id AND sf.servicio_id=sf2.servicio_id limit 10000;
+
+
+select c.*, c2.*
+from cargo c
+join cargo c2 on c.id<c2.id and c.pof_id=c2.pof_id
+limit 10000;
+
+
+select s.*, s2.*
+from servicio s
+join servicio s2 on s.id<s2.id and s.pof_id=s2.pof_id
+limit 10000;

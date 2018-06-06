@@ -1,0 +1,163 @@
+<style>
+	table.dataTable.table-condensed > thead > tr > th {
+    padding-right: 26px;
+    padding-top: 5px;
+    padding-bottom: 4px;
+	}
+</style>
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_agregar_escuela_comedor')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span>
+	</button>
+	<h4 class="modal-title" id="myModalLabel"><?php echo "$title"; ?> </h4>
+</div>
+<div class="modal-body">
+	<div class="row"  onkeypress="validar(event)">
+		<div class="form-group col-sm-6">
+			<input type="radio" name="opcion" value="2"> Búsqueda por Nombre de la escuela.<br>
+		</div>
+		<div class="form-group col-sm-6">
+			<input type="radio" name="opcion" value="1" checked=""> Búsqueda por Numero de escuela.<br>
+		</div>
+		<div class="form-group col-sm-6">
+			<?php echo $fields['escuela_nombre']['label']; ?>
+			<?php echo $fields['escuela_nombre']['form']; ?>
+		</div>
+		<div class="form-group col-sm-3">
+			<?php echo $fields['escuela_numero']['label']; ?>
+			<?php echo $fields['escuela_numero']['form']; ?>
+		</div>
+		<div class="form-group col-sm-3">
+			<label>&nbsp;</label><br/>
+			<button class="btn btn-primary" id="btn-search" type="button">
+				<i class="fa fa-search"></i>
+			</button>
+			<button class="btn btn-default" id="btn-clear" type="button">
+				<i class="fa fa-times"></i>
+			</button>
+		</div>
+		<input type="hidden" name="" id="">
+	</div>
+	<table class="table table-hover table-bordered table-condensed no-footer" role="grid" id="tbl_listar_escuelas">
+		<thead>
+			<tr style="background-color: #f4f4f4" >
+				<th style="text-align: center;" colspan="4">Escuelas</th>
+			</tr>
+			<tr>
+				<th style="width: 10%;">Numero</th>
+				<th style="width: 50%;">Escuela</th>
+				<th style="width: 40%;"></th>
+			</tr>
+		</thead>
+		<tbody>
+		</tbody>
+	</table>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default pull-left" data-dismiss="modal">Cancelar</button>
+</div>
+<?php echo form_close(); ?>
+
+<script>
+	function validar(e) {
+		var tecla = (document.all) ? e.keyCode : e.which;
+		if (tecla === 13) {
+			$('#btn-search').click();
+		}
+	}
+	var table_escuela_busqueda;
+	$(document).ready(function() {
+		agregar_eventos($('#form_agregar_escuela_comedor'));
+		table_escuelas_busqueda = $('#tbl_listar_escuelas').DataTable({dom: 'tp', autoWidth: false, paging: 'simple', pagingType: 'simple_numbers', language: {url: 'plugins/datatables/spanish.json'}, pageLength: 5, lengthMenu: [5], columnDefs: [{orderable: false, targets: [2]}]});
+		$('#tbl_listar_escuelas').css('width', '100%');
+		$('#escuela_nombre').attr('disabled', true);
+		$('#escuela_numero').attr('disabled', true);
+		$('#escuela_numero').attr('disabled', false);
+		$('#escuela_numero').attr('required', true);
+		$("input[name='opcion']").change(function() {
+			if ($(this).val() === '1') {
+				$('#escuela_numero').attr('disabled', false);
+				$('#escuela_numero').attr('required', true);
+				$('#escuela_nombre').attr('disabled', true);
+				$('#escuela_nombre').val('');
+//				$('#escuela_nombre').closest('.form-group').removeClass("has-error");
+				$('#btn-clear').click();
+			} else if ($(this).val() === '2') {
+				$('#escuela_nombre').attr('disabled', false);
+				$('#escuela_nombre').attr('required', true);
+				$('#escuela_numero').attr('disabled', true);
+				$('#escuela_numero').val('');
+//				$('#escuela_numero').closest('.form-group').removeClass("has-error");
+				$('#btn-clear').click();
+			}
+		});
+		$('#btn-clear').attr('disabled', true);
+		$('#btn-clear').click(function() {
+			$('#btn-clear').attr('disabled', true);
+			$('#btn-search').attr('disabled', false);
+			$('#escuela_nombre').attr('readonly', false);
+			$('#escuela_numero').attr('readonly', false);
+			table_escuelas_busqueda.clear();
+			$('#tbl_listar_escuelas tbody').html('');
+		});
+		$('#btn-search').click(function() {
+//			$('#escuela_nombre').closest('.form-group').removeClass("has-error");
+//			$('#escuela_numero').closest('.form-group').removeClass("has-error");
+			$('#btn-search').attr('disabled', true);
+			$('#dato_invalido').text('');
+			table_escuelas_busqueda.clear();
+
+			var numero = $('#escuela_numero').val();
+			var nombre = $('#escuela_nombre').val();
+			if (nombre !== '' || numero !== '') {
+				$('#tbl_listar_escuelas tbody').html('');
+				if (nombre !== '' || numero !== '') {
+					$.ajax({
+						type: 'GET',
+						url: 'comedor/ajax_comedor/get_escuelas?',
+						data: {nombre: nombre, numero: numero, mes_desde: '<?= empty($mes) ? '' : $mes; ?>'},
+						dataType: 'json',
+						success: function(result) {
+							console.log(result)
+							$('#escuela_nombre').attr('readonly', true);
+							$('#btn-clear').attr('disabled', false);
+							$('#escuela_numero').attr('readonly', true);
+							if (result.status === 'success') {
+								if (result.escuelas.length > 0) {
+									for (var idx in result.escuelas) {
+										var escuelas_listar = result.escuelas[idx];
+										table_escuelas_busqueda.row.add([
+											escuelas_listar.numero,
+											escuelas_listar.escuela,
+											escuelas_listar.permitido === 'Si' ? '<button type="submit" style="margin: 3px;" class="btn btn-xs btn-success pull-right" title="Seleccionar" name="escuela_id" value="' + escuelas_listar.id + '"><i class="fa fa-plus"></i> Agregar</button>' : '<div class="bg-red text-bold" style="text-align: center;">Escuela ya cargada.</div>'
+										]);
+									}
+								}
+								table_escuelas_busqueda.draw();
+								$('#btn-submit').attr('disabled', false);
+							} else {
+								table_escuelas_busqueda.row.add([
+									'X',
+									'Escuela no encontrada',
+									'']);
+								table_escuelas_busqueda.draw();
+							}
+						}
+					});
+				}
+			} else {
+				$('#btn-search').attr('disabled', false);
+				if ((nombre.length < 3)) {
+					$('#escuela_nombre').closest('.form-group').addClass("has-error");
+					$('#dato_invalido').text('Ingrese como mínimo 3 caracteres en apellido y nombre');
+					$('#boton_guardar').attr('disabled', true);
+					$('#boton_guardar2').attr('disabled', true);
+				}
+			}
+		});
+	});
+</script>
+
+
+
+

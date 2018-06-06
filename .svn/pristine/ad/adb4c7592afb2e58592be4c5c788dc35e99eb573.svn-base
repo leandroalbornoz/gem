@@ -1,0 +1,116 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>Busqueda de celadores por tareas</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="rrhh/reporte_tareas">Reporte_tareas</a></li>
+			<li class="active">Listar</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<a class="btn bg-default btn-app btn-app-zetta pull-left" href="rrhh/reporte_tareas">
+							<i class="fa fa-search"></i>Volver
+						</a>
+						<?php echo form_open('rrhh/excel_reporte_celadores', array('data-toggle' => 'validator', 'id' => 'form_reporte')); ?>
+						<button type="submit" class="btn btn-app btn-app-zetta pull-left">
+							<i class="fa fa-file-excel-o text-green"></i> Exportar reporte
+						</button>
+						<?php echo form_hidden('codigo', $this->rol->codigo); ?>
+						<?php echo form_hidden('entidad_id', $this->rol->entidad_id); ?>
+						<?php echo form_hidden('tareas', $tareas); ?>
+						<?php echo form_close(); ?>
+						<br>
+						<?php if (!empty($celadores) && isset($celadores)): ?>
+							<table id="tbl_listar_celadores" class="table table-hover table-bordered table-condensed text-sm  dt-responsive" role="grid" >
+								<thead>
+									<tr>
+										<th>Persona</th>
+										<th>Cuil</th>
+										<th>F.nac</th>
+										<th>S.R</th>
+										<th>Escuela</th>
+										<th>Anexo</th>
+										<th>Horarios</th>
+										<th>Tareas</th>
+										<th>Concepto</th>
+										<th>Estudios</th>
+										<th>Fecha de alta</th>
+										<th style="white-space: nowrap">Reemplaza a</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tfoot>
+									<tr>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+										<th></th>
+									</tr>
+								</tfoot>
+								<tbody>
+									<?php foreach ($celadores as $celador): ?>
+										<tr>
+											<td style="white-space: nowrap"><?php echo $celador->persona; ?></td>
+											<td style="white-space: nowrap"><?php echo $celador->cuil; ?></td>
+											<td><?php echo (new DateTime($celador->fecha_nacimiento))->format('d/m/Y'); ?></td>
+											<td><?php echo $celador->situacion_revista; ?></td>
+											<td><?php echo $celador->escuela; ?></td>
+											<td><?php echo $celador->anexo; ?></td>
+											<td><a type="button" href="rrhh/modal_ver_horario/<?php echo "$celador->cargo_id/$celador->escuela_id" ?>" class="btn btn-block btn-success btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-clock-o" aria-hidden="true"></i>&nbsp;Ver</a></td>
+											<td><?php echo $celador->tarea; ?></td>
+											<td><?php echo $celador->celador_concepto; ?></td>
+											<td><?php echo $celador->nivel_estudio; ?></td>
+											<td><?php echo (new DateTime($celador->fecha_alta))->format('d/m/Y') ?></td>
+											<td><?php echo $celador->reemplazado; ?></td>
+											<td></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						<?php endif; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	var table_celadores_busqueda;
+	$(document).ready(function() {
+		table_celadores_busqueda = $('#tbl_listar_celadores').DataTable({dom: 'tp', autoWidth: false, paging: 'simple', pagingType: 'simple_numbers', language: {url: 'plugins/datatables/spanish.json'}, pageLength: 10, lengthMenu: [10], initComplete: celadores_table});
+		function celadores_table() {
+			agregar_filtros('tbl_listar_celadores', table_celadores_busqueda, 12);
+		}
+		$('#form_reporte').submit(function() {
+			$(this).data('submitted', false);
+			$(document).data('submitted', false);
+		});
+	});
+</script>

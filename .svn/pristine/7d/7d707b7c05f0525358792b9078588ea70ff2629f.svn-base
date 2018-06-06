@@ -1,0 +1,135 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Entidad_model extends CI_Model {
+
+	public function get_entidades($rol_id, $rol = null) {
+		if ($rol_id == '20') {
+			if ($this->rol->codigo == ROL_DIR_ESCUELA) {
+				return $this->db->select('be.gem_id as id, concat(be.numero, " - ", be.nombre) as nombre')
+						->from('bono_escuelas be')
+						->where('be.gem_id', $this->rol->entidad_id)
+						->order_by('be.nombre')
+						->get()->result();
+			} else {
+				return $this->db->select('gem_id id, concat(numero, " - ", nombre) as nombre ')
+						->from('bono_escuelas')
+						->order_by('nombre')
+						->get()->result();
+			}
+		} elseif (empty($rol) || $rol->codigo === ROL_ADMIN || $rol->codigo === ROL_USI || ROL_MODULO) {
+			if ($rol_id == '23') {
+				return $this->db->select('e.id, e.nombre')
+						->from('entidad e')
+						->join('entidad_tipo et', 'et.tabla=e.tabla')
+						->join('rol r', 'r.entidad_tipo_id=et.id')
+						->where('r.id', $rol_id)
+						->where('(e.id = 3 or e.id = 4 or e.id = 8)')
+						->order_by('e.nombre')
+						->get()->result();
+			} else {
+				return $this->db->select('e.id, e.nombre')
+						->from('entidad e')
+						->join('entidad_tipo et', 'et.tabla=e.tabla')
+						->join('rol r', 'r.entidad_tipo_id=et.id')
+						->where('r.id', $rol_id)
+						->order_by('e.nombre')
+						->get()->result();
+			}
+		}
+		$rol_busqueda = $this->db->query('SELECT codigo FROM rol WHERE id=?', array($rol_id))->row();
+		switch ($rol->codigo) {
+			case ROL_LINEA:
+			case ROL_GRUPO_ESCUELA:
+			case ROL_CONSULTA_LINEA:
+				if ($rol_busqueda->codigo === ROL_SUPERVISION) {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('supervision s', "e.tabla='supervision' AND e.id=s.id")
+							->join('nivel n', 's.nivel_id=n.id')
+							->where('n.linea_id', $rol->entidad_id)
+							->where('s.dependencia_id', 1)
+							->order_by('e.nombre')
+							->get()->result();
+				} else {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('escuela es', "e.tabla='escuela' AND e.id=es.id")
+							->join('nivel n', 'es.nivel_id=n.id')
+							->where('n.linea_id', $rol->entidad_id)
+							->where('es.dependencia_id', 1)
+							->order_by('e.nombre')
+							->get()->result();
+				}
+			case ROL_PRIVADA:
+				if ($rol_busqueda->codigo === ROL_SUPERVISION) {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('supervision s', "e.tabla='supervision' AND e.id=s.id")
+							->where('s.dependencia_id', 2)
+							->order_by('e.nombre')
+							->get()->result();
+				} else {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('escuela es', "e.tabla='escuela' AND e.id=es.id")
+							->where('es.dependencia_id', 2)
+							->order_by('e.nombre')
+							->get()->result();
+				}
+			case ROL_SEOS:
+				if ($rol_busqueda->codigo === ROL_SUPERVISION) {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('supervision s', "e.tabla='supervision' AND e.id=s.id")
+							->where('s.dependencia_id', 3)
+							->order_by('e.nombre')
+							->get()->result();
+				} else {
+					return $this->db->select('e.id, e.nombre')
+							->from('entidad e')
+							->join('escuela es', "e.tabla='escuela' AND e.id=es.id")
+							->where('es.dependencia_id', 3)
+							->order_by('e.nombre')
+							->get()->result();
+				}
+			case ROL_LIQUIDACION:
+			case ROL_JEFE_LIQUIDACION:
+				return $this->db->select('e.id, e.nombre')
+						->from('entidad e')
+						->join('entidad_tipo et', 'et.tabla=e.tabla')
+						->join('rol r', 'r.entidad_tipo_id=et.id')
+						->where('r.id', $rol_id)
+						->order_by('e.nombre')
+						->get()->result();
+			case ROL_DIR_ESCUELA:
+				return $this->db->select('e.id, e.nombre')
+						->from('entidad e')
+						->join('escuela es', "e.tabla='escuela' AND e.id=es.id")
+						->where('es.id', $rol->entidad_id)
+						->order_by('e.nombre')
+						->get()->result();
+			case ROL_USI:
+				return $this->db->select('e.id, e.nombre')
+						->from('entidad e')
+						->join('entidad_tipo et', 'et.tabla=e.tabla')
+						->join('rol r', 'r.entidad_tipo_id=et.id')
+						->where('r.id', $rol_id)
+						->order_by('e.nombre')
+						->get()->result();
+		}
+	}
+
+	public function get_entidades_msj($rol_id) {
+		return $this->db->select('e.id, e.nombre')
+				->from('entidad e')
+				->join('entidad_tipo et', 'et.tabla=e.tabla')
+				->join('rol r', 'r.entidad_tipo_id=et.id')
+				->where('r.id', $rol_id)
+				->order_by('e.nombre')
+				->get()->result();
+	}
+}
+/* End of file Entidad_model.php */
+/* Location: ./application/models/Entidad_model.php */

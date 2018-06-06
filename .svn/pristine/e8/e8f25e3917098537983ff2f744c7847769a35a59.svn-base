@@ -1,0 +1,204 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Mail extends CI_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->library(array('form_validation'));
+		$this->load->model('mail_model');
+		$this->load->helper(array('url', 'language'));
+		$this->nombres_meses = array('01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril', '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto', '09' => 'Setiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre');
+	}
+
+	private function crear_mail_inasistencia() {
+		$mes = "201709";
+		$this->db->save_queries = FALSE;
+		$this->session->set_userdata('usuario', (object) array('usuario_id' => 37));
+		$divisiones_mes_cerrado = $this->mail_model->get_divison_mes_cerrado($mes);
+		foreach ($divisiones_mes_cerrado as $division) {
+			$division->escuela_nombre_largo = $division->numero . ($division->anexo === '0' ? '' : "/$division->anexo") . ' ' . $division->nombre;
+
+			$alumnos = $this->mail_model->get_alumnos($division->id, $mes);
+			foreach ($alumnos as $alumno) {
+				$mail = $this->mail_inasistencia($alumno->id, $division, $mes);
+
+				$this->mail_model->create(array(
+					'mail_remitente' => $mail['mail_remitente'],
+					'nombre_remitente' => $mail['nombre_remitente'],
+					'mail_destinatario' => $mail['mail_destinatario'],
+					'nombre_destinatario' => $mail['nombre_destinatario'],
+					'asunto' => $mail['asunto'],
+					'mensaje' => $mail['mensaje'],
+					'fecha_carga' => $mail['fecha_carga']));
+			}
+		}
+		return;
+	}
+
+	private function mail_inasistencia($alumno_division_id, $division, $mes) {
+		$this->load->model('alumno_division_model');
+		$alumno_division = $this->alumno_division_model->get_one($alumno_division_id);
+		if (empty($alumno_division)) {
+			echo "No se encontró el registro del alumno ($alumno_division_id)";
+			return;
+		}
+
+		$this->load->model('division_inasistencia_model');
+		$division_inasistencia = $this->division_inasistencia_model->get(array('division_id' => $division->id));
+		if (empty($division_inasistencia)) {
+			echo "No se encontraron registros de inasistencias de la división ($division->id)";
+			return;
+		}
+
+		$this->load->model('calendario_model');
+		$periodos = $this->calendario_model->get_periodos($division->calendario_id, $alumno_division->ciclo_lectivo);
+		if (empty($periodos)) {
+			echo "No se encontraron periodos de inasistencia ($division->calendario_id, $alumno_division->ciclo_lectivo)";
+			return;
+		}
+
+		$alumno_division->escuela = $division->escuela_nombre_largo;
+		$this->load->model('alumno_inasistencia_model');
+
+		$alumno_tipo_inasistencia_diaria = $this->alumno_division_model->get_alumno_tipo_inasistencia($alumno_division->id);
+		$data['inasistencias'] = $this->division_inasistencia_model->get_registros($division->id, $alumno_division->ciclo_lectivo);
+		$inasistencias_mes = $this->alumno_inasistencia_model->get_inasistencias_mes($alumno_division->id, $mes);
+		$data['inasistencias_mes'] = $inasistencias_mes;
+		$data['alumno_inasistencia'] = $this->alumno_division_model->get_alumno_inasistencia($alumno_division->id);
+		$data['alumno_tipo_inasistencia_diaria'] = $alumno_tipo_inasistencia_diaria;
+		$data['periodos'] = $periodos;
+		$data['mes'] = $mes;
+		$this->load->model('alumno_model');
+		$alumno = $this->alumno_model->get_one($alumno_division->alumno_id);
+		$data['alumno'] = $alumno;
+		$data['ciclo_lectivo'] = $alumno_division->ciclo_lectivo;
+		$data['division'] = $division;
+		$data['alumno_division'] = $alumno_division;
+		$data['txt_btn'] = '';
+		$data['title'] = 'Asistencia del alumno';
+		$this->load->helper('security');
+		$data['clave'] = $clave = hash('sha256', $alumno->id);
+//		$this->load->view('mail/mail_inasistencia_alumno', $data);
+
+		$content = $this->load->view('mail/mail_inasistencia_alumno_min', $data, TRUE);
+		return array('mail_remitente' => 'dge-sistemas@mendoza.edu.ar', 'nombre_remitente' => 'GEM', 'mail_destinatario' => $alumno->email_contacto, 'nombre_destinatario' => "$alumno->apellido $alumno->nombre", 'asunto' => 'GEM - Asistencia de Alumno', 'mensaje' => $content, 'fecha_carga' => date('Y-m-d H:i:s'));
+//		return;
+//		$config = Array(
+//			'protocol' => 'smtp',
+//			'smtp_host' => 'smtp.mendoza.gov.ar',
+//			'smtp_port' => 25,
+////			'smtp_port'=>587,
+////			'smtp_secure'=>'tls',
+//// <editor-fold defaultstate="collapsed" desc="Mail secreto">
+//			'smtp_user' => 'cchiappone@mendoza.gov.ar',
+//			'smtp_pass' => '9fd9dbeab36a593',
+//// </editor-fold>
+//			'mailtype' => 'html',
+//			'charset' => 'utf-8'
+////			'charset' => 'iso-8859-1'
+//		);
+////		$this->load->library('email', $config);
+//		$this->email->set_newline("\r\n");
+//
+//// Set to, from, message, etc.
+//		$this->email->from('cchiappone@mendoza.gov.ar');
+//		$this->email->to('nanoquiroga180@gmail.com');
+//		//$this->email->to('vledonne@mendoza.gov.ar,nanoquiroga180@gmail.com,ggingins@mendoza.gov.ar');
+////		$this->email->to('pbuj@mendoza.gov.ar, cfederici@mendoza.gov.ar');
+//		$this->email->subject('GEM - Asistencia del Alumno - ' . "$alumno->apellido, $alumno->nombre");
+//		$this->email->message($content);
+////		$result = $this->email->send();
+//		print_r($this->email->print_debugger());
+//		exit();
+//		echo $result;
+		/*
+		  $config = Array(
+		  'protocol' => 'smtp',
+		  'smtp_host' => 'mail.mendoza.edu.ar',
+		  'smtp_port' => 25,
+		  'smtp_user' => 'dge-sistemas@mendoza.edu.ar',
+		  'smtp_pass' => 'is32uf40',
+		  'mailtype' => 'html',
+		  'charset' => 'iso-8859-1'
+		  );
+		  $this->load->library('email', $config);
+		  // </editor-fold>
+		  $this->email->set_newline("\r\n");
+
+		  // Set to, from, message, etc.
+		  $this->email->from('dge-sistemas@mendoza.edu.ar', '');
+		  $this->email->to('nanoquiroga180@gmail.com');
+		  $this->email->subject('Asistencia');
+		  $this->email->message($content);
+		  $result = $this->email->send();
+		  //		echo $this->email->send();
+		  print_r($this->email->print_debugger());  exit();
+		  echo $result;
+		 */
+	}
+
+	public function remover($alumno_id, $clave) {
+		$this->session->unset_userdata('usuario');
+		$this->session->unset_userdata('rol');
+		$this->session->unset_userdata('acceso');
+		$this->form_validation->set_rules('identity', 'Usuario', 'required');
+		$this->form_validation->set_rules('password', 'Contraseña', 'required');
+
+		$data['alumno_id'] = $alumno_id;
+		$data['clave'] = $clave;
+		$this->load->view("mail/mail_notificar_inasistencia", $data);
+	}
+
+	private function cron_mail() {
+		$this->load->model('mail_model');
+		$mensajes = $this->mail_model->get();
+		$this->load->library('email');
+		// Datos del servidor de email
+
+		/* $config['protocol'] = 'smtp';
+		  $config['smtp_host'] = 'smtp.mendoza.gov.ar';
+		  $config['mailtype'] = 'html';
+		  $config['smtp_user'] = 'dge-sistemas@mendoza.edu.ar';
+		  $config['smtp_pass'] = 'is92uf40';
+		  $config['charset'] = 'utf-8'; */
+		$config = Array(
+			'protocol' => 'smtp',
+			'smtp_host' => 'smtp.mendoza.gov.ar',
+			'smtp_port' => 25,
+			'smtp_user' => 'dge-sistemas@mendoza.gov.ar',
+			'smtp_pass' => 'is92uf40',
+			'mailtype' => 'html',
+			'charset' => 'utf-8'
+//			'charset' => 'iso-8859-1'
+		);
+		/*
+		  $config['smtp_host'] = 'smtp3.mendoza.gov.ar';
+		  $config['mailtype'] = 'html';
+		  $config['protocol'] = 'smtp';
+		  $config['smtp_user'] = 'dge-sistemas@mendoza.gov.ar';
+		  $config['smtp_pass'] = 'is92uf40';
+
+		  $this->email->from('dge-sistemas@mendoza.edu.ar', '');
+		  $this->email->to('nanoquiroga180@gmail.com');
+		  $this->email->subject('Asistencia');
+		  $this->email->message($content); */
+
+		$this->email->initialize($config);
+
+		foreach ($mensajes as $mensaje):
+			$this->email->from($mensaje->mail_remitente, $mensaje->nombre_remitente);
+			$this->email->to($mensaje->mail_destinatario);
+			$this->email->subject($mensaje->asunto);
+
+			// Creamos el cuerpo del email con los datos de acceso.
+
+			$this->email->message($mensaje->mensaje);
+			$this->email->send();
+			$this->mail_model->update_envio_email($mensaje->id);
+		endforeach;
+	}
+}
+/* End of file Mail.php */
+/* Location: ./application/controllers/Mail.php */

@@ -1,0 +1,178 @@
+<style>
+	.btn-group {
+    display: inline-table;
+	}
+	.cursada-si.active{
+		color: green;
+	}
+	.cursada-no.active{
+		color: red;
+	}
+	.active{
+		font-weight: bold;
+	}
+	.checkbox label:after, 
+	.radio label:after {
+    content: '';
+    display: table;
+    clear: both;
+	}
+
+	.checkbox .cr,
+	.radio .cr {
+    position: relative;
+    display: inline-block;
+    border: 1px solid #a9a9a9;
+    border-radius: .25em;
+    width: 1.3em;
+    height: 1.3em;
+    float: left;
+    margin-right: .5em;
+	}
+
+	.radio .cr {
+    border-radius: 50%;
+	}
+
+	.checkbox .cr .cr-icon,
+	.radio .cr .cr-icon {
+    position: absolute;
+    font-size: .8em;
+    line-height: 0;
+    top: 50%;
+    left: 20%;
+	}
+
+	.radio .cr .cr-icon {
+    margin-left: 0.04em;
+	}
+
+	.checkbox label input[type="checkbox"],
+	.radio label input[type="radio"] {
+    display: none;
+	}
+
+	.checkbox label input[type="checkbox"] + .cr > .cr-icon,
+	.radio label input[type="radio"] + .cr > .cr-icon {
+    transform: scale(3) rotateZ(-20deg);
+    opacity: 0;
+    transition: all .1s ease-in;
+	}
+
+	.checkbox label input[type="checkbox"]:checked + .cr > .cr-icon,
+	.radio label input[type="radio"]:checked + .cr > .cr-icon {
+    transform: scale(1.2) rotateZ(0deg);
+    opacity: 1;
+	}
+
+	.checkbox label input[type="checkbox"]:disabled + .cr,
+	.radio label input[type="radio"]:disabled + .cr {
+    opacity: .5;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Cargar notas de <?php echo $evaluacion->evaluacion_tipo; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href="cursada/listar/<?php echo $division->id; ?>">Cursadas</a></li>
+			<li><a href="cursada/escritorio/<?php echo $cursada->id; ?>"><i class="fa fa-home"></i>&nbsp;Escritorio de <?php echo $cursada->espacio_curricular; ?></a></li>
+			<li class="active"><i class="fa fa-pencil"></i>&nbsp;<?php echo $evaluacion->evaluacion_tipo; ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<?php $data_submit = array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn); ?>
+		<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_notas')); ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">Notas de la evaluación con tema: <?php echo $evaluacion->tema; ?>, tomada en la fecha <?php echo (new DateTime($evaluacion->fecha))->format('d/m/Y'); ?></h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body ">
+						<table id="tbl_notas" class="table table-hover table-bordered table-condensed text-sm  dt-responsive" role="grid" >
+							<thead>
+								<tr>
+									<th style="width: 10%;text-align: center;">Documento</th>
+									<th style="width: 30%;text-align: center;">Nombre del alumno</th>
+									<th style="width: 10%;text-align: center;">Fecha desde</th>
+									<th style="width: 10%;text-align: center;">Fecha hasta</th>
+									<th style="width: 15%;text-align: center;">Nota</th>
+									<th style="width: 25%;text-align: center;">Asistencia</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php $index = 0; ?>
+								<?php if (!empty($alumnos)): ?>
+									<?php foreach ($alumnos as $alumno): ?>
+										<?php $index++; ?>
+										<tr>
+											<td><?= "$alumno->documento_tipo $alumno->documento"; ?></td>
+											<td><?= $alumno->persona; ?></td>
+											<td><?= empty($alumno->fecha_desde) ? '' : (new DateTime($alumno->fecha_desde))->format('d/m/Y'); ?></td>
+											<td><?= empty($alumno->fecha_hasta) ? '' : (new DateTime($alumno->fecha_hasta))->format('d/m/Y'); ?></td>
+											<td align="center">
+												<div class="input-group input-group-sm">
+													<input type="number" id="nota" class="form-control notas" min="0" max="10" step="0.01" name="nota[<?php echo $alumno->id; ?>]" tabindex="<?php echo $index; ?>">
+												</div>
+											</td>
+											<td style="text-align: center;">
+												<div class="btn-group btn-group-xs inasistencia" data-toggle="buttons">
+													<label class="btn btn-default cursada-si text-success active">
+														<input type="radio" name="asistencia[<?php echo $alumno->id; ?>]" value="Presente" checked> Presente
+													</label>
+													<label class="btn btn-default cursada-no">
+														<input type="radio" name="asistencia[<?php echo $alumno->id; ?>]" value="Ausente"> Ausente
+													</label>
+												</div>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php endif; ?>
+							</tbody>
+						</table>
+					</div>
+					<?php echo form_hidden('url_redireccion', $url_redireccion); ?>
+					<div class="box-footer">
+						<a class="btn btn-default" href="cursada/escritorio/<?php echo $cursada->id; ?>" title="Cancelar">Cancelar</a>
+						<?php echo (!empty($txt_btn)) ? form_submit($data_submit, $txt_btn) : ''; ?>
+						<?php echo form_hidden('evaluacion_id', $evaluacion->id); ?>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php echo form_close(); ?>
+	</section>
+</div>
+<script>
+	$(document).ready(function() {
+		$('input[type="radio"]').change(function() {
+			var estado = $(this).val();
+			if (estado === 'Ausente') {
+				var fila = $(this).closest('tr');
+				fila.find('#nota').val('').prop('readonly', true);
+			} else {
+				var fila = $(this).closest('tr');
+				fila.find('#nota').prop('readonly', false);
+			}
+		});
+	});
+</script>

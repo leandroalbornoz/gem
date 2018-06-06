@@ -1,0 +1,702 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Division_inasistencia extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->load->model('division_inasistencia_model');
+		$this->load->model('calendario_model');
+		$this->load->model('alumno_inasistencia_model');
+		$this->roles_permitidos = explode(',', ROLES);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/division';
+	}
+
+	public function listar($division_id = NULL, $ciclo_lectivo = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $division_id == NULL || !ctype_digit($division_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+			redirect("division_inasistencia/listar/$division_id/$ciclo_lectivo", 'refresh');
+		}
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('alumno_model');
+
+		$division->escuela = "Esc. $escuela->nombre_largo";
+		$alumnos = $this->alumno_model->get_alumnos_division($division->id);
+
+		$data['estadisticas_total'] = $this->division_inasistencia_model->get_estadisticas_inasistencias($division_id, $ciclo_lectivo);
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['inasistencias'] = $this->division_inasistencia_model->get_registros($division->id, $ciclo_lectivo);
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['alumnos'] = $alumnos;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - División';
+		$periodos = $this->calendario_model->get_periodos($division->calendario_id, $ciclo_lectivo);
+		if(empty($periodos)){
+			$this->session->set_flashdata('error', "Para trabajar con asistencias primero debe seleccionar un tipo de calendario");
+			redirect("division/editar/$division->id");
+		}
+		$data['grafica'] = $this->grafica($periodos, $division_id, $ciclo_lectivo);
+		$data['periodos'] = $periodos;
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$data['css'][] = 'plugins/c3/c3.min.css';
+		$data['js'][] = 'plugins/d3/d3.min.js';
+		$data['js'][] = 'plugins/c3/c3.min.js';
+		$this->load_template('division_inasistencia/division_inasistencia_listar', $data);
+	}
+
+	public function agregar($division_id = NULL, $ciclo_lectivo = NULL, $periodo = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $division_id == NULL || !ctype_digit($division_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if (empty($ciclo_lectivo) || empty(DateTime::createFromFormat('Y', $ciclo_lectivo))) {
+			$ciclo_lectivo = date('Y');
+			redirect("division_inasistencia/agregar/$division_id/$ciclo_lectivo", 'refresh');
+		}
+		if (empty($periodo) || !ctype_digit($periodo)) {
+			redirect("division_inasistencia/agregar/$division_id/$ciclo_lectivo/1", 'refresh');
+		}
+		if (empty($mes) || empty(DateTime::createFromFormat('Ym', $mes))) {
+			$mes = date('Ym');
+			redirect("division_inasistencia/agregar/$division_id/$ciclo_lectivo/$periodo/$mes", 'refresh');
+		}
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$division_inasistencia = $this->division_inasistencia_model->get_registro($division->id, $ciclo_lectivo, $periodo, $mes);
+		if (empty($division_inasistencia)) {
+			$this->division_inasistencia_model->create(array(
+				'division_id' => $division_id,
+				'periodo' => $periodo,
+				'ciclo_lectivo' => $ciclo_lectivo,
+				'mes' => $mes,
+			));
+			$division_inasistencia_id = $this->division_inasistencia_model->get_row_id();
+		} else {
+			$division_inasistencia_id = $division_inasistencia->id;
+		}
+		redirect("division_inasistencia/ver/$division_inasistencia_id", 'refresh');
+		$division->escuela = "Esc. $escuela->nombre_largo";
+
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['mes'] = $mes;
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$this->load->model('alumno_model');
+		$alumnos = $this->alumno_model->get_alumnos_division($division->id);
+		$data['alumnos'] = $alumnos;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - División';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('division/division_alumnos_inasistencias', $data);
+	}
+
+	public function ver($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$division_inasistencia = $this->division_inasistencia_model->get_one($id);
+		if (empty($division_inasistencia)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$division = $this->division_model->get_one($division_inasistencia->division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		$alumnos_resumen_mensual = $this->alumno_inasistencia_model->get_alumnos_resumen($division_inasistencia->id);
+
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$division->escuela = "Esc. $escuela->nombre_largo";
+
+		$this->load->model('alumno_model');
+
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['periodos'] = $this->calendario_model->get_periodos($division->calendario_id, $division_inasistencia->ciclo_lectivo);
+
+		$inasistencias_db = $this->alumno_inasistencia_model->get_alumnos_resumen_diario($division_inasistencia->id);
+		$inasistencias_resumen = array();
+		$inasistencias_NC = array();
+		$inasistencias_mes = array();
+		foreach ($inasistencias_db as $inasistencia_db) {
+			if (!isset($inasistencias_resumen[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada])) {
+				$inasistencias_resumen[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada] = 0;
+			}
+			if (!isset($inasistencias_NC[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada])) {
+				$inasistencias_NC[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada] = 0;
+			}
+			if ($inasistencia_db->justificada === 'NC') {
+				$inasistencias_NC[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada] += 1;
+			}
+			$inasistencias_resumen[$inasistencia_db->alumno_division_id][$inasistencia_db->justificada] += $inasistencia_db->falta;
+			if ($inasistencia_db->falta === "0.5") {
+				if ($inasistencia_db->justificada === "No") {
+					$inasistencia_db->falta = "<span class='label bg-red'>1/2</span>";
+				} elseif ($inasistencia_db->justificada === "Si") {
+					$inasistencia_db->falta = "<span class='label bg-green'>1/2</span>";
+				}
+			}
+			if ($inasistencia_db->falta === "1.0") {
+				if ($inasistencia_db->justificada === "No") {
+					$inasistencia_db->falta = "<span class='label bg-red'>1</span>";
+				} elseif ($inasistencia_db->justificada === "Si") {
+					$inasistencia_db->falta = "<span class='label bg-green'>1</span>";
+				}
+			}
+			if ($inasistencia_db->falta === "0.0") {
+				if ($inasistencia_db->justificada === "NC") {
+					$inasistencia_db->falta = "<span class='fa fa-fw fa-minus'></span>";
+				}
+			}
+			$inasistencias_mes[$inasistencia_db->alumno_division_id][$inasistencia_db->fecha] = $inasistencia_db;
+		}
+
+		$total_general_inasistencias = 0;
+		$total_general_asistencia_ideal = 0;
+		$total_general_asistencia_real = 0;
+
+		$data['inasistencias_mes'] = $inasistencias_mes;
+		$data['total_general_inasistencias'] = $total_general_inasistencias;
+		$data['total_general_asistencia_ideal'] = $total_general_asistencia_ideal;
+		$data['total_general_asistencia_real'] = $total_general_asistencia_real;
+		$data['inasistencias_resumen'] = $inasistencias_resumen;
+		$data['inasistencias_NC'] = $inasistencias_NC;
+		$data['inasistencias'] = $this->division_inasistencia_model->get_registros($division->id, $division_inasistencia->ciclo_lectivo);
+		$data['mes'] = $division_inasistencia->mes;
+		$data['ciclo_lectivo'] = $division_inasistencia->ciclo_lectivo;
+		$data['division_inasistencia'] = $division_inasistencia;
+		$alumnos = $this->alumno_inasistencia_model->get_alumnos_division($division_inasistencia->id, $division_inasistencia->mes);
+		$data['alumnos'] = $alumnos;
+		$data['alumnos_resumen_mensual'] = $alumnos_resumen_mensual;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - División';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('division_inasistencia/division_inasistencia_ver', $data);
+	}
+
+	public function agregar_dia($id = NULL, $fecha = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id) || $fecha == NULL || empty(DateTime::createFromFormat('Ymd', $fecha))) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$division_inasistencia = $this->division_inasistencia_model->get_one($id);
+		if (empty($division_inasistencia)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$division = $this->division_model->get_one($division_inasistencia->division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$this->load->model('alumno_inasistencia_model');
+		$this->load->model('inasistencia_tipo_model');
+
+		$division->escuela = "Esc. $escuela->nombre_largo";
+
+		if (isset($_POST) && !empty($_POST)) {
+			$this->array_justificada_control = array('Si' => 'Si', 'No' => 'No', 'NC' => 'NC', '' => '');
+			$this->form_validation->set_rules('inasistencia[]', 'Inasistencia', 'numeric');
+			$this->form_validation->set_rules('justificada[]', 'Justificada', 'callback_control_combo[justificada]');
+			if ($this->form_validation->run() === TRUE) {
+				$inasistencias = $this->input->post('inasistencia');
+				$justificadas = $this->input->post('justificada');
+				$alumno_inasistencia_ids = $this->input->post('alumno_inasistencia_ids');
+				$inasistencias_tipos = $this->inasistencia_tipo_model->get_array();
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->division_inasistencia_model->update(array(
+					'id' => $id,
+					'resumen_mensual' => 'No',
+					), FALSE);
+				foreach ($inasistencias as $alumno_division_id => $inasistencia) {
+					$alumno_inasistencia_id = $alumno_inasistencia_ids[$alumno_division_id];
+					if ($inasistencia !== '0') {
+						$justificada = $justificadas[$alumno_division_id];
+						$falta = $inasistencias_tipos[$inasistencia];
+					} else {
+						$justificada = NULL;
+						$falta = NULL;
+					}
+					if ($alumno_inasistencia_id !== '' && $inasistencia !== '0') {
+						$trans_ok &= $this->alumno_inasistencia_model->update(array(
+							'id' => $alumno_inasistencia_id,
+							'division_inasistencia_id' => $division_inasistencia->id,
+							'alumno_division_id' => $alumno_division_id,
+							'fecha' => $fecha,
+							'inasistencia_tipo_id' => $inasistencia,
+							'justificada' => $justificada,
+							'falta' => $falta->falta_defecto
+							), FALSE);
+					} elseif ($alumno_inasistencia_id !== '') {
+						$trans_ok &= $this->alumno_inasistencia_model->delete(array('id' => $alumno_inasistencia_id), FALSE);
+					} elseif ($inasistencia !== '0') {
+						$trans_ok &= $this->alumno_inasistencia_model->create(array(
+							'division_inasistencia_id' => $division_inasistencia->id,
+							'alumno_division_id' => $alumno_division_id,
+							'fecha' => $fecha,
+							'inasistencia_tipo_id' => $inasistencia,
+							'justificada' => $justificada,
+							'falta' => $falta->falta_defecto
+							), FALSE);
+					}
+				}
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', 'Asistencia de alumnos actualizada');
+					redirect("division_inasistencia/ver/$id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+				}
+			}
+		}
+
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['fecha'] = $fecha;
+		$data['mes'] = $division_inasistencia->mes;
+		$data['ciclo_lectivo'] = $division_inasistencia->ciclo_lectivo;
+		$data['division_inasistencia'] = $division_inasistencia;
+		$this->load->model('alumno_inasistencia_model');
+		$alumnos = $this->alumno_inasistencia_model->get_alumnos($division_inasistencia->id, $fecha);
+		$data['alumnos'] = $alumnos;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - División';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('division_inasistencia/division_inasistencia_agregar_dia', $data);
+	}
+
+	public function agregar_resumen_mensual($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$division_inasistencia = $this->division_inasistencia_model->get_one($id);
+		if (empty($division_inasistencia)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$division = $this->division_model->get_one($division_inasistencia->division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$alumnos = $this->alumno_inasistencia_model->get_alumnos_resumen($division_inasistencia->id);
+		if (isset($_POST) && !empty($_POST)) {
+			$this->form_validation->set_rules('justificadas[]', 'Justificadas', 'numeric');
+			$this->form_validation->set_rules('injustificadas[]', 'Injustificadas', 'numeric');
+			$this->form_validation->set_rules('dias_previos[]', 'Justificadas', 'integer');
+			$this->form_validation->set_rules('dias_posteriores[]', 'Justificadas', 'integer');
+			if ($this->form_validation->run() === TRUE) {
+				$justificada = $this->input->post('justificadas');
+				$injustificada = $this->input->post('injustificadas');
+				$dias_previos = $this->input->post('dias_previos');
+				$dias_posteriores = $this->input->post('dias_posteriores');
+				if (!empty($justificada) || !empty($injustificada)) {
+					$this->db->trans_begin();
+					$trans_ok = TRUE;
+					foreach ($justificada as $alumno_division_id => $cantidad) {
+						if (isset($alumnos[$alumno_division_id]->Si) && $cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->update(array(
+								'id' => $alumnos[$alumno_division_id]->Si->id,
+								'falta' => $cantidad,
+								), FALSE);
+						} elseif (isset($alumnos[$alumno_division_id]->Si)) {
+							$trans_ok &= $this->alumno_inasistencia_model->delete(array('id' => $alumnos[$alumno_division_id]->Si->id), FALSE);
+						} elseif ($cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->create(array(
+								'division_inasistencia_id' => $division_inasistencia->id,
+								'alumno_division_id' => $alumno_division_id,
+								'inasistencia_tipo_id' => 1,
+								'justificada' => 'Si',
+								'falta' => $cantidad,
+								), FALSE);
+						}
+					}
+					foreach ($injustificada as $alumno_division_id => $cantidad) {
+						if (isset($alumnos[$alumno_division_id]->No) && $cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->update(array(
+								'id' => $alumnos[$alumno_division_id]->No->id,
+								'falta' => $cantidad,
+								), FALSE);
+						} elseif (isset($alumnos[$alumno_division_id]->No)) {
+							$trans_ok &= $this->alumno_inasistencia_model->delete(array('id' => $alumnos[$alumno_division_id]->No->id), FALSE);
+						} elseif ($cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->create(array(
+								'division_inasistencia_id' => $division_inasistencia->id,
+								'alumno_division_id' => $alumno_division_id,
+								'inasistencia_tipo_id' => 1,
+								'justificada' => 'No',
+								'falta' => $cantidad,
+								), FALSE);
+						}
+					}
+					foreach ($dias_previos as $alumno_division_id => $cantidad) {
+						if (isset($alumnos[$alumno_division_id]->Prev) && $cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->update(array(
+								'id' => $alumnos[$alumno_division_id]->Prev->id,
+								'falta' => $cantidad,
+								), FALSE);
+						} elseif (isset($alumnos[$alumno_division_id]->Prev)) {
+							$trans_ok &= $this->alumno_inasistencia_model->delete(array('id' => $alumnos[$alumno_division_id]->Prev->id), FALSE);
+						} elseif ($cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->create(array(
+								'division_inasistencia_id' => $division_inasistencia->id,
+								'alumno_division_id' => $alumno_division_id,
+								'inasistencia_tipo_id' => 5,
+								'justificada' => 'NC',
+								'falta' => $cantidad,
+								), FALSE);
+						}
+					}
+					foreach ($dias_posteriores as $alumno_division_id => $cantidad) {
+						if (isset($alumnos[$alumno_division_id]->Post) && $cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->update(array(
+								'id' => $alumnos[$alumno_division_id]->Post->id,
+								'falta' => $cantidad,
+								), FALSE);
+						} elseif (isset($alumnos[$alumno_division_id]->Post)) {
+							$trans_ok &= $this->alumno_inasistencia_model->delete(array('id' => $alumnos[$alumno_division_id]->Post->id), FALSE);
+						} elseif ($cantidad > 0) {
+							$trans_ok &= $this->alumno_inasistencia_model->create(array(
+								'division_inasistencia_id' => $division_inasistencia->id,
+								'alumno_division_id' => $alumno_division_id,
+								'inasistencia_tipo_id' => 6,
+								'justificada' => 'NC',
+								'falta' => $cantidad,
+								), FALSE);
+						}
+					}
+					if ($this->db->trans_status() && $trans_ok) {
+						$this->db->trans_commit();
+						$this->session->set_flashdata('message', 'Asistencia mensual de alumno actualizada');
+						redirect("division_inasistencia/ver/$id", 'refresh');
+					} else {
+						$this->db->trans_rollback();
+					}
+				}
+			}
+		}
+		$division->escuela = "Esc. $escuela->nombre_largo";
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['mes'] = $division_inasistencia->mes;
+		$data['ciclo_lectivo'] = $division_inasistencia->ciclo_lectivo;
+		$data['division_inasistencia'] = $division_inasistencia;
+		$this->load->model('alumno_inasistencia_model');
+		$data['alumnos'] = $alumnos;
+		$data['error'] = validation_errors() ? validation_errors() : ($this->alumno_inasistencia_model->get_error() ? $this->alumno_inasistencia_model->get_error() : $this->session->flashdata('error'));
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - División';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('division_inasistencia/division_inasistencia_agregar_resumen', $data);
+	}
+
+	public function modal_abrir_mes($division_id = NULL, $ciclo_lectivo = NULL, $periodo = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$division_id == NULL || !ctype_digit($division_id) ||
+			$ciclo_lectivo == NULL || !ctype_digit($ciclo_lectivo) ||
+			$periodo == NULL || !ctype_digit($periodo) ||
+			$mes == NULL || !ctype_digit($mes)
+		) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+		if (empty($division->calendario_id)) {
+			$this->modal_error('La división no tiene un calendario cargado', 'Error al crear asistencia');
+			return;
+		}
+		$this->load->model('calendario_periodo_model');
+		$periodo_db = $this->calendario_periodo_model->get(array('calendario_id' => $division->calendario_id, 'periodo' => $periodo));
+		if (empty($periodo_db)) {
+			$this->modal_error('No se encontró el periodo a cargar', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$division_inasistencia = $this->division_inasistencia_model->get_registro($division->id, $ciclo_lectivo, $periodo, $mes);
+		if (!empty($division_inasistencia)) {
+			$this->modal_error('La inasistencia mensual de la división ya se encuentra creada, recargue la página', 'Error al crear inasistencia mensual');
+			return;
+		}
+		$this->division_inasistencia_model->fields['division']['value'] = "$division->curso $division->division";
+		$this->division_inasistencia_model->fields['ciclo_lectivo']['value'] = $ciclo_lectivo;
+		$this->division_inasistencia_model->fields['periodo']['value'] = "{$periodo}° $division->nombre_periodo - $ciclo_lectivo";
+		$this->division_inasistencia_model->fields['mes']['value'] = $this->nombres_meses[substr($mes, 4, 2)];
+		$this->array_resumen_mensual_control = $this->division_inasistencia_model->fields['resumen_mensual']['array'];
+		$this->set_model_validation_rules($this->division_inasistencia_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->division_inasistencia_model->create(array(
+					'division_id' => $division_id,
+					'ciclo_lectivo' => $ciclo_lectivo,
+					'periodo' => $periodo,
+					'mes' => $mes,
+					'dias' => $this->input->post('dias'),
+					'resumen_mensual' => $this->input->post('resumen_mensual'),
+				));
+				$division_inasistencia_id = $this->division_inasistencia_model->get_row_id();
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->division_inasistencia_model->get_msg());
+					redirect("division_inasistencia/ver/$division_inasistencia_id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->division_inasistencia_model->get_error());
+					redirect("division_inasistencia/listar/$division_id/$ciclo_lectivo", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("division_inasistencia/listar/$division_id/$ciclo_lectivo", 'refresh');
+			}
+		}
+
+		$data['escuela'] = $escuela;
+		$data['division'] = $division;
+		$data['mes'] = $mes;
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['fields'] = $this->build_fields($this->division_inasistencia_model->fields);
+
+		$dias_semana = array(0, 1, 1, 1, 1, 1, 0);
+		$fecha_ini_m = new DateTime($mes . '01');
+		$fecha_ini_p = new DateTime($periodo_db[0]->inicio);
+		$fecha_fin_m = new DateTime($mes . '01 +1 month');
+		$fecha_fin_p = new DateTime($periodo_db[0]->fin . ' +1 day');
+		$fecha_ini = max(array($fecha_ini_m, $fecha_ini_p));
+		$fecha_fin = min(array($fecha_fin_m, $fecha_fin_p));
+		$dia = DateInterval::createFromDateString('1 day');
+		$fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin);
+		$dias = 0;
+		$dias_max = 0;
+		foreach ($fechas as $fecha) {
+			$dias += $dias_semana[$fecha->format('w')];
+			$dias_max++;
+		}
+
+		$data['dias_cursado'] = $dias;
+		$data['dias_max_cursado'] = $dias_max;
+		$data['fecha_ini'] = $fecha_ini;
+		$data['fecha_fin'] = (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'));
+
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Apertura de mes para registro de Asistencias';
+		$this->load->view('division_inasistencia/division_inasistencia_modal_abrir_mes', $data);
+	}
+
+	public function modal_cerrar_mes($division_id = NULL, $ciclo_lectivo = NULL, $periodo = NULL, $mes = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) ||
+			$division_id == NULL || !ctype_digit($division_id) ||
+			$ciclo_lectivo == NULL || !ctype_digit($ciclo_lectivo) ||
+			$periodo == NULL || !ctype_digit($periodo) ||
+			$mes == NULL || !ctype_digit($mes)
+		) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			$this->modal_error('No se encontró el registro de la división', 'Registro no encontrado');
+			return;
+		}
+		if (empty($division->calendario_id)) {
+			$this->modal_error('La división no tiene un calendario cargado', 'Error al crear asistencia');
+			return;
+		}
+		$this->load->model('calendario_periodo_model');
+		$periodo_db = $this->calendario_periodo_model->get(array('calendario_id' => $division->calendario_id, 'periodo' => $periodo));
+		if (empty($periodo_db)) {
+			$this->modal_error('No se encontró el periodo a cargar', 'Registro no encontrado');
+			return;
+		}
+		$escuela = $this->escuela_model->get_one($division->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$this->division_inasistencia_model->fields['resumen_mensual'] = array('label' => 'Tipo de Carga', 'readonly' => TRUE);
+		$division_inasistencia_id = $this->division_inasistencia_model->get_registro($division->id, $ciclo_lectivo, $periodo, $mes);
+		$division_inasistencia = $this->division_inasistencia_model->get_one($division_inasistencia_id->id);
+		if (empty($division_inasistencia)) {
+			show_error('No se encontró el registro de la división', 500, 'Registro no encontrado');
+		}
+		$division_inasistencia->periodo = "{$periodo}° $division_inasistencia->nombre_periodo - $division_inasistencia->ciclo_lectivo";
+		$division_inasistencia->division = "$division_inasistencia->curso $division_inasistencia->division";
+		$division_inasistencia->resumen_mensual = $division_inasistencia->resumen_mensual === 'Si' ? 'Resumen Mensual' : 'Detallado por Día';
+
+		$this->set_model_validation_rules($this->division_inasistencia_model);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$trans_ok &= $this->division_inasistencia_model->update(array(
+					'id' => $division_inasistencia_id->id,
+					'dias' => $this->input->post('dias'),
+					'fecha_cierre' => date('Y-m-d H:i:s')
+				));
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', 'Registro de Inasistencia Mensual Cerrado Correctamente');
+					redirect("division_inasistencia/ver/$division_inasistencia_id->id", 'refresh');
+				} else {
+					$this->session->set_flashdata('error', $this->division_inasistencia_model->get_error());
+					redirect("division_inasistencia/listar/$division_id/$ciclo_lectivo", 'refresh');
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+				redirect("division_inasistencia/listar/$division_id/$ciclo_lectivo", 'refresh');
+			}
+		}
+
+		$data['escuela'] = $escuela;
+
+		$fecha_ini_m = new DateTime($division_inasistencia->mes . '01');
+		$fecha_ini_p = new DateTime($division_inasistencia->fecha_inicio);
+		$fecha_fin_m = new DateTime($division_inasistencia->mes . '01 +1 month');
+		$fecha_fin_p = new DateTime($division_inasistencia->fecha_fin . ' +1 day');
+		$fecha_ini = max(array($fecha_ini_m, $fecha_ini_p));
+		$fecha_fin = min(array($fecha_fin_m, $fecha_fin_p));
+		$dia = DateInterval::createFromDateString('1 day');
+		$fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin);
+		$dias = 0;
+		foreach ($fechas as $fecha) {
+			$dias ++;
+		}
+		$data['dias_max_cursado'] = $dias;
+		$data['division'] = $division;
+		$data['mes'] = $mes;
+		$data['fecha_ini'] = $fecha_ini;
+		$data['fecha_fin'] = (new DateTime($fecha_fin->format('Y-m-d') . ' -1 day'));
+		$data['ciclo_lectivo'] = $ciclo_lectivo;
+		$data['fields'] = $this->build_fields($this->division_inasistencia_model->fields, $division_inasistencia);
+		$data['dias'] = $division_inasistencia->dias;
+
+		$data['txt_btn'] = 'Cerrar';
+		$data['title'] = 'Cerrar mes para registro de Asistencias';
+		$this->load->view('division_inasistencia/division_inasistencia_modal_cerrar_mes', $data);
+	}
+
+	private function grafica($periodos, $division_id, $ciclo_lectivo) {
+		$result_1 = $this->db->query("SELECT di.periodo, di.mes, di.dias, di.fecha_cierre, COALESCE(ai.alumnos,0) alumnos, COALESCE(ai.dias_nc,0) dias_nc, COALESCE(ai.dias_falta, 0) dias_falta,
+COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) asistencia_ideal,
+   COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) - COALESCE(ai.dias_falta, 0) asistencia_real,
+   (COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0) - COALESCE(ai.dias_falta, 0))/(COALESCE(ai.alumnos, 0)*di.dias - COALESCE(ai.dias_nc, 0)) asistencia_media
+FROM cedula.division_inasistencia di
+LEFT JOIN (
+SELECT di.id, COUNT(DISTINCT ad.id) alumnos, SUM(CASE WHEN justificada='NC' THEN falta ELSE 0 END) dias_nc, SUM(CASE WHEN justificada='NC' THEN 0 ELSE falta END) dias_falta
+FROM cedula.alumno_division ad
+JOIN cedula.division_inasistencia di ON ad.division_id=di.division_id AND ad.ciclo_lectivo=di.ciclo_lectivo AND di.mes BETWEEN DATE_FORMAT(ad.fecha_desde, '%Y%m') AND COALESCE(DATE_FORMAT(ad.fecha_hasta,'%Y%m'),di.mes)
+   LEFT JOIN cedula.alumno_inasistencia ai ON di.id=ai.division_inasistencia_id AND ad.id=ai.alumno_division_id
+   WHERE di.division_id=$division_id AND di.ciclo_lectivo=$ciclo_lectivo
+   GROUP BY di.id
+   ) ai ON di.id = ai.id
+WHERE di.division_id=$division_id and di.ciclo_lectivo=$ciclo_lectivo and fecha_cierre is not null
+GROUP BY di.periodo, di.periodo, di.mes, di.dias, di.fecha_cierre;")->result();
+		$chart_values = array('data1');
+		$labels = array();
+		foreach ($result_1 as $row) {
+			$valores[$row->periodo][substr($row->mes, -2)] = $row;
+		}
+
+		foreach ($periodos as $periodo) {
+			$fecha_ini = new DateTime(substr($periodo->inicio, 0, 8) . '01');
+			$fecha_fin = new DateTime($periodo->fin);
+			$dia = DateInterval::createFromDateString('1 month');
+			$fechas = new DatePeriod($fecha_ini, $dia, $fecha_fin);
+			foreach ($fechas as $fecha) {
+				$mes = $fecha->format('m');
+				if (isset($valores[$periodo->periodo][$mes])) {
+					$row->x = "{$periodo->periodo}°	".substr($this->nombres_meses[$mes], 0,3);
+					$chart_values[] = $valores[$periodo->periodo][$mes]->asistencia_media;
+					$labels[] = "{$periodo->periodo}° ".substr($this->nombres_meses[$mes], 0,3);
+				} else {
+					if(empty($row)){
+						$row = new StdClass;
+					}
+					$row->x = "{$periodo->periodo}° ".substr($this->nombres_meses[$mes], 0,3);
+					$chart_values[] = 0;
+					$labels[] = "{$periodo->periodo}° ".substr($this->nombres_meses[$mes], 0,3);
+				}
+			}
+		}
+//		if (empty($labels)) {
+//			return NULL;
+//		}
+		return array(json_encode($chart_values), json_encode($labels));
+	}
+}
+/* End of file Division_inasistencia.php */
+/* Location: ./application/controllers/Division_inasistencia.php */

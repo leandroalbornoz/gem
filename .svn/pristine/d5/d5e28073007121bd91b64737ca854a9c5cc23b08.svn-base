@@ -1,0 +1,92 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Suple_persona_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'suple_persona';
+		$this->msg_name = 'Persona';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'suple_id', 'servicio_id', 'periodo', 'importe', 'observaciones', 'estado_id');
+		$this->fields = array(
+			'periodo' => array('label' => 'Periodo', 'maxlength' => '6', 'required' => TRUE),
+			'importe' => array('label' => 'Importe', 'type' => 'money', 'readonly' => TRUE),
+			'estado' => array('label' => 'Estado', 'readonly' => TRUE, 'tabindex' => '-1'),
+			'persona' => array('label' => 'Persona', 'readonly' => TRUE),
+			'observaciones' => array('label' => 'Observaciones', 'form_type' => 'textarea', 'rows' => '3')
+		);
+		$this->requeridos = array('suple_id', 'servicio_id', 'periodo', 'estado_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('suple_estado', 'suple_estado.id = suple_persona.estado_id', 'left', array('suple_estado.descripcion as estado')),
+			array('servicio', 'servicio.id = suple_persona.servicio_id', 'left'),
+			array('persona', 'persona.id = servicio.persona_id', 'left', array("CONCAT(servicio.liquidacion, ' - ', persona.apellido, ', ', persona.nombre) as persona")),
+		);
+	}
+
+	public function get_servicios_persona($persona_id) {
+		$query = $this->db->select('c.carga_horaria,r.codigo as regimen_cod,s.id as id_servicio, s.liquidacion, r.descripcion as regimen, ar.descripcion as area_des, CONCAT(es.numero, \' - \',es.nombre) as escuela,fecha_alta, s.fecha_baja')
+			->from('persona p')
+			->join('servicio s', 'p.id = s.persona_id', '')
+			->join('cargo c', 'c.id = s.cargo_id', '')
+			->join('regimen r', 'r.id = c.regimen_id AND r.planilla_modalidad_id=1', '')
+			->join('escuela es', 'es.id = c.escuela_id', 'left')
+			->join('area ar', 'ar.id = c.area_id', 'left')
+			->where('p.id', $persona_id);
+		return $query->get()->result();
+	}
+
+	public function get_datos_persona($suple_persona) {
+		$query = $this->db->select('CONCAT(p.nombre, \', \', p.apellido) as persona, sp.servicio_id, p.cuil')
+			->from('suple_persona sp')
+			->join('servicio s', 'sp.servicio_id = s.id', 'inner')
+			->join('persona p', 'p.id = s.persona_id', 'inner')
+			->where('s.id', $suple_persona->servicio_id);
+		return $query->get()->result();
+	}
+
+	public function get_suple_existente($persona_id) {
+		$query = $this->db->select('sp.servicio_id, p.cuil, sp.periodo, sp.importe, se.descripcion as estado, su.motivo, s.liquidacion, su.fecha_desde, su.fecha_hasta, ')
+			->from('suple_persona sp')
+			->join('suple_estado se', 'se.id = sp.estado_id', 'inner')
+			->join('suple su', 'su.id = sp.suple_id', 'inner')
+			->join('servicio s', 'sp.servicio_id = s.id', 'inner')
+			->join('persona p', 'p.id = s.persona_id', 'inner')
+			->where('p.id', $persona_id);
+		return $query->get()->result();
+	}
+
+	public function count_personas_by_estado($suple_id, $sp_estado_id) {
+		$query = $this->db->select('p.cui')
+			->from('persona p')
+			->join('servicio s', 'p.id = s.persona_id', 'inner')
+			->join('suple_persona sp', 'sp.servicio_id = s.id', 'inner')
+			->join('suple_estado se', 'se.id = sp.estado_id', 'inner')
+			->where('sp.suple_id', $suple_id)
+			->where('sp.estado_id', $sp_estado_id);
+
+		return $this->db->count_all_results();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('suple_persona_id', $delete_id)->count_all_results('suple_persona_auditoria') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a suple de persona de auditoria.');
+			return FALSE;
+		}
+		if ($this->db->where('suple_persona_id', $delete_id)->count_all_results('suple_persona_concepto') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a suple de persona de concepto.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Suple_persona_model.php */
+/* Location: ./application/modules/suplementarias/models/Suple_persona_model.php */

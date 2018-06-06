@@ -1,0 +1,378 @@
+<?php if (!empty($casos['liquidacion_sin_servicio'])): ?>
+	<div style="page-break-before: always;"></div>
+	<div class="tb-cab-index">
+		<div class="row">
+			<div class="col-lg-12" id="cabeceraEscuela">
+				<table class="table table-bordered table-condensed table-responsive table-striped tabla-header">
+					<tr>
+						<td rowspan="4" style="text-align: center;"><img src="img/logomza.jpg"></td>
+						<td colspan="6"><h4><b>CASOS A REVISAR</b> - <b>MES:</b> <?= substr(AMES_LIQUIDACION, -2); ?>  <b>AÑO:</b> <?= substr(AMES_LIQUIDACION, 0, 4); ?> <b> -  <?php echo $planilla_tipo_id === '1' ? 'TITULARES' : 'REEMPLAZANTES'; ?> - LIQUIDACIONES SIN SERVICIO ASOCIADO</b></h4></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Escuela</b></td>
+						<td colspan="2"><?= $escuela->nombre . ($escuela->anexo === '0' ? '' : "/$escuela->anexo"); ?></td>
+						<td><b>Dirección</b></td>
+						<td><?= $escuela->calle; ?></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Nº de Escuela</b></td>
+						<td colspan="2"><?= $escuela->numero; ?></td>
+						<td><b>Teléfono</b></td>
+						<td><?= $escuela->telefono; ?></td>
+					</tr>
+					<tr>
+						<td><b>Jurisdicción</b></td>
+						<td><?= $escuela->jurisdiccion_codigo; ?></td>
+						<td><b>Nº Repartición</b></td>
+						<td><?= $escuela->reparticion_codigo; ?></td>
+						<td><b>Localidad</b></td>
+						<td><?= $escuela->localidad . ' (CP: ' . $escuela->codigo_postal . ')'; ?></td>
+					</tr>
+				</table>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<h5 style="padding-top: -10px">Como resolver casos:</h5>
+				<ul><li>En caso de que corresponda la liquidación, por favor crear el servicio, con el régimen y la cantidad de horas que corresponda, luego por sistema se asociará el servicio a la liquidación</li><li>En caso de no corresponder la liquidación, informar la baja mediante nota a la Delegación / Liquidaciones</li></ul>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<table class="table table-bordered-bl table-condensed table-responsive table-striped table-hover" style="display: block;">
+					<thead>
+						<tr>
+							<th style="width:250px;">CUIL - Liqui.</th>
+							<th rowspan="3">S.R.</th>
+							<th rowspan="3">Reg. Sal.</th>
+							<th rowspan="3">U.O.</th>
+							<th rowspan="3">Cargo<br>Horas</th>
+							<th rowspan="3">Días/Horas<br>Liquid.</th>
+							<th style="width:150px;">Cargo</th>
+							<th rowspan="3">Fecha Alta</th>
+							<th rowspan="3">Observaciones</th>
+						</tr>
+						<tr>
+							<th>Apellido - Nombre</th>
+						</tr>
+						<tr>
+							<th>Fecha Nacimiento</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($casos['liquidacion_sin_servicio'] as $fila): ?>
+							<tr style="font-size:16px;">
+								<td>
+									<span style="font-size:18px;"><?= $fila->cuil ? "$fila->cuil (" . substr($fila->liquidacion_s, -2) . ")" : $fila->liquidacion_s; ?></span>
+									<br/>
+									<?= htmlspecialchars("$fila->nombre"); ?>
+									<br/>
+									<?= empty($fila->fecha_nacimiento) ? '' : (new DateTime($fila->fecha_nacimiento))->format('d/m/Y'); ?>
+								</td>
+								<td>
+									<?= substr($fila->REVISTA, 0, 4); ?>
+								</td>
+								<td style="font-size:16px;"><?= $fila->regimen; ?></td>
+								<td style="font-size:16px;"><?= $fila->uo; ?></td>
+								<td style="font-size:16px; text-align: center;"><?= $fila->diasoblig; ?></td>
+								<td style="font-size:16px; text-align: right;"><?= $fila->diashorapag; ?></td>
+								<td style="font-size:12px;"><?= $fila->RegSalDes; ?></td>
+								<td style="font-size:16px;">
+									<?= empty($fila->fechaini) ? '' : date_format(new DateTime(substr($fila->fechaini, -4) . substr($fila->fechaini, 0, 2) . '01'), 'd/m/y'); ?>
+								</td>
+								<td>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+<?php endif; ?>
+<?php if (!empty($casos['servicio_activo_sin_liquidacion'])): ?>
+	<div style="page-break-before: always;"></div>
+	<div class="tb-cab-index">
+		<div class="row">
+			<div class="col-lg-12" id="cabeceraEscuela">
+				<table class="table table-bordered table-condensed table-responsive table-striped tabla-header">
+					<tr>
+						<td rowspan="4" style="text-align: center;"><img src="img/logomza.jpg"></td>
+						<td colspan="6"><h4><b>CASOS A REVISAR</b> - <b>MES:</b> <?= substr(AMES_LIQUIDACION, -2); ?>  <b>AÑO:</b> <?= substr(AMES_LIQUIDACION, 0, 4); ?> <b> -  <?php echo $planilla_tipo_id === '1' ? 'TITULARES' : 'REEMPLAZANTES'; ?> - SERVICIOS SIN LIQUIDACIÓN ACTIVA</b></h4></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Escuela</b></td>
+						<td colspan="2"><?= $escuela->nombre . ($escuela->anexo === '0' ? '' : "/$escuela->anexo"); ?></td>
+						<td><b>Dirección</b></td>
+						<td><?= $escuela->calle; ?></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Nº de Escuela</b></td>
+						<td colspan="2"><?= $escuela->numero; ?></td>
+						<td><b>Teléfono</b></td>
+						<td><?= $escuela->telefono; ?></td>
+					</tr>
+					<tr>
+						<td><b>Jurisdicción</b></td>
+						<td><?= $escuela->jurisdiccion_codigo; ?></td>
+						<td><b>Nº Repartición</b></td>
+						<td><?= $escuela->reparticion_codigo; ?></td>
+						<td><b>Localidad</b></td>
+						<td><?= $escuela->localidad . ' (CP: ' . $escuela->codigo_postal . ')'; ?></td>
+					</tr>
+				</table>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<h5 style="padding-top: -10px">Como resolver casos:</h5>
+				<ul><li>En caso de que el servicio ya no esté activo, deberá informar la baja al primer día del mes para subsanar la información de GEM</li><li>En caso de que el servicio corresponda a un traslado transitorio, cambio de funciones, etc. Deberá declarar la situación correspondiente en la función del servicio y la novedad. En este caso seguirá apareciendo en planilla porque es planta de la escuela que no tiene liquidación en la escuela.</li><li>En caso de que efectivamente se trate de un servicio que no está cobrando por error administrativo entonces deberá presentar la documentación pertinente en la Delegación / Liquidaciones para que se le cree una liquidación</li></ul>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<table class="table table-bordered-bl table-condensed table-responsive table-striped table-hover" style="display: block;">
+					<thead>
+						<tr>
+							<th style="width:250px;">CUIL - Liqui.</th>
+							<th rowspan="3">S.R.</th>
+							<th rowspan="3">Reg. Sal.</th>
+							<th rowspan="3">U.O.</th>
+							<th rowspan="3">Cargo<br>Horas</th>
+							<th rowspan="3">A Cumplir</th>
+							<th rowspan="3">Turno</th>
+							<th style="width:150px;">Cargo</th>
+							<th rowspan="3">División</th>
+							<th rowspan="3">Fecha Alta</th>
+							<th colspan="2">Bajas</th>
+							<th colspan="5">Detalle Función</th>
+							<th style="width:200px;" colspan="3" rowspan="3">Reemplaza a:</th>
+							<th rowspan="3">Observaciones</th>
+						</tr>
+						<tr>
+							<th>Apellido - Nombre</th>
+							<th rowspan="2">Materia</th>
+							<th rowspan="2">Fecha Baja</th>
+							<th rowspan="2">Motivo</th>
+							<th style="width:150px;" rowspan="2">Función</th>
+							<th rowspan="2">Orígen<br>Destino<br>Tareas</th>
+							<th rowspan="2">Carga Horaria</th>
+							<th rowspan="2">Fecha Desde</th>
+							<th rowspan="2">Norma Legal</th>
+						</tr>
+						<tr>
+							<th>Fecha Nacimiento</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($casos['servicio_activo_sin_liquidacion'] as $fila): ?>
+							<tr style="font-size:16px;">
+								<td>
+									<span style="font-size:18px;"><?= $fila->cuil ? "$fila->cuil (" . substr($fila->liquidacion, -2) . ")" : $fila->liquidacion; ?></span>
+									<br/>
+									<?= htmlspecialchars("$fila->apellido, $fila->nombre"); ?>
+									<br/>
+									<?= empty($fila->fecha_nacimiento) ? '' : (new DateTime($fila->fecha_nacimiento))->format('d/m/Y'); ?>
+								</td>
+								<td>
+									<?= substr($fila->situacion_revista, 0, 4); ?>
+								</td>
+								<td style="font-size:16px;"><?= $fila->regimen_codigo; ?></td>
+								<td style="font-size:16px;"><?= $fila->unidad_organizativa; ?></td>
+								<td style="font-size:16px; text-align: center;"><?= $fila->regimen_tipo_id === '1' ? $fila->puntos : $fila->carga_horaria; ?></td>
+								<td style="font-size:16px; text-align: center;"><?= $fila->regimen_tipo_id === '1' ? '30' : $fila->carga_horaria * 4; ?></td>
+								<td style="font-size:16px;">
+									<?= substr($fila->turno, 0, 1); ?>
+								</td>
+								<td style="font-size:12px;">
+									<?= $fila->regimen; ?><br>
+									<?= $fila->materia; ?>
+								</td>
+								<td>
+									<?= $fila->division; ?>
+								</td>
+								<td style="font-size:16px;">
+									<?= empty($fila->fecha_alta) ? '' : date_format(new DateTime($fila->fecha_alta), 'd/m/y'); ?>
+								</td>
+								<td style="font-size:16px;">
+									<?= empty($fila->fecha_baja) ? '' : date_format(new DateTime($fila->fecha_baja), 'd/m/y'); ?>
+								</td>
+								<td>
+									<?= $fila->motivo_baja; ?>
+								</td>
+								<td style="font-size:14px;">
+									<?= $fila->funcion_detalle; ?>
+								</td>
+								<td>
+									<?= $fila->funcion_tarea; ?>
+									<?= $fila->funcion_destino; ?>
+								</td>
+								<td>
+									<?= $fila->funcion_cargahoraria; ?>
+								</td>
+								<td>
+									<?= empty($fila->funcion_desde) ? '' : date_format(new DateTime($fila->funcion_desde), 'd/m/y'); ?>
+								</td>
+								<td>
+									<?= $fila->funcion_norma; ?>
+								</td>
+								<td colspan="3">
+									<?php if (!empty($fila->reemplaza_cuil)): ?>
+										CUIL: <?= $fila->reemplaza_cuil . (empty($fila->reemplaza_nroliq) ? '' : " ($fila->reemplaza_nroliq)"); ?>
+									<?php endif; ?>
+									<?php if (!empty($fila->reemplaza)): ?>
+										<br><span style="font-size:14px"><?= $fila->reemplaza; ?></span>
+									<?php endif; ?>
+									<?php if (!empty($fila->reemplaza_articulo)): ?>
+										<br><span>Art:&nbsp;<?= $fila->reemplaza_articulo; ?></span>
+										<span style="font-size: 14px;"><?= $fila->reemplaza_articulo_desc; ?></span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?= $fila->observaciones; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+<?php endif; ?>
+<?php if (!empty($casos['servicio_baja_con_liquidacion'])): ?>
+	<div style="page-break-before: always;"></div>
+	<div class="tb-cab-index">
+		<div class="row">
+			<div class="col-lg-12" id="cabeceraEscuela">
+				<table class="table table-bordered table-condensed table-responsive table-striped tabla-header">
+					<tr>
+						<td rowspan="4" style="text-align: center;"><img src="img/logomza.jpg"></td>
+						<td colspan="6"><h4><b>CASOS A REVISAR</b> - <b>MES:</b> <?= substr(AMES_LIQUIDACION, -2); ?>  <b>AÑO:</b> <?= substr(AMES_LIQUIDACION, 0, 4); ?> <b> -  <?php echo $planilla_tipo_id === '1' ? 'TITULARES' : 'REEMPLAZANTES'; ?> - SERVICIOS DE BAJA CON LIQUIDACIÓN ACTIVA</b></h4></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Escuela</b></td>
+						<td colspan="2"><?= $escuela->nombre . ($escuela->anexo === '0' ? '' : "/$escuela->anexo"); ?></td>
+						<td><b>Dirección</b></td>
+						<td><?= $escuela->calle; ?></td>
+					</tr>
+					<tr>
+						<td colspan="2"><b>Nº de Escuela</b></td>
+						<td colspan="2"><?= $escuela->numero; ?></td>
+						<td><b>Teléfono</b></td>
+						<td><?= $escuela->telefono; ?></td>
+					</tr>
+					<tr>
+						<td><b>Jurisdicción</b></td>
+						<td><?= $escuela->jurisdiccion_codigo; ?></td>
+						<td><b>Nº Repartición</b></td>
+						<td><?= $escuela->reparticion_codigo; ?></td>
+						<td><b>Localidad</b></td>
+						<td><?= $escuela->localidad . ' (CP: ' . $escuela->codigo_postal . ')'; ?></td>
+					</tr>
+				</table>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<h5 style="padding-top: -10px">Como resolver casos:</h5>
+				<ul><li>En caso de corresponder la baja, ratificar la baja mediante nota a la Delegación / Liquidaciones con la fecha correspondiente.</li><li>En caso de no corresponder la baja, informar un mensaje mediante GEM a Administrador para que se anule la misma.</li></ul>
+			</div>
+			<div class="col-lg-12 scrollable-area" style="overflow-x: auto; overflow-y: hidden;" >
+				<table class="table table-bordered-bl table-condensed table-responsive table-striped table-hover" style="display: block;">
+					<thead>
+						<tr>
+							<th style="width:250px;">CUIL - Liqui.</th>
+							<th rowspan="3">S.R.</th>
+							<th rowspan="3">Reg. Sal.</th>
+							<th rowspan="3">U.O.</th>
+							<th rowspan="3">Cargo<br>Horas</th>
+							<th rowspan="3">Días/Horas<br>Liquid.</th>
+							<th rowspan="3">Turno</th>
+							<th style="width:150px;">Cargo</th>
+							<th rowspan="3">División</th>
+							<th rowspan="3">Fecha Alta</th>
+							<th colspan="2">Bajas</th>
+							<th colspan="5">Detalle Función</th>
+							<th style="width:200px;" colspan="3" rowspan="3">Reemplaza a:</th>
+							<th rowspan="3">Observaciones</th>
+						</tr>
+						<tr>
+							<th>Apellido - Nombre</th>
+							<th rowspan="2">Materia</th>
+							<th rowspan="2">Fecha Baja</th>
+							<th rowspan="2">Motivo</th>
+							<th style="width:150px;" rowspan="2">Función</th>
+							<th rowspan="2">Orígen<br>Destino<br>Tareas</th>
+							<th rowspan="2">Carga Horaria</th>
+							<th rowspan="2">Fecha Desde</th>
+							<th rowspan="2">Norma Legal</th>
+						</tr>
+						<tr>
+							<th>Fecha Nacimiento</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($casos['servicio_baja_con_liquidacion'] as $fila): ?>
+							<tr style="font-size:16px;">
+								<td>
+									<span style="font-size:18px;"><?= $fila->cuil ? "$fila->cuil (" . substr($fila->liquidacion, -2) . ")" : $fila->liquidacion; ?></span>
+									<br/>
+									<?= htmlspecialchars("$fila->apellido, $fila->nombre"); ?>
+									<br/>
+									<?= empty($fila->fecha_nacimiento) ? '' : (new DateTime($fila->fecha_nacimiento))->format('d/m/Y'); ?>
+								</td>
+								<td>
+									<?= substr($fila->situacion_revista, 0, 4); ?>
+								</td>
+								<td style="font-size:16px;"><?= $fila->regimen_codigo; ?></td>
+								<td style="font-size:16px;"><?= $fila->unidad_organizativa; ?></td>
+								<td style="font-size:16px; text-align: center;"><?= $fila->regimen_tipo_id === '1' ? $fila->puntos : $fila->carga_horaria; ?></td>
+								<td style="font-size:16px; text-align: right;"><?= $fila->diashorapag; ?></td>
+								<td style="font-size:16px;">
+									<?= substr($fila->turno, 0, 1); ?>
+								</td>
+								<td style="font-size:12px;">
+									<?= $fila->regimen; ?><br>
+									<?= $fila->materia; ?>
+								</td>
+								<td>
+									<?= $fila->division; ?>
+								</td>
+								<td style="font-size:16px;">
+									<?= empty($fila->fecha_alta) ? '' : date_format(new DateTime($fila->fecha_alta), 'd/m/y'); ?>
+								</td>
+								<td style="font-size:16px;">
+									<?= empty($fila->fecha_baja) ? '' : date_format(new DateTime($fila->fecha_baja), 'd/m/y'); ?>
+								</td>
+								<td>
+									<?= $fila->motivo_baja; ?>
+								</td>
+								<td style="font-size:14px;">
+									<?= $fila->funcion_detalle; ?>
+								</td>
+								<td>
+									<?= $fila->funcion_tarea; ?>
+									<?= $fila->funcion_destino; ?>
+								</td>
+								<td>
+									<?= $fila->funcion_cargahoraria; ?>
+								</td>
+								<td>
+									<?= empty($fila->funcion_desde) ? '' : date_format(new DateTime($fila->funcion_desde), 'd/m/y'); ?>
+								</td>
+								<td>
+									<?= $fila->funcion_norma; ?>
+								</td>
+								<td colspan="3">
+									<?php if (!empty($fila->reemplaza_cuil)): ?>
+										CUIL: <?= $fila->reemplaza_cuil . (empty($fila->reemplaza_nroliq) ? '' : " ($fila->reemplaza_nroliq)"); ?>
+									<?php endif; ?>
+									<?php if (!empty($fila->reemplaza)): ?>
+										<br><span style="font-size:14px"><?= $fila->reemplaza; ?></span>
+									<?php endif; ?>
+									<?php if (!empty($fila->reemplaza_articulo)): ?>
+										<br><span>Art:&nbsp;<?= $fila->reemplaza_articulo; ?></span>
+										<span style="font-size: 14px;"><?= $fila->reemplaza_articulo_desc; ?></span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<?= $fila->observaciones; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+<?php endif; ?>

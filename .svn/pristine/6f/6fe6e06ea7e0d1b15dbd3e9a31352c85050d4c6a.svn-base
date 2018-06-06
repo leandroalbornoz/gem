@@ -1,0 +1,61 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Acuerdo_zona_remito_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'acuerdo_zona_remito';
+		$this->msg_name = 'Remito Acuerdo Zona';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'numero', 'fecha_inicio', 'fecha_fin');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
+			'numero' => array('label' => 'Numero', 'type' => 'integer', 'maxlength' => '10', 'required' => TRUE),
+			'fecha_inicio' => array('label' => 'Fecha de Inicio', 'type' => 'datetime'),
+			'fecha_fin' => array('label' => 'Fecha de Fin', 'type' => 'datetime')
+		);
+		$this->requeridos = array('escuela_id', 'numero');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('escuela', 'escuela.id = acuerdo_zona_remito.escuela_id', 'left', array('escuela.nombre as escuela')),);
+	}
+
+	public function buscar_remito_activo($escuela_id) {
+		$remito = $this->db->query('SELECT * FROM acuerdo_zona_remito WHERE escuela_id=? ORDER BY numero DESC limit 1', array($escuela_id))->row();
+		if (empty($remito) || !empty($remito->fecha_fin)) {
+			if (empty($remito)) {
+				$this->create(array(
+					'escuela_id' => $escuela_id,
+					'numero' => '1',
+					'fecha_inicio' => date('Y-m-d')
+				));
+			} else {
+				$this->create(array(
+					'escuela_id' => $escuela_id,
+					'numero' => $remito->numero + 1,
+					'fecha_inicio' => date('Y-m-d')
+				));
+			}
+			$remito = $this->db->query('SELECT * FROM acuerdo_zona_remito WHERE escuela_id=? ORDER BY numero DESC limit 1', array($escuela_id))->row();
+		}
+		return $remito;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('acuerdo_zona_remito_id', $delete_id)->count_all_results('acuerdo_zona_recepcion') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a acuerdo de zona de recepcion.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Acuerdo_zona_remito_model.php */
+/* Location: ./application/modules/acuerdo_zona/models/Acuerdo_zona_remito_model.php */

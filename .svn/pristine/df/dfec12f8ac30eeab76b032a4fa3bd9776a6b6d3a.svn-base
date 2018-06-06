@@ -1,0 +1,367 @@
+<?php if ($txt_btn === 'Agregar' || $txt_btn === 'Editar'): ?>
+	<style>
+		.selectize-control.single .selectize-input, .selectize-control.single .selectize-input input {
+			height: 34px;
+			position: relative !important;
+		}
+		.selectize-input {
+			padding: 0 12px;
+		}
+	</style>
+	<?php if (!in_array($this->rol->codigo, array(ROL_DIR_ESCUELA, ROL_SDIR_ESCUELA, ROL_SEC_ESCUELA))): ?>
+		<script>
+			$(document).ready(function() {
+				var xhr_nivel;
+				var xhr_supervision;
+				var select_linea, $select_linea;
+				var select_nivel, $select_nivel;
+				var select_supervision, $select_supervision;
+
+				$select_linea = $('select#linea').selectize({
+					onChange: linea_actualizada
+				});
+
+				$select_nivel = $('select#nivel').selectize({
+					valueField: 'id',
+					labelField: 'descripcion',
+					searchField: ['descripcion']
+				});
+
+				$select_supervision = $('select#supervision').selectize({
+					valueField: 'id',
+					labelField: 'nombre',
+					searchField: ['nombre']
+				});
+
+				select_linea = $select_linea[0].selectize;
+				select_nivel = $select_nivel[0].selectize;
+				select_supervision = $select_supervision[0].selectize;
+				if (select_linea.getValue() !== '') {
+					linea_actualizada(select_linea.getValue());
+				}
+				function linea_actualizada(value) {
+					actualizar_nivel(value);
+					actualizar_supervision(value);
+				}
+				function actualizar_nivel(value) {
+					select_nivel.enable();
+					var valor = select_nivel.getValue();
+					select_nivel.disable();
+					select_nivel.clearOptions();
+					if (value == '') {
+						return;
+					}
+					select_nivel.load(function(callback) {
+						xhr_nivel && xhr_nivel.abort();
+						xhr_nivel = $.ajax({
+							url: 'ajax/get_niveles/' + value,
+							dataType: 'json',
+							success: function(results) {
+								select_nivel.enable();
+								callback(results);
+								if (results.length === 1) {
+									select_nivel.setValue(results[0].id);
+								} else {
+									select_nivel.setValue(valor);
+								}
+							},
+							error: function() {
+								callback();
+							}
+						});
+					});
+				}
+				function actualizar_supervision(value) {
+					select_supervision.enable();
+					var valor = select_supervision.getValue();
+					select_supervision.disable();
+					select_supervision.clearOptions();
+					if (value == '') {
+						return;
+					}
+					select_supervision.load(function(callback) {
+						xhr_supervision && xhr_supervision.abort();
+						xhr_supervision = $.ajax({
+							url: 'ajax/get_supervisiones/' + value,
+							dataType: 'json',
+							success: function(results) {
+								select_supervision.enable();
+								callback(results);
+								select_supervision.setValue(valor);
+							},
+							error: function() {
+								callback();
+							}
+						})
+					});
+				}
+			});
+		</script>
+	<?php endif; ?>
+<?php endif; ?>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			<?php if (!empty($escuela)): ?>
+				<?php echo "$escuela->nombre_largo"; ?>
+			<?php else: ?>
+				Escuelas
+			<?php endif; ?>
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="<?php echo $controlador; ?>">Escuelas</a></li>
+			<?php if (!empty($escuela)): ?>
+				<li><?php echo "Esc. $escuela->nombre_largo"; ?></li>
+			<?php endif; ?>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<?php if ($rol->codigo === ROL_ADMIN || $rol->codigo === ROL_USI): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['agregar']; ?>" href="escuela/agregar">
+								<i class="fa fa-plus"></i> Agregar
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-app btn-app-zetta" href="escuela/escritorio/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+							<i class="fa fa-home"></i> Escritorio
+						</a>
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="escuela/ver/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="escuela/editar/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar'] === 'disabled' ? 'disabled' : ''; ?>" href="escuela/caracteristicas/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+								<i class="fa fa-edit"></i> Características
+							</a>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar'] === 'disabled' ? 'disabled' : ''; ?>" href="escuela/autoridades/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+								<i class="fa fa-edit"></i> Autoridades
+							</a>
+							<?php if ($txt_btn === 'Eliminar'): ?>
+								<a class="btn btn-app btn-app-zetta <?php echo $class['eliminar']; ?>" href="escuela/eliminar/<?php echo (!empty($escuela->id)) ? $escuela->id : ''; ?>">
+									<i class="fa fa-ban"></i> Eliminar
+								</a>
+							<?php endif; ?>
+						<?php endif; ?>
+						<?php if ($txt_btn !== 'Agregar'): ?>
+							<a class="btn btn-app btn-app-zetta" href="escuela_carrera/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-book"></i> Carreras
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="division/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-tasks"></i> Cursos y Divisiones
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="alumno/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-users"></i> Alumnos
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="cargo/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-users"></i> Cargos
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="servicio/listar/<?php echo $escuela->id . '/'; ?>">
+								<i class="fa fa-bookmark"></i> Servicios
+							</a>
+							<a class="btn btn-app btn-app-zetta" href="asisnov/index/<?php echo $escuela->id . '/'; ?>">
+								<i class="fa fa-print"></i> Asis y Nov
+							</a>
+						<?php endif; ?>
+						<div class="row">
+							<div class="form-group col-md-2">
+								<?php echo $fields['numero']['label']; ?>
+								<?php echo $fields['numero']['form']; ?>
+							</div>
+							<div class="form-group col-md-1">
+								<?php echo $fields['anexo']['label']; ?>
+								<?php echo $fields['anexo']['form']; ?>
+							</div>
+							<div class="form-group col-md-2">
+								<?php echo $fields['cue']['label']; ?>
+								<?php echo $fields['cue']['form']; ?>
+							</div>
+							<div class="form-group col-md-2">
+								<?php echo $fields['subcue']['label']; ?>
+								<?php echo $fields['subcue']['form']; ?>
+							</div>
+							<div class="form-group col-md-5">
+								<?php echo $fields['nombre']['label']; ?>
+								<?php echo $fields['nombre']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['linea']['label']; ?>
+								<?php echo $fields['linea']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['nivel']['label']; ?>
+								<?php echo $fields['nivel']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['regimen_lista']['label']; ?>
+								<?php echo $fields['regimen_lista']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['dependencia']['label']; ?>
+								<?php echo $fields['dependencia']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['reparticion']['label']; ?>
+								<?php echo $fields['reparticion']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['supervision']['label']; ?>
+								<?php echo $fields['supervision']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['regional']['label']; ?>
+								<?php echo $fields['regional']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['zona']['label']; ?>
+								<?php echo $fields['zona']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['calle']['label']; ?>
+								<?php echo $fields['calle']['form']; ?>
+							</div>
+							<div class="form-group col-md-1">
+								<?php echo $fields['calle_numero']['label']; ?>
+								<?php echo $fields['calle_numero']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['barrio']['label']; ?>
+								<?php echo $fields['barrio']['form']; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['localidad']['label']; ?>
+								<?php echo $fields['localidad']['form']; ?>
+							</div>
+							<div class="form-group col-md-1">
+								<?php echo $fields['codigo_postal']['label']; ?>
+								<?php echo $fields['codigo_postal']['form']; ?>
+							</div>
+							<div class="form-group col-md-2">
+								<?php echo $fields['telefono']['label']; ?>
+								<?php echo $fields['telefono']['form']; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['email']['label']; ?>
+								<?php echo $fields['email']['form']; ?>
+							</div>
+							<div class="form-group col-md-4">
+								<?php echo $fields['email2']['label']; ?>
+								<?php echo $fields['email2']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['fecha_creacion']['label']; ?>
+								<?php echo $fields['fecha_creacion']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['anio_resolucion']['label']; ?>
+								<?php echo $fields['anio_resolucion']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['numero_resolucion']['label']; ?>
+								<?php echo $fields['numero_resolucion']['form']; ?>
+							</div>
+						</div>
+						<div class="row">
+							<div class="form-group col-md-3">
+								<?php echo $fields['fecha_cierre']['label']; ?>
+								<?php echo $fields['fecha_cierre']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['anio_resolucion_cierre']['label']; ?>
+								<?php echo $fields['anio_resolucion_cierre']['form']; ?>
+							</div>
+							<div class="form-group col-md-3">
+								<?php echo $fields['numero_resolucion_cierre']['label']; ?>
+								<?php echo $fields['numero_resolucion_cierre']['form']; ?>
+							</div>
+						</div>
+						<?php if (!empty($fields_tipos)): ?>
+							<hr>
+							<h3>Características</h3>
+							<ul class="nav nav-tabs" role="tablist">
+								<?php $tab_class = 'active'; ?>
+								<?php foreach ($fields_tipos as $tipo => $fields_caracteristicas): ?>
+									<li role="presentation" class="<?= $tab_class; ?>"><a href="#<?= strtolower(str_replace(' ', '_', $tipo)); ?>" aria-controls="<?= strtolower(str_replace(' ', '_', $tipo)); ?>" role="tab" data-toggle="tab"><?= $tipo; ?></a></li>
+									<?php $tab_class = ''; ?>
+								<?php endforeach; ?>
+							</ul>
+							<div class="tab-content">
+								<?php $tab_class = 'active'; ?>
+								<?php foreach ($fields_tipos as $tipo => $fields_caracteristicas): ?>
+									<div role="tabpanel" class="tab-pane <?= $tab_class; ?>" id="<?= strtolower(str_replace(' ', '_', $tipo)); ?>">
+										<?php $tab_class = ''; ?>
+										<div class="row">
+											<?php foreach ($fields_caracteristicas as $field): ?>
+												<div class="form-group col-sm-3">
+													<?php echo $field['label']; ?>
+													<?php echo $field['form']; ?>
+												</div>
+											<?php endforeach; ?>
+										</div>
+									</div>
+								<?php endforeach; ?>
+							</div>
+						<?php endif; ?>
+						<?php if (!empty($autoridades)): ?>
+							<hr>
+							<h3>Autoridades</h3>
+							<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+								<thead>
+									<tr>
+										<th>Tipo de autoridad</th>
+										<th>CUIL</th>
+										<th>Nombre</th>
+										<th>Tél. Fijo</th>
+										<th>Celular</th>
+									</tr>
+								</thead>
+								<tbody>
+									<?php foreach ($autoridades as $autoridad): ?>
+										<tr>
+											<td><?= $autoridad->autoridad; ?></td>
+											<td><?= $autoridad->cuil; ?></td>
+											<td><?= $autoridad->persona; ?></td>
+											<td><?= $autoridad->telefono_fijo; ?></td>
+											<td><?= $autoridad->telefono_movil; ?></td>
+										</tr>
+									<?php endforeach; ?>
+								</tbody>
+							</table>
+						<?php endif; ?>
+					</div>
+					<div class="box-footer">
+						<a class="btn btn-default" href="escuela/listar" title="<?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?>"><?php echo empty($txt_btn) ? 'Volver' : 'Cancelar'; ?></a>
+						<?php echo zetta_form_submit($txt_btn); ?>
+						<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $escuela->id) : ''; ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>

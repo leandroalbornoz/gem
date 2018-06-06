@@ -1,0 +1,143 @@
+<style>
+	#chart_1 .c3-line{
+		stroke-width:4px;
+	}
+	#chart_1 .c3-text{
+    font-weight: bold;
+    font-size: 16px;
+	}
+	/*	#chart_2 .c3-bar {
+			 cursor: pointer !important;
+		}*/
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Estadísticas Beca
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="becas/<?php echo $controlador; ?>">Estadísticas Beca</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<?= $vw_etapas; ?>
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-body">
+						<div class="row">
+							<div class="col-xs-4">
+								<table class="table table-condensed table-bordered table-striped">
+									<thead>
+										<tr>
+											<th>Estado</th>
+											<th>Docentes</th>
+											<th>Escuelas c/Carga</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($estadisticas['por_estado'] as $estadistica): ?>
+											<tr>
+												<td><?= $estadistica->estado; ?></td>
+												<td><?= $estadistica->personas; ?></td>
+												<td><?= $estadistica->escuelas; ?></td>
+											</tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>
+							</div>
+							<div class="col-xs-8">
+								<div id="chart_1" style="height: 300px; width:100%;">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<?php
+
+function extract_ids($array, $property) {
+	$res = array();
+	foreach ($array as $k => $v) {
+		$res[] = $v->{$property};
+	}
+	return $res;
+}
+?>
+<script>
+	var chart_1;
+	$(document).ready(function() {
+		chart_1 = c3.generate({
+			bindto: '#chart_1',
+			data: {
+				labels: true,
+				colors: {Docentes: '#444'},
+				type: 'bar',
+				x: 'x',
+				columns: [
+<?= json_encode(array_merge(array('x'), extract_ids($estadisticas['por_fecha'], 'fecha'))); ?>,
+<?= json_encode(array_merge(array('Docentes'), extract_ids($estadisticas['por_fecha'], 'personas'))); ?>
+				]},
+			bar: {
+				width: 15
+			},
+			line: {
+				connectNull: true
+			},
+			axis: {
+				x: {
+					type: 'timeseries',
+					tick: {
+//						format: '%Y-%m-%d'
+						format: function(d) {
+							return ('0' + (d.getDate())).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
+						}
+					}
+				},
+				y: {
+					min: 0,
+					padding: {
+						bottom: 0
+					},
+					tick: {
+						format: function(d) {
+							return (parseInt(d) == d) ? d : null;
+						}
+					}
+				}
+			},
+			tooltip: {
+				grouped: false,
+				format: {
+					title: function(d) {
+						return ('0' + (d.getDate())).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear().toString();
+					}
+				}
+			},
+			grid: {
+				y: {
+					show: true
+				}
+			}
+		});
+	});
+</script>

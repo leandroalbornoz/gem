@@ -1,0 +1,300 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escritorio extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_ADMIN);
+		$this->nav_route = 'aprender/buscar_escuela';
+		$this->modulos_permitidos = array(ROL_MODULO_OPERATIVO_APRENDER);
+		$this->load->model('aprender_operativo_model');
+		$this->load->model('aprender_operativo_aplicador_model');
+		$this->load->model('escuela_model');
+	}
+
+	public function index() {
+		redirect('aprender/escritorio/buscar_escuela');
+	}
+
+	public function buscar_escuela($escuela_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$model_busqueda = new stdClass();
+		$model_busqueda->fields = array(
+			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'required' => true)
+		);
+
+		$this->array_escuela_control = $array_escuela = $this->get_array('escuela', 'nombre_largo', 'id', array(
+			'select' => array('escuela.id', 'escuela.numero', 'escuela.anexo', "CONCAT('CUE: ',escuela.cue, ' ', escuela.nombre) as nombre"),
+			'join' => array(array('nivel', "escuela.nivel_id=nivel.id AND nivel.formal='Si'")),
+			'join' => array(array('aprender_operativo', 'escuela.id=aprender_operativo.escuela_id')),
+			'sort_by' => 'escuela.numero, escuela.anexo'
+			), array('' => '-- Seleccionar escuela --'));
+		$model_busqueda->fields['escuela']['array'] = $array_escuela;
+		if (!empty($_POST)) {
+			$escuela_id = $this->input->post('escuela');
+		}
+		if (!empty($escuela_id)) {
+			$escuela = $this->escuela_model->get_one($escuela_id);
+			if (empty($escuela)) {
+				show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+			}
+			$operativos = $this->aprender_operativo_model->get_operativos($escuela->id);
+			if (empty($operativos)) {
+				$this->session->set_flashdata('error', 'El Operativo Aprender no se encuentra habilitado para su Escuela');
+				redirect('aprender/escritorio/buscar_escuela');
+			}
+			$aplicadores = $this->aprender_operativo_aplicador_model->get_aplicadores_escuela($escuela->id);
+			$data['aplicadores'] = $aplicadores;
+			$data['escuela'] = $escuela;
+			$data['operativos'] = $operativos;
+		}
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['escuela_id'] = $escuela_id;
+		$data['fields'] = $this->build_fields($model_busqueda->fields);
+		$data['txt_btn'] = 'Buscar';
+		$data['title'] = 'Operativo Aprender';
+		$this->load_template('aprender/aprender_operativo/aprender_operativo_escritorio', $data);
+	}
+
+	public function modal_buscar_aplicador($aprender_operativo_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$operativo = $this->aprender_operativo_model->get_one($aprender_operativo_id);
+		if (empty($operativo)) {
+			return $this->modal_error('No se encontró el registro del operativo', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($operativo->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+
+		$data['docentes'] = $this->aprender_operativo_model->buscar_aplicadores($operativo);
+		$data['escuela'] = $escuela;
+		$data['operativo'] = $operativo;
+		$data['title'] = 'Buscar aplicador a agregar';
+		$this->load->view('aprender/aprender_operativo/aprender_operativo_modal_buscar_aplicador_operativo', $data);
+	}
+
+	public function ajax_buscar_aplicador() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+		$aprender_operativo_id = $this->input->get('aprender_operativo_id');
+		$dni = $this->input->get('dni');
+		$operativo = $this->aprender_operativo_model->get_one($aprender_operativo_id);
+		if (empty($operativo)) {
+			return $this->modal_error('No se encontró el registro del operativo', 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($operativo->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+		if (!empty($dni)) {
+			$this->load->model('aprender/Aprender_operativo_model');
+			echo json_encode(array('status' => 'success', 'docentes' => $this->aprender_operativo_model->buscar_aplicadores($operativo, $dni)));
+		} else {
+			echo json_encode(array('status' => 'error', 'error' => 'No se introdujo un término de búsqueda'));
+		}
+	}
+
+	function agregar_aplicador($operativo_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$operativo = $this->aprender_operativo_model->get_one($operativo_id);
+		if (empty($operativo)) {
+			show_error('No se encontró el registro del operativo', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($operativo->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+
+		$this->form_validation->set_rules('aplicador', 'Aplicador', 'required|integer');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$aplicador = $this->input->post('aplicador');
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$trans_ok &= $this->aprender_operativo_aplicador_model->create(array(
+					'aprender_operativo_id' => $operativo_id,
+					'persona_id' => $aplicador,
+					'estado' => 'Activo',
+					'tipo_usuario' => 'Operativo'
+					), FALSE);
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->aprender_operativo_aplicador_model->get_msg());
+					redirect('aprender/escritorio/buscar_escuela/' . $escuela->id, 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->eleccion_desinfeccion_persona_model->get_error());
+					redirect('aprender/escritorio/buscar_escuela/' . $escuela->id, 'refresh');
+				}
+			}
+		}
+
+		$data['escuela'] = $escuela;
+		$data['aprender_operativo'] = $operativo;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Aplicadores de Operativo Aprender';
+		$this->load->view('aprender/aprender_operativo/aprender_operativo_aplicador_modal_listar', $data);
+	}
+
+	public function modal_eliminar_aplicador($operativo_id = NULL, $aplicador_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			return $this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+		}
+
+		$operativo = $this->aprender_operativo_model->get_one($operativo_id);
+		if (empty($operativo)) {
+			return $this->modal_error('No se encontró el registro de del operativo', 'Registro no encontrado');
+		}
+		
+		$escuela = $this->escuela_model->get_one($operativo->escuela_id);
+		if (empty($escuela)) {
+			return $this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+		}
+
+		$aplicador = $this->aprender_operativo_aplicador_model->get_one($aplicador_id);
+		if (empty($aplicador) || $aplicador->aprender_operativo_id !== $operativo->id) {
+			return $this->modal_error('No se encontró el registro de la persona', 'Registro no encontrado');
+		}
+		if (isset($_POST) && !empty($_POST)) {
+			if ($operativo->id !== $this->input->post('id')) {
+				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción permitida');
+			}
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$trans_ok &= $this->aprender_operativo_aplicador_model->update(array(
+				'id' => $aplicador->id,
+				'estado' => 'Eliminado',
+				'tipo_usuario' => 'Operativo'
+				), FALSE);
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', 'Aplicador eliminado correctamente');
+				redirect("aprender/escritorio/buscar_escuela/$operativo->escuela_id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$this->session->set_flashdata('error', $this->aprender_operativo_aplicador_model->get_error());
+				redirect("aprender/escritorio/buscar_escuela/$operativo->escuela_id", 'refresh');
+			}
+		}
+		$operativo->escuela = $escuela->nombre_largo;
+		$data['fields'] = $this->build_fields($this->aprender_operativo_aplicador_model->fields, $aplicador, TRUE);
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['aprender_operativo'] = $operativo;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Eliminar aplicador';
+		$this->load->view('aprender/aprender_operativo/aprender_operativo_modal_eliminar_aplicador', $data);
+	}
+
+	public function imprimir_pdf($operativo_id = NULL) {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$operativo = $this->aprender_operativo_model->get_one($operativo_id);
+		if (empty($operativo)) {
+			show_error('No se encontró el registro del operativo aprender', 500, 'Registro no encontrado');
+		}
+		$escuela = $this->escuela_model->get_one($operativo->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		$aplicadores = $this->aprender_operativo_aplicador_model->get_aplicadores_escuela($escuela->id);
+
+		$data['error'] = $this->session->flashdata('error');
+		$data['aplicadores'] = isset($aplicadores[$operativo->operativo_tipo_id]) ? $aplicadores[$operativo->operativo_tipo_id] : array();
+		$data['escuela'] = $escuela;
+		$data['operativo'] = $operativo;
+
+		$fecha_actual = date('d/m/Y');
+		$content = $this->load->view('aprender/aprender_operativo/aprender_operativo_imprimir_pdf', $data, TRUE);
+		$this->load->helper('mpdf');
+		$watermark = '';
+		exportMPDF($content, 'plugins/kv-mpdf-bootstrap.min.css', 'Operativo Aprender 2017', 'Planilla del operativo Aprender 2017 - Esc. "' . trim($escuela->nombre) . '" Nº ' . $escuela->numero . ' " - Fecha actual: ' . $fecha_actual, '|{PAGENO} de {nb}|', '', $watermark, 'I', FALSE, FALSE);
+	}
+
+	public function imprimir_excel() {
+		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+
+		$campos = array(
+			'A' => array('Gestión', 10),
+			'B' => array('Numero', 10),
+			'C' => array('Anexo', 10),
+			'D' => array('CUE', 15),
+			'E' => array('SubCUE', 10),
+			'F' => array('Fecha de cierre', 20),
+			'G' => array('Total de descripción',30),
+			'H' => array('Cuil', 18),
+			'I' => array('Tipo de Doc.', 10),
+			'J' => array('Documento', 15),
+			'K' => array('Apellido', 20),
+			'L' => array('Nombre', 25),
+			'M' => array('Teléfono fijo', 20),
+			'N' => array('Teléfono movil', 20),
+			'O' => array('Email', 30),
+			'P' => array('Fecha de carga', 20),
+		);
+
+		$reporte = $this->db->select("d.descripcion gestion, e.numero, e.anexo, e.cue, e.subcue,DATE_FORMAT(ao.fecha_cierre,'%d/%m/%Y') fecha_cierre, aot.descripcion, p.cuil, dt.descripcion_corta tipo_doc, p.documento, p.apellido, p.nombre, p.telefono_fijo, p.telefono_movil, p.email, DATE_FORMAT(aoa.audi_fecha, '%d/%m/%Y') fecha_carga")
+				->from('aprender_operativo_aplicador aoa')
+				->join('aprender_operativo ao', 'aoa.aprender_operativo_id=ao.id')
+				->join('aprender_operativo_tipo aot', 'ao.operativo_tipo_id=aot.id')
+				->join('escuela e', 'ao.escuela_id=e.id')
+				->join('dependencia d', 'on e.dependencia_id=d.id')
+				->join('persona p', 'on aoa.persona_id=p.id')
+				->join('documento_tipo dt', 'p.documento_tipo_id=dt.id')
+				->where('aoa.estado !=','Eliminado')
+				->get()->result_array();
+
+		if (!empty($reporte)) {
+			$registros = $reporte;
+			$atributos = array('title' => "Operativo Aprender 2017");
+			$this->load->library('PHPExcel');
+			$this->phpexcel->getProperties()->setTitle($atributos['title'])->setDescription("");
+			$this->phpexcel->setActiveSheetIndex(0);
+
+			$sheet = $this->phpexcel->getActiveSheet();
+			$sheet->setTitle(substr($atributos['title'], 0, 30));
+			$encabezado = array();
+			$ultima_columna = 'A';
+			foreach ($campos as $columna => $campo) {
+				$encabezado[] = $campo[0];
+				$sheet->getColumnDimension($columna)->setWidth($campo[1]);
+				$ultima_columna = $columna;
+			}
+
+			$sheet->getStyle('A1:' . $ultima_columna . '1')->getFont()->setBold(true);
+
+			$sheet->fromArray(array($encabezado), NULL, 'A1');
+			$sheet->fromArray($registros, NULL, 'A2');
+
+			header("Content-Type: application/vnd.ms-excel");
+			$nombreArchivo = $atributos['title'];
+			header("Content-Disposition: attachment; filename=\"$nombreArchivo.xls\"");
+			header("Cache-Control: max-age=0");
+
+			$writer = PHPExcel_IOFactory::createWriter($this->phpexcel, "Excel5");
+			$writer->save('php://output');
+			exit;
+		} else {
+			$this->session->set_flashdata('error', 'Sin datos para el reporte seleccionado');
+			redirect('aprender/escritorio', 'refresh');
+		}
+	}
+}
+/* End of file Escritorio.php */
+	/* Location: ./application/modules/juntas/controllers/Escritorio.php */	

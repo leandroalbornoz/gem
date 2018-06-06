@@ -273,7 +273,6 @@ class Alumno extends MY_Controller {
 		$parientes = $this->familia_model->get_familiares($alumno->persona_id);
 		$this->load->model('caracteristica_alumno_model');
 		$fields_tipos = $this->caracteristica_alumno_model->get_fields($alumno->id, TRUE);
-
 		foreach ($fields_tipos as $tipo => $fields) {
 			$data['fields_tipos'][$tipo] = $this->build_fields($fields);
 		}

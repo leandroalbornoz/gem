@@ -1,0 +1,185 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Division extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->load->model('division_model');
+		$this->load->model('comedor_presupuesto_model');
+		$this->load->model('comedor_alumno_model');
+		$this->load->model('comedor_model');
+		$this->load->model('comedor_racion_model');
+		$this->load->model('comedor_valor_racion_model');
+		$this->load->model('comedor_plazo_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL));
+		$this->roles_agregar = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_GRUPO_ESCUELA_CONSULTA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/escuela';
+		if (ENVIRONMENT === 'production') {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+	}
+
+	public function ver($comedor_presupuesto_id = NULL, $division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $comedor_presupuesto_id == NULL || !ctype_digit($comedor_presupuesto_id) || $division_id == NULL || !ctype_digit($division_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		
+		$comedor_presupuesto = $this->comedor_presupuesto_model->get_one($comedor_presupuesto_id);
+		if (empty($comedor_presupuesto)) {
+			show_error('No se encontró el registro del presupuesto', 500, 'Registro no encontrado');
+		}
+		
+		$comedor_plazo = $this->comedor_plazo_model->get(array('mes' => $comedor_presupuesto->mes));
+		if (!empty($comedor_plazo)) {
+			$fecha_actual = date('Y-m-d');
+			if ($fecha_actual >= $comedor_plazo[0]->fecha_cierre) {
+				redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+			}
+		}
+
+		$escuela = $this->escuela_model->get_one($comedor_presupuesto->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$alumnos = $this->comedor_alumno_model->get_alumnos_division($division->id, !(empty($comedor_presupuesto->id)) ? $comedor_presupuesto->id : '', $comedor_presupuesto->mes);
+		if (!empty($alumnos)) {
+			$cantidad_alumnos = count($alumnos);
+		}
+
+		$data['mes'] = $comedor_presupuesto->mes;
+		$data['mes_nombre'] = $this->nombres_meses[substr($comedor_presupuesto->mes, 4, 2)] . '\'' . substr($comedor_presupuesto->mes, 2, 2);
+		$data['fields'] = $this->build_fields($this->division_model->fields, $division, TRUE);
+		$data['alumnos'] = $alumnos;
+		$data['cantidad_alumnos'] = $cantidad_alumnos;
+		$data['comedor_presupuesto'] = $comedor_presupuesto;
+		$data['division'] = $division;
+		$data['escuela'] = $escuela;
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['txt_btn'] = NULL;
+		$data['class'] = array('administrar' => '', 'ver' => 'active btn-app-zetta-active', 'editar' => '');
+		$data['title'] = TITLE . ' - Ver división';
+		$this->load_template('comedor/division/division_ver', $data);
+	}
+
+	public function editar($comedor_presupuesto_id = NULL, $division_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $comedor_presupuesto_id == NULL || !ctype_digit($comedor_presupuesto_id) || $division_id == NULL || !ctype_digit($division_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		
+		$comedor_presupuesto = $this->comedor_presupuesto_model->get_one($comedor_presupuesto_id);
+		if (empty($comedor_presupuesto)) {
+			show_error('No se encontró el registro del presupuesto', 500, 'Registro no encontrado');
+		}
+		
+		$comedor_plazo = $this->comedor_plazo_model->get(array('mes' => $comedor_presupuesto->mes));
+		if (!empty($comedor_plazo)) {
+			$fecha_actual = date('Y-m-d');
+			if ($fecha_actual >= $comedor_plazo[0]->fecha_cierre) {
+				redirect("comedor/escuela/ver/$comedor_presupuesto->id", 'refresh');
+			}
+		}
+		
+		$escuela = $this->escuela_model->get_one($comedor_presupuesto->escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		
+		$division = $this->division_model->get_one($division_id);
+		if (empty($division)) {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+
+		$alumnos = $this->comedor_alumno_model->get_alumnos_division($division->id, !(empty($comedor_presupuesto->id)) ? $comedor_presupuesto->id : '',$comedor_presupuesto->mes);
+		if ((empty($alumnos))) {
+			redirect("comedor/division/ver/$comedor_presupuesto->id/$division->id", 'refresh');
+		}
+
+		$this->array_comedor_racion_control = $array_comedor_racion = $this->get_array('comedor_racion', 'descripcion', 'id', null, array('' => '-- Sin ración --'));
+		foreach ($alumnos as $alumno) {
+			$this->form_validation->set_rules("comedor_racion[$alumno->id]", 'Ración', 'callback_control_combo[comedor_racion]');
+		}
+		if ($this->form_validation->run() === TRUE) {
+			foreach ($alumnos as $alumno) {
+				$this->form_validation->set_rules("comedor_racion[$alumno->id]", 'Ración', 'callback_control_combo[comedor_racion]');
+			}
+			if (isset($_POST) && !empty($_POST)) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$comedor_racion = $this->input->post('comedor_racion');
+				foreach ($comedor_racion as $alumno_division_id => $racion_id) {
+					if (!empty($racion_id)) {
+						if (empty($alumnos[$alumno_division_id]->comedor_alumno_id)) {
+							$trans_ok &= $this->comedor_alumno_model->create(array(
+								'comedor_presupuesto_id' => $comedor_presupuesto->id,
+								'alumno_division_id' => $alumno_division_id,
+								'comedor_racion_id' => $racion_id), FALSE);
+						} else {
+							$trans_ok &= $this->comedor_alumno_model->update(array(
+								'id' => $alumnos[$alumno_division_id]->comedor_alumno_id,
+								'comedor_racion_id' => $racion_id
+								), FALSE);
+						}
+					} else {
+						if (!empty($alumnos[$alumno_division_id]->comedor_alumno_id)) {
+							$trans_ok &= $this->comedor_alumno_model->delete(array('id' => $alumnos[$alumno_division_id]->comedor_alumno_id), FALSE);
+						}
+					}
+				}
+
+				$trans_ok &= $this->comedor_alumno_model->actualizar_alumnos($comedor_presupuesto->id);
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->comedor_alumno_model->get_msg());
+					redirect("comedor/division/ver/$comedor_presupuesto->id/$division->id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$this->session->set_flashdata('error', $this->comedor_alumno_model->get_error());
+					redirect("comedor/division/editar/$comedor_presupuesto->id/$division->id", 'refresh');
+				}
+			}
+		}
+		
+		$fields_raciones = array();
+		foreach ($alumnos as $alumno) {
+			$fields_raciones["comedor_racion[$alumno->id]"] = array('label' => 'Descripcion', 'input_type' => 'combo', 'class' => 'selectize', 'id_name' => 'comedor_racion_id', 'class' => 'racion', 'array' => $array_comedor_racion, 'value' => (!empty($alumno->comedor_racion_id) ? $alumno->comedor_racion_id : "Sin Racion" ));
+		}
+
+		$this->comedor_alumno_model->fields['comedor_racion']['array'] = $array_comedor_racion;
+
+		$data['mes_nombre'] = $this->nombres_meses[substr($comedor_presupuesto->mes, 4, 2)] . '\'' . substr($comedor_presupuesto->mes, 2, 2);
+		$data['mes'] = $comedor_presupuesto->mes;
+		$data['fields'] = $this->build_fields($this->division_model->fields, $division, TRUE);
+		$data['fields_raciones'] = $this->build_fields($fields_raciones);
+		$data['fields_racion_general'] = $this->build_fields($this->comedor_alumno_model->fields);
+		$data['alumnos'] = $alumnos;
+		$data['division'] = $division;
+		$data['escuela'] = $escuela;
+		$data['comedor_presupuesto'] = $comedor_presupuesto;
+		$data['message'] = $this->session->flashdata('message');
+		$data['error'] = $this->session->flashdata('error');
+		$data['txt_btn'] = "editar";
+		$data['class'] = array('administrar' => '', 'ver' => '', 'editar' => 'active btn-app-zetta-active');
+		$data['title'] = TITLE . ' - Ver división';
+		$this->load_template('comedor/division/division_editar', $data);
+	}
+}

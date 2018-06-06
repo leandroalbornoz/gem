@@ -1,0 +1,25 @@
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<?php foreach ($fields as $field): ?>
+		<div class="form-group">
+			<?php echo $field['label']; ?>
+			<?php echo $field['form']; ?>
+		</div>
+	<?php endforeach; ?>
+</div>
+<div class="modal-footer">
+	<button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+	<?php if ($respondible === '1'): ?>
+		<?php echo form_hidden('id', $mensaje->id); ?>
+		<?php if ($mensaje->de_tabla === 'escuela'): ?>
+			<a target="_blank" href="escuela/escritorio/<?php echo $mensaje->de_entidad_id; ?>" class="btn btn-primary pull-left" title="Ver escuela"><i class="fa fa-search"></i> Ver Escuela</a>
+		<?php endif; ?>
+		<button type="submit" class="btn btn-success pull-right" title="Responder" name="accion" value="responder">Responder</button>
+		<button type="submit" class="btn btn-warning pull-right" title="Marcar como leído/resuelto" name="accion" value="leer">Marcar como leído/resuelto</button>
+	<?php endif; ?>
+</div>
+<?php echo form_close(); ?>

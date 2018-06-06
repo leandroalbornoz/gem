@@ -1,0 +1,77 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Completamiento extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('escuela_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL,ROL_ASISTENCIA_DIVISION));
+		$this->roles_agregar = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_GRUPO_ESCUELA_CONSULTA, ROL_REGIONAL, ROL_ESCUELA_ALUM, ROL_ESCUELA_CAR))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'admin/escuela';
+	}
+
+	public function reporte_indicadores_pdf($escuela_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de la escuela', 500, 'Registro no encontrado');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+
+		$estadisticas = $this->db->query("
+										SELECT c.descripcion as curso, d.division as division, 
+COUNT(ad.id) total_alumnos,
+COUNT(CASE WHEN ad.ciclo_lectivo>=2018 THEN ad.id ELSE NULL END) alumnos_con_cl,
+COUNT(CASE WHEN (p.sexo_id IS NOT NULL AND p.fecha_nacimiento IS NOT NULL AND p.nombre IS NOT NULL AND p.apellido IS NOT NULL AND p.documento IS NOT NULL) THEN ad.id ELSE NULL END) as alumnos_con_datos,
+COUNT(CASE WHEN ad.ciclo_lectivo>=2018 THEN ad.id ELSE NULL END)/
+COUNT(ad.id) as porcentaje_con_cl,
+COUNT(CASE WHEN (p.sexo_id IS NOT NULL AND p.fecha_nacimiento IS NOT NULL AND p.nombre IS NOT NULL AND p.apellido IS NOT NULL AND p.documento IS NOT NULL) THEN ad.id ELSE NULL END)/
+COUNT(ad.id) as porcentaje_con_datos
+FROM alumno_division ad
+JOIN alumno a ON ad.alumno_id=a.id
+JOIN persona p ON a.persona_id=p.id
+JOIN division d ON ad.division_id=d.id 
+AND ad.fecha_hasta IS NULL
+JOIN curso c ON d.curso_id=c.id
+WHERE d.escuela_id=?
+GROUP BY d.id
+order by c.descripcion, d.division"
+				, array($escuela_id))->result();
+
+		$estadisticas_generales = $this->db->query(
+				"SELECT 
+COUNT(ad.id) total_alumnos,
+COUNT(CASE WHEN ad.ciclo_lectivo>=2018 THEN ad.id ELSE NULL END) alumnos_con_cl,
+COUNT(CASE WHEN (p.sexo_id IS NOT NULL AND p.fecha_nacimiento IS NOT NULL AND p.nombre IS NOT NULL AND p.apellido IS NOT NULL AND p.documento IS NOT NULL) THEN ad.id ELSE NULL END) as alumnos_con_datos,
+COUNT(CASE WHEN ad.ciclo_lectivo>=2018 THEN ad.id ELSE NULL END)/
+COUNT(ad.id) as porcentaje_con_cl,
+COUNT(CASE WHEN (p.sexo_id IS NOT NULL AND p.fecha_nacimiento IS NOT NULL AND p.nombre IS NOT NULL AND p.apellido IS NOT NULL AND p.documento IS NOT NULL) THEN ad.id ELSE NULL END)/
+COUNT(ad.id) as porcentaje_con_datos
+FROM alumno_division ad
+JOIN alumno a ON ad.alumno_id=a.id
+JOIN persona p on a.persona_id=p.id
+JOIN division d ON ad.division_id=d.id
+AND ad.fecha_hasta IS NULL
+WHERE d.escuela_id=?", array($escuela_id)
+			)->row();
+		$data['estadisticas_generales'] = $estadisticas_generales;
+		$data['error'] = $this->session->flashdata('error');
+		$data['estadisticas'] = $estadisticas;
+		$data['escuela'] = $escuela;
+
+		$fecha_actual = date('d/m/Y');
+		$content = $this->load->view('completamiento/reporte_indicadores_pdf', $data, TRUE);
+		$this->load->helper('mpdf');
+		$watermark = '';
+		exportMPDF($content, 'plugins/kv-mpdf-bootstrap.min.css', 'Reporte de actualización de datos', 'Reporte de actualización de datos - Esc. " ' . $escuela->numero . ' - Fecha de generación: ' . $fecha_actual, '|{PAGENO} de {nb}|', '', $watermark, 'I', FALSE, FALSE);
+	}
+}

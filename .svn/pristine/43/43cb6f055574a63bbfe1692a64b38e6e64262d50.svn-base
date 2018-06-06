@@ -1,0 +1,593 @@
+<script>
+	$(document).ready(function() {
+		$('#cuil').inputmask('99-99999999-9');
+	});
+</script>
+<style>
+	td.child>ul{
+		width:100%;
+	}
+</style>
+
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Personas
+		</h1>
+		<ol class="breadcrumb">
+			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
+			<li><a href="<?php echo $controlador; ?>">Personas</a></li>
+			<li class="active"><?php echo ucfirst($metodo); ?></li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary">
+					<div class="box-header with-border">
+						<h3 class="box-title">
+							<div class="row">
+								<div class="col-md-12">
+									<h4><?php echo "$persona->apellido, $persona->nombre ($persona->documento_tipo $persona->documento - CUIL: $persona->cuil)"; ?>
+									</h4>
+								</div>
+							</div>
+						</h3>
+					</div>
+					<?php echo form_open(uri_string(), array('data-toggle' => 'validator')); ?>
+					<div class="box-body">
+						<a class="btn btn-app btn-app-zetta <?php echo $class['ver']; ?>" href="persona/ver/<?php echo $persona->id; ?>">
+							<i class="fa fa-search"></i> Ver
+						</a>
+						<?php if ($edicion): ?>
+							<a class="btn btn-app btn-app-zetta <?php echo $class['editar']; ?>" href="persona/editar/<?php echo $persona->id; ?>">
+								<i class="fa fa-edit"></i> Editar
+							</a>
+						<?php endif; ?>
+						<?php if ($this->rol->codigo === ROL_ADMIN || $this->rol->codigo === ROL_USI): ?>
+							<a class="btn btn-app btn-app-zetta" href="persona/liquidacion/<?php echo $persona->id; ?>">
+								<i class="fa fa-money"></i> Liquidación
+							</a>
+						<?php endif; ?>
+						<?php if ($txt_btn === 'Editar'): { ?>
+								<div class="row">
+									<div class="form-group col-md-2">
+										<?php echo $fields['apellido']['label']; ?>
+										<?php echo $fields['apellido']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['nombre']['label']; ?>
+										<?php echo $fields['nombre']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['cuil']['label']; ?>
+										<span class="label label-danger" id="cuil_existente"></span>
+										<?php echo $fields['cuil']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento_tipo']['label']; ?>
+										<?php echo $fields['documento_tipo']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['documento']['label']; ?>
+										<span class="label label-danger" id="documento_existente"></span>
+										<?php echo $fields['documento']['form']; ?>
+									</div>
+								</div>
+							<?php }endif; ?>
+						<ul class="nav nav-tabs" role="tablist">
+							<li role="presentation" class="active"><a href="#tab_personales" aria-controls="tab_personales" role="tab" data-toggle="tab">Datos Personales</a></li>
+							<li role="presentation"><a href="#tab_domicilio" aria-controls="tab_domicilio" role="tab" data-toggle="tab">Datos Domicilio</a></li>
+							<li role="presentation"><a href="#tab_familiares" aria-controls="tab_familiares" role="tab" data-toggle="tab">Datos Familiares</a></li>
+							<li role="presentation"><a href="#tab_servicios" aria-controls="tab_servicios" role="tab" data-toggle="tab">Servicios</a></li>
+							<li role="presentation"><a href="#tab_trayectoria" aria-controls="tab_trayectoria" role="tab" data-toggle="tab">Trayectoria de alumno</a></li>
+							<?php if (ENVIRONMENT !== 'production'): ?>
+								<li role="presentation"><a href="#tab_reporte_horario" aria-controls="tab_reporte_horario" role="tab" data-toggle="tab">Reporte horario</a></li>
+							<?php endif; ?>
+						</ul>
+						<div class="tab-content">
+							<div id="tab_personales" role="tabpanel" class="tab-pane active">
+								<div class="row">
+									<div class="form-group col-md-3">
+										<?php echo $fields['sexo']['label']; ?>
+										<?php echo $fields['sexo']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['fecha_nacimiento']['label']; ?>
+										<?php echo $fields['fecha_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['nacionalidad']['label']; ?>
+										<?php echo $fields['nacionalidad']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['estado_civil']['label']; ?>
+										<?php echo $fields['estado_civil']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['nivel_estudio']['label']; ?>
+										<?php echo $fields['nivel_estudio']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['ocupacion']['label']; ?>
+										<?php echo $fields['ocupacion']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['grupo_sanguineo']['label']; ?>
+										<?php echo $fields['grupo_sanguineo']['form']; ?>
+									</div>
+									<div class="form-group col-md-12">
+										<?php echo $fields['obra_social']['label']; ?>
+										<?php echo $fields['obra_social']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['depto_nacimiento']['label']; ?>
+										<?php echo $fields['depto_nacimiento']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['fecha_defuncion']['label']; ?>
+										<?php echo $fields['fecha_defuncion']['form']; ?>
+									</div>
+									<div class="form-group col-md-6">
+										<?php echo $fields['lugar_traslado_emergencia']['label']; ?>
+										<?php echo $fields['lugar_traslado_emergencia']['form']; ?>
+									</div>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="tab_domicilio">
+								<div class="row">
+									<div class="form-group col-md-5">
+										<?php echo $fields['calle']['label']; ?>
+										<?php echo $fields['calle']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['calle_numero']['label']; ?>
+										<?php echo $fields['calle_numero']['form']; ?>
+									</div>
+									<div class="form-group col-md-5">
+										<?php echo $fields['localidad']['label']; ?>
+										<?php echo $fields['localidad']['form']; ?>
+									</div>
+									<div class="form-group col-md-5">
+										<?php echo $fields['barrio']['label']; ?>
+										<?php echo $fields['barrio']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['manzana']['label']; ?>
+										<?php echo $fields['manzana']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['casa']['label']; ?>
+										<?php echo $fields['casa']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['departamento']['label']; ?>
+										<?php echo $fields['departamento']['form']; ?>
+									</div>
+									<div class="form-group col-md-1">
+										<?php echo $fields['piso']['label']; ?>
+										<?php echo $fields['piso']['form']; ?>
+									</div>
+									<div class="form-group col-md-2">
+										<?php echo $fields['telefono_fijo']['label']; ?>
+										<?php echo $fields['telefono_fijo']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['telefono_movil']['label']; ?>
+										<?php echo $fields['telefono_movil']['form']; ?>
+									</div>
+									<div class="form-group col-md-3">
+										<?php echo $fields['prestadora']['label']; ?>
+										<?php echo $fields['prestadora']['form']; ?>
+									</div>
+									<div class="form-group col-md-4">
+										<?php echo $fields['email']['label']; ?>
+										<?php echo $fields['email']['form']; ?>
+									</div>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="tab_familiares">
+								<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid">
+									<thead>
+										<tr style="background-color: #f4f4f4" >
+											<th style="text-align: center;" colspan="11">
+												Familiares y Parientes
+											</th>
+										</tr>
+										<tr>
+											<th>Parentesco</th>
+											<th>Documento</th>
+											<th>Apellido</th>
+											<th>Nombre</th>
+											<th>Nivel de estudios</th>
+											<th>Ocupacion</th>
+											<th>Celular</th>
+											<th>Email</th>
+											<th>Convive</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php $madre = FALSE; ?>
+										<?php $padre = FALSE; ?>
+										<?php if (!empty($parientes)): ?>
+											<?php foreach ($parientes as $pariente): ?>
+												<?php $madre |= $pariente->parentesco === 'Madre'; ?>
+												<?php $padre |= $pariente->parentesco === 'Padre'; ?>
+												<tr>
+													<td><?= $pariente->parentesco; ?></td>
+													<td><?= $pariente->documento; ?></td>
+													<td><?= $pariente->apellido; ?></td>
+													<td><?= $pariente->nombre; ?></td>
+													<td><?= $pariente->nivel_estudio; ?></td>
+													<td><?= $pariente->ocupacion; ?></td>
+													<td><?= $pariente->telefono_movil; ?></td>
+													<td><?= $pariente->email; ?></td>
+													<?php if ($pariente->convive == 1): ?>
+														<td><?php echo 'SI'; ?></td>
+													<?php else: ?>
+														<td><?php echo 'NO'; ?></td>
+													<?php endif; ?>
+													<td>
+														<a class="btn btn-xs btn-default" href="persona/ver/<?php echo $pariente->pariente_id; ?>">
+															<i class="fa fa-search"></i> Ver
+														</a>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										<?php else : ?>
+											<tr>
+												<td style="text-align: center;" colspan="11">
+													-- No tiene --
+												</td>
+											</tr>
+										<?php endif; ?>
+										<tr style="background-color: #f4f4f4">
+											<th colspan="11" style="text-align: center;padding-right: 2%;">Familiares a su cargo</th>
+										</tr>
+										<tr>
+											<th>Parentesco</th>
+											<th>Documento</th>
+											<th colspan="7">Apellido y nombre</th>
+											<th></th>
+										</tr>
+										<?php if (!empty($hijos)): ?>
+											<?php foreach ($hijos as $hijo): ?>
+												<tr>
+													<td><?= $hijo->parentesco . ' de:'; ?></td>
+													<td><?= $hijo->documento; ?></td>
+													<td><?= $hijo->alumno; ?></td>
+													<td colspan="7"></td>
+													<td>
+														<a class="btn btn-xs btn-default" href="persona/ver/<?php echo $hijo->persona_id; ?>">
+															<i class="fa fa-search"></i> Ver
+														</a>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										<?php else : ?>
+											<tr>
+												<td style="text-align: center;" colspan="11">
+													-- No tiene personas a su cargo --
+												</td>
+											</tr>
+										<?php endif; ?>
+									</tbody>
+								</table>
+								<div class="row">
+									<?php if (!$padre && (!empty($alumno->documento_padre) || !empty($alumno->nombre_padre))): ?>
+										<div class="col-sm-6">
+											<label>Padre (SIGA)</label>
+											<input class="form-control" readonly value="<?= "$alumno->documento_padre $alumno->nombre_padre"; ?>">
+										</div>
+									<?php endif; ?>
+									<?php if (!$madre && (!empty($alumno->documento_madre) || !empty($alumno->nombre_madre))): ?>
+										<div class="col-sm-6">
+											<label>Madre (SIGA)</label>
+											<input class="form-control" readonly value="<?= "$alumno->documento_madre $alumno->nombre_madre"; ?>">
+										</div>
+									<?php endif; ?>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane"  id="tab_servicios">
+								<?php if (!empty($servicios)): ?>
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid" id="servicio_table" style="width:100% !important">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="10">
+													Servicios
+												</th>
+											</tr>
+											<tr>
+												<th></th>
+												<th>Liquidación</th>
+												<th>S.R.</th>
+												<th>Escuela/Area</th>
+												<th>División</th>
+												<th>Régimen/Materia</th>
+												<th>Hs. Cát.</th>
+												<th>Fecha alta</th>
+												<th>Fecha baja</th>
+												<th></th>
+												<th class="none">Observaciones</th>
+												<th class="none">F.Detalle</th>
+												<th class="none">F.Destino</th>
+												<th class="none">F.Norma</th>
+												<th class="none">F.Tarea</th>
+												<th class="none">F.Hs.</th>
+												<th class="none">F.Desde</th>
+												<th class="none">Motivo Baja</th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach ($servicios as $servicio): ?>
+												<tr class="<?= empty($servicio->fecha_baja) ? '' : 'bg-gray'; ?>">
+													<td></td>
+													<td><?= $servicio->liquidacion . (empty($servicio->tbcabh_id) ? '<i class="fa fa-times text-red"></i>' : '<i class="fa fa-check text-green"></i>'); ?></td>
+													<td><?= $servicio->situacion_revista; ?></td>
+													<td><?php echo empty($servicio->area) ? $servicio->escuela : $servicio->area; ?></td>
+													<td class="dt-body-center"><?= $servicio->division; ?></td>
+													<td><?= "$servicio->regimen_codigo-$servicio->regimen<br/>$servicio->materia"; ?></td>
+													<td class="dt-body-center"><?= $servicio->carga_horaria; ?></td>
+													<td><?= empty($servicio->fecha_alta) ? '' : (new DateTime($servicio->fecha_alta))->format('d/m/Y'); ?></td>
+													<td><?= empty($servicio->fecha_baja) ? '' : (new DateTime($servicio->fecha_baja))->format('d/m/Y'); ?></td>
+													<td>
+														<a class="pull-right btn btn-xs btn-default" href="servicio/ver/<?= $servicio->id; ?>"><i class="fa fa-search"></i></a>
+													</td>
+													<td><?= $servicio->observaciones; ?></td>
+													<td><?= $servicio->f_detalle; ?></td>
+													<td><?= $servicio->f_destino; ?></td>
+													<td><?= $servicio->f_norma; ?></td>
+													<td><?= $servicio->f_tarea; ?></td>
+													<td><?= $servicio->f_carga_horaria; ?></td>
+													<td><?= empty($servicio->f_fecha_desde) ? '' : (new DateTime($servicio->f_fecha_desde))->format('d/m/Y'); ?></td>
+													<td><?= $servicio->motivo_baja; ?></td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								<?php else: ?>
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid" style="width:100% !important">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="10">
+													Servicios
+												</th>
+											</tr>
+											<tr>
+												<th></th>
+												<th>Liquidación</th>
+												<th>S.R.</th>
+												<th>Escuela/Area</th>
+												<th>División</th>
+												<th>Régimen/Materia</th>
+												<th>Hs. Cát.</th>
+												<th>Fecha alta</th>
+												<th>Fecha baja</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td style="text-align: center;" colspan="10">
+													-- Sin servicios --
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								<?php endif; ?>
+								<table class="table table-hover table-bordered table-condensed table-responsive dt-responsive dataTable no-footer dtr-inline text-sm" role="grid" id="liquidacion_table" style="width:100% !important">
+									<thead>
+										<tr style="background-color: #f4f4f4" >
+											<th style="text-align: center;" colspan="12">Liquidaciones</th>
+										</tr>
+										<tr>
+											<th>Servicio</th>
+											<th>Cobra<br/>sueldo</th>
+											<th>Año-Mes<br/>Periodo</th>
+											<th>N°Liquidación</th>
+											<th>S.R.</th>
+											<th>Repartición<br/>Escuela</th>
+											<th>Régimen</th>
+											<th>Clase</th>
+											<th>Hs/Días</th>
+											<th>Fecha alta<br/>(Mes-Año)</th>
+											<th>Fecha baja<br/>(Mes-Año)</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php if (!empty($liquidaciones)): ?>
+											<?php foreach ($liquidaciones as $liquidacion): ?>
+												<tr class="<?= $liquidacion->vigente === AMES_LIQUIDACION ? '' : 'bg-gray'; ?>">
+													<td><?= empty($liquidacion->servicio_id) ? '<i class="fa fa-times text-red"></i>' : form_hidden('servicio', $liquidacion->servicio_id) . '<i class="fa fa-check text-green"></i>'; ?></td>
+													<td><?= $liquidacion->SINSUELDO === '1' ? '<i class="fa fa-times text-red"></i>' : '<i class="fa fa-check text-green"></i>'; ?></td>
+													<td><?= $liquidacion->vigente . '<br/>' . $liquidacion->periodo; ?></td>
+													<td><?= $liquidacion->liquidacion_s; ?></td>
+													<td><?= $liquidacion->REVISTA; ?></td>
+													<td><?= "$liquidacion->juri/$liquidacion->repa<br/>" . (empty($liquidacion->guiescid) ? $liquidacion->reparticion : "Esc. $liquidacion->guiescid"); ?></td>
+													<td><?= "$liquidacion->regimen<br/>$liquidacion->RegSalDes"; ?></td>
+													<td><?= str_pad($liquidacion->diasoblig, 4, '0', STR_PAD_LEFT); ?></td>
+													<td><?= $liquidacion->diashorapag; ?></td>
+													<td><?= substr($liquidacion->fechaini, 0, 2) . '-' . substr($liquidacion->fechaini, 2); ?></td>
+													<td><?= substr($liquidacion->fechafin, 0, 2) . '-' . substr($liquidacion->fechafin, 2); ?></td>
+													<td>
+														<a href="tbcabh/modal_ver/<?= "$liquidacion->id/$liquidacion->vigente"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default"><i class="fa fa-search"></i></a>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										<?php else: ?>
+											<tr>
+												<td style="text-align: center;" colspan="12">
+													--- Sin liquidaciones --
+												</td>
+											</tr>
+										<?php endif; ?>
+									</tbody>
+								</table>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="tab_trayectoria">
+								<?php if (!empty($alumno[0]->division_id)): ?>
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" id="alumno_table" role="grid" style="width:100% !important">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="8">Trayectoria alumno</th>
+											</tr>
+											<tr>
+												<th>Ciclo lectivo</th>
+												<th>Escuela</th>
+												<th>Division</th>
+												<th colspan="2">Ingreso</th>
+												<th colspan="2">Egreso</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php foreach ($alumno as $campo): ?>
+												<tr>
+													<td><?= $campo->ciclo_lectivo ?></td>
+													<td><?= $campo->escuela ?></td>
+													<td><?= $campo->division2 ?></td>
+													<td><?= empty($campo->fecha_desde) ? '' : (new DateTime($campo->fecha_desde))->format('d/m/y'); ?></td>
+													<td class="text-sm"><?= $campo->causa_entrada; ?></td>
+													<td><?= empty($campo->fecha_hasta) ? '' : (new DateTime($campo->fecha_hasta))->format('d/m/y'); ?></td>
+													<td class="text-sm"><?= $campo->causa_salida; ?></td>
+													<td>
+														<a class="pull-right btn btn-xs btn-default" href="alumno/ver/<?= $campo->division_id ?>"><i class="fa fa-search"></i></a>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								<?php else: ?>
+									<table class="table table-hover table-bordered table-condensed dt-responsive dataTable no-footer dtr-inline" role="grid" style="width:100% !important">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="5">Trayectoria alumno</th>
+											</tr>
+											<tr>
+												<th>Ciclo lectivo</th>
+												<th>Escuela</th>
+												<th>Division</th>
+												<th>Fecha ingreso</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td style="text-align: center;" colspan="5">
+													-- Sin trayectoria de alumno --
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								<?php endif; ?>
+							</div>
+							<?php if (ENVIRONMENT !== 'production'): ?>
+								<div role="tabpanel" class="tab-pane" id="tab_reporte_horario">
+									<table class="table table-hover table-bordered table-condensed table-responsive dt-responsive dataTable no-footer dtr-inline text-sm" role="grid" id="reporte_horario_table" style="width:100% !important">
+										<thead>
+											<tr style="background-color: #f4f4f4" >
+												<th style="text-align: center;" colspan="12">Reporte Horario</th>
+											</tr>
+											<tr>
+												<th>Escuela/Area</th>
+												<th>División</th>
+												<th>Régimen/Materia</th>
+												<th>Carga Horaria</th>
+												<th style="text-align: center;" colspan="7">
+													Horario
+												</th>
+												<th></th>
+											</tr>
+											<tr>
+												<th></th>
+												<th></th>
+												<th></th>
+												<th></th>
+												<th>Lunes</th>
+												<th>Martes</th>
+												<th>Miercoles</th>
+												<th>Jueves</th>
+												<th>Viernes</th>
+												<th>Sabado</th>
+												<th>Domingo</th>
+												<th></th>
+											</tr>
+										</thead>
+										<?php if (!empty($horarios_servicios)): ?>
+											<tbody>
+												<?php foreach ($horarios_servicios as $horario_servicio): ?>
+													<tr>
+														<td>
+															<?php echo empty($horario_servicio->area) ? $servicio->escuela : $horario_servicio->area; ?>
+														</td>
+														<td class="dt-body-center">
+															<?= empty($horario_servicio->division) ? "-" : $horario_servicio->division ?>
+														</td>
+														<td>
+															<?= "$horario_servicio->regimen_codigo-$horario_servicio->regimen_descripcion<br>$horario_servicio->materia" ?>
+														</td>
+														<td class="dt-body-center">
+															<?= $horario_servicio->regimen_tipo_id === '2' ? "$horario_servicio->carga_horaria Hs <br>" : ''; ?>
+															<?= $horario_servicio->sf_detalle; ?>
+														</td>
+														<?php for ($dia = 1; $dia <= 7; $dia++): ?>
+															<td class="dt-body-center">
+																<?php if (isset($horario_servicio->dias[$dia])): ?>
+																	<?php foreach ($horario_servicio->dias[$dia]->horarios as $horario): ?>
+																		<?php echo substr($horario->hora_desde, 0, 5) . '-' . substr($horario->hora_hasta, 0, 5); ?>
+																		<br/>
+																	<?php endforeach; ?>
+																<?php endif; ?>
+															</td>
+														<?php endfor; ?>
+														<td><a class="pull-right btn btn-xs btn-default" href="servicio/ver/<?= $horario_servicio->servicio_id; ?>"><i class="fa fa-search"></i></a></td>
+													</tr>
+												<?php endforeach; ?>
+											</tbody>
+										<?php endif; ?>
+									</table>
+								</div>
+							<?php endif; ?>
+						</div>
+					</div>
+					<div class="box-footer">
+						<?php if ($txt_btn === 'ver' || $txt_btn === 'Editar'): ?>
+							<a class="btn btn-default" href="<?php echo ($txt_btn === 'ver') ? "persona/listar" : "persona/ver/$persona->id"; ?>" title="<?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?>"><?php echo ($txt_btn === 'ver') ? 'Volver' : 'Cancelar'; ?></a>
+							<?php echo ($txt_btn === 'Editar') ? '<input type="submit" value="Guardar" class="btn btn-primary pull-right" title="Guardar" id="Guardar">' : ''; ?>
+							<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $persona->id) : ''; ?>
+						<?php else: ?>
+							<a class="btn btn-default" href="persona/listar" title="Volver">Volver</a>
+						<?php endif; ?>
+					</div>
+					<?php echo form_close(); ?>
+				</div>
+			</div>
+		</div>
+	</section>
+</div>
+<script>
+	$(document).ready(function() {
+		$('#servicio_table,#alumno_table,#reporte_horario_table').DataTable({
+			dom: 't',
+			autoWidth: false,
+			paging: false,
+			ordering: false
+		});
+	});
+</script>

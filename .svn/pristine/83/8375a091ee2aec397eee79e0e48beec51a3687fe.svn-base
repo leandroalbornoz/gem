@@ -1,0 +1,646 @@
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Escritorio Escuela
+		</h1>
+		<ol class="breadcrumb">
+			<li class="active"><i class="fa fa-home"></i> Inicio</li>
+		</ol>
+	</section>
+	<section class="content">
+		<?php if (!empty($error)) : ?>
+			<div class="alert alert-danger alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-ban"></i> Error!</h4>
+				<?php echo $error; ?>
+			</div>
+		<?php endif; ?>
+		<?php if (!empty($message)) : ?>
+			<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+				<h4><i class="icon fa fa-check"></i> OK!</h4>
+				<?php echo $message; ?>
+			</div>
+		<?php endif; ?>
+		<div class="row">
+			<?php if (!empty($anuncios)): ?>
+				<?php $cant_anuncios = count($anuncios); ?>
+				<div class="col-xs-12">
+					<div class="box box-warning collapsed-box">
+						<div class="box-header with-border">
+							<h3 class="box-title"><b><?php echo (new DateTime($anuncios[0]->fecha))->format('d/m/Y') . ' ' . $anuncios[0]->titulo; ?></b></h3>
+							<div class="box-tools pull-right">
+								<?php if ($cant_anuncios > 1): ?>
+									<a class="btn btn-primary btn-xs" href="escuela/anuncios/<?php echo $this->usuario . "/" . $escuela->id; ?>">
+										<i class="fa fa-list"></i> Ver todos los anuncios (<?= $cant_anuncios; ?>)
+									</a>
+								<?php endif; ?>
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<?php echo $anuncios[0]->texto; ?>
+						</div>
+					</div>
+				</div>
+			<?php endif; ?>
+			<?php if (!empty($liquidaciones)): ?>
+				<div class="col-xs-6">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+							<h3 class="box-title"><label>Escuela</label> <?php echo "$escuela->nombre_largo" . (empty($escuela->cue) ? '' : " - <label>CUE:</label> $escuela->cue"); ?></h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<div class="row">
+								<div class="col-sm-12"><label>Nivel:</label> <?php echo $escuela->nivel; ?></div>
+								<div class="col-sm-12"><label>Supervisión:</label> <?php echo $escuela->supervision; ?></div>
+								<div class="col-sm-12"><label>Domicilo:</label> <?php echo "$escuela->calle $escuela->calle_numero $escuela->localidad"; ?></div>
+								<div class="col-sm-6"><label>Telefono:</label> <?php echo $escuela->telefono; ?></div>
+								<div class="col-sm-6"><label>Email:</label> <?php echo $escuela->email; ?></div>
+							</div>
+						</div>
+						<?php if ($administrar && $this->rol->codigo != ROL_ESCUELA_ALUM): ?>
+							<div class="box-footer">
+								<a class="btn btn-primary" href="escuela/editar/<?php echo $escuela->id; ?>">
+									<i class="fa fa-edit" id="btn-editar"></i> Editar
+								</a>
+							</div>
+						<?php endif; ?>
+					</div>
+				</div>
+				<div class="col-xs-6">
+					<?php echo $liquidaciones; ?>
+				</div>
+			<?php else: ?>
+				<div class="col-xs-12">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+							<h3 class="box-title"><label>Escuela</label> <?php echo "$escuela->nombre_largo" . (empty($escuela->cue) ? '' : " - <label>CUE:</label> $escuela->cue"); ?></h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<div class="row">
+								<div class="col-sm-6"><label>Nivel:</label> <?php echo $escuela->nivel; ?></div>
+								<div class="col-sm-6"><label>Supervisión:</label> <?php echo $escuela->supervision; ?></div>
+								<div class="col-sm-12"><label>Domicilo:</label> <?php echo "$escuela->calle $escuela->calle_numero $escuela->localidad"; ?></div>
+								<div class="col-sm-6"><label>Telefono:</label> <?php echo $escuela->telefono; ?></div>
+								<div class="col-sm-6"><label>Email:</label> <?php echo $escuela->email; ?></div>
+							</div>
+						</div>
+						<?php if ($administrar && $this->rol->codigo != ROL_ESCUELA_ALUM): ?>
+							<div class="box-footer">
+								<a class="btn btn-primary" href="escuela/editar/<?php echo $escuela->id; ?>">
+									<i class="fa fa-edit" id="btn-editar"></i> Editar
+								</a>
+							</div>
+						<?php endif; ?>
+					</div>
+				</div>
+			<?php endif; ?>
+			<div class="col-xs-12">
+				<div class="box box-primary collapsed-box">
+					<div class="box-header with-border">
+						<h3 class="box-title">Características</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i></button>
+						</div>
+					</div>
+					<div class="box-body ">
+						<?php if (!empty($fields_tipos)): ?>
+							<ul class="nav nav-tabs" role="tablist">
+								<?php $tab_class = 'active'; ?>
+								<?php foreach ($fields_tipos as $tipo => $fields_caracteristicas): ?>
+									<li role="presentation" class="<?= $tab_class; ?>"><a href="#<?= strtolower(str_replace(' ', '_', $tipo)); ?>" aria-controls="<?= strtolower(str_replace(' ', '_', $tipo)); ?>" role="tab" data-toggle="tab"><?= $tipo; ?></a></li>
+									<?php $tab_class = ''; ?>
+								<?php endforeach; ?>
+							</ul>
+							<div class="tab-content">
+								<?php $tab_class = 'active'; ?>
+								<?php foreach ($fields_tipos as $tipo => $fields_caracteristicas): ?>
+									<div role="tabpanel" class="tab-pane <?= $tab_class; ?>" id="<?= strtolower(str_replace(' ', '_', $tipo)); ?>">
+										<?php $tab_class = ''; ?>
+										<div class="row">
+											<?php foreach ($fields_caracteristicas as $field): ?>
+												<div class="form-group col-sm-3">
+													<?php echo $field['label']; ?>
+													<?php echo $field['form']; ?>
+												</div>
+											<?php endforeach; ?>
+										</div>
+									</div>
+								<?php endforeach; ?>
+							</div>
+						<?php endif; ?>
+					</div>
+					<?php if ($administrar && $this->rol->codigo != ROL_ESCUELA_ALUM): ?>
+						<div class="box-footer">
+							<a class="btn btn-primary" href="escuela/caracteristicas/<?php echo $escuela->id; ?>">
+								<i class="fa fa-edit" id="btn-caracteristicas"></i> Editar características
+							</a>
+						</div>
+					<?php endif; ?>
+				</div>
+			</div>
+			<?php if (isset($anexos) && !empty($anexos)): ?>
+				<?php if ($escuela->anexo == 0): ?>
+					<div class="col-xs-12">
+						<div class="box box-primary">
+							<div class="box-header with-border">
+								<h3 class="box-title">Anexos</h3>
+								<div class="box-tools pull-right">
+									<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+								</div>
+							</div>
+							<div class="box-body ">
+								<table class="table table-condensed table-bordered table-striped table-hover">
+									<tr>
+										<th colspan="9" style="text-align:center;">Lista de anexos</th>
+									</tr>
+									<tr>
+										<th>Anexo</th>
+										<th>CUE</th>
+										<th>Escuela</th>
+										<th>Nivel</th>
+										<th>Juri/Repa</th>
+										<th>Supervisión</th>
+										<th>Regional</th>
+										<th>Zona</th>
+										<th style="width: 20px;"></th>
+									</tr>
+									<?php foreach ($anexos as $anexo): ?>
+										<tr>
+											<td><?= $anexo->anexo; ?></td>
+											<td><?= $anexo->cue; ?></td>
+											<td><?= "$anexo->numero - $anexo->nombre"; ?></td>
+											<td><?= $anexo->nivel; ?></td>
+											<td><?= $anexo->jurirepa; ?></td>
+											<td><?= $anexo->supervision; ?></td>
+											<td><?= $anexo->regional; ?></td>
+											<td><?= $anexo->zona; ?></td>
+											<td>
+												<?php if ($administrar): ?>
+													<a class="btn btn-xs" href="escuela/escritorio/<?php echo $anexo->escuela_id; ?>"><i class="fa fa-search"></i></a>
+												<?php endif; ?>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								</table>
+							</div>
+						</div>
+					</div>
+				<?php endif; ?>
+			<?php endif; ?>
+			<?php if ($escuela->nivel_id === '2' && $escuela->dependencia_id === '1'): ?>
+				<div class="col-xs-12">
+					<div class="box box-warning">
+						<div class="box-header with-border">
+							<h3 class="box-title">Ingreso a 1° Grado - Ciclo Lectivo 2018</h3>
+							&nbsp;
+							<a class="btn btn-primary btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="preinscripciones/escuela/modal_consultar_estado"><i class="fa fa-search"></i> Consulta de Alumnos</a>
+							<a class="btn btn-primary btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="preinscripciones/escuela/modal_vacantes_generales"><i class="fa fa-search"></i> Consulta de Escuelas con Vacantes</a>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<table class="table table-condensed table-bordered table-striped table-hover">
+								<tr>
+									<th colspan="5" style="text-align:center;">Calendario</th>
+								</tr>
+								<tr>
+									<th>Instancia</th>
+									<th>Desde</th>
+									<th>Hasta</th>
+									<th>Estado</th>
+									<th>
+									</th>
+								</tr>
+								<?php $fecha = date('Y-m-d'); ?>
+								<tr>
+									<td><?php echo $preinscripcion_instancias[0]->descripcion; ?></td>
+									<td><?php echo (new DateTime($preinscripcion_instancias[0]->desde))->format('d/m/Y'); ?></td>
+									<td><?php echo (new DateTime($preinscripcion_instancias[0]->hasta))->format('d/m/Y'); ?></td>
+									<td>
+										<?php
+										if (isset($preinscripcion)) {
+											echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->vacantes . ' Vacantes declaradas</span>';
+										} else {
+											echo '<span><i class="fa fa-times text-red"></i> -- Falta declarar vacantes -- </span>';
+										}
+										?>
+									</td>
+									<?php if ($administrar): ?>
+										<?php if ($fecha >= $preinscripcion_instancias[0]->desde): ?>
+											<?php if (empty($preinscripcion->id)): ?>
+												<td>
+													<a class="btn btn-primary btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="preinscripciones/escuela/<?php echo (!empty($preinscripcion->id)) ? 'editar_vacantes/' . $preinscripcion->id : 'instancia_0/2018/' . $escuela->id; ?>/escuela"><i class="fa fa-edit"></i> <?php echo (!empty($preinscripcion->id)) ? 'Editar' : 'Cargar'; ?> vacantes</a>
+												</td>
+											<?php elseif ($fecha <= $preinscripcion_instancias[0]->hasta): ?>
+												<td>
+													<a class="btn btn-primary btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="preinscripciones/escuela/<?php echo (!empty($preinscripcion->id)) ? 'editar_vacantes/' . $preinscripcion->id : 'instancia_0/2018/' . $escuela->id; ?>/escuela"><i class="fa fa-edit"></i> <?php echo (!empty($preinscripcion->id)) ? 'Editar' : 'Cargar'; ?> vacantes</a>
+												</td>
+											<?php else: ?>
+												<td>
+													<a class="btn btn-primary btn-xs" data-remote="false" data-toggle="modal" data-target="#remote_modal" href="preinscripciones/escuela/<?php echo (!empty($preinscripcion->id)) ? 'ver_vacantes/' . $preinscripcion->id : '' ?>"><i class="fa fa-search"></i> Ver vacantes</a>
+												</td>
+											<?php endif; ?>
+										<?php endif; ?>
+									<?php endif; ?>
+								</tr>
+								<?php
+								for ($i = 1; $i < count($preinscripcion_instancias); $i++):
+									?>
+									<?php $instancia = $preinscripcion_instancias[$i]; ?>
+									<tr>
+										<td><?php
+											echo $instancia->descripcion;
+											switch ($instancia->instancia) {
+												case '1': echo " - Inscripción Directa";
+													break;
+												case '2': echo " - Nuevos Aspirantes";
+													break;
+												case '3': echo " - Derivación de Alumnos";
+													break;
+												case '4': echo " - Casos Particulares";
+													break;
+											}
+											?></td>
+										<td><?php echo (new DateTime($instancia->desde))->format('d/m/Y'); ?></td>
+										<td><?php echo (new DateTime($instancia->hasta))->format('d/m/Y'); ?></td>
+										<td>
+											<?php
+											switch ($instancia->instancia) {
+												case '1':
+													if (isset($preinscripcion) && $preinscripcion->instancia_1 !== '0') {
+														echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->instancia_1 . ' Alumnos inscriptos</span><br/>';
+														echo '<span><i class="fa fa-check text-green"></i> ' . ($preinscripcion->vacantes - $preinscripcion->instancia_1) . ' Vacantes disponibles</span>';
+													} else {
+														echo '<span><i class="fa fa-times text-red"></i> -- Sin alumnos inscriptos -- </span>';
+													}
+													break;
+												case '2':
+													if (isset($preinscripcion) && ($preinscripcion->instancia_2_i !== '0' || ($preinscripcion->vacantes - $preinscripcion->instancia_1) === 0)) {
+														echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->instancia_2_i . ' Alumnos inscriptos</span><br/>';
+														echo '<span><i class="fa fa-check text-green"></i> ' . ($preinscripcion->vacantes - $preinscripcion->instancia_1 - $preinscripcion->instancia_2_i) . ' Vacantes disponibles</span><br>';
+														echo '<span><i class="fa fa-check text-green"></i> ' . ($preinscripcion->instancia_2_p + (isset($preinscripcion->instancia_3_d) ? $preinscripcion->instancia_3_d : 0)) . ' Alumnos Postulantes/Excedentes</span>';
+													} else {
+														echo '<span><i class="fa fa-times text-red"></i> -- Sin alumnos inscriptos -- </span>';
+													}
+													break;
+												case '3':
+													if (isset($preinscripcion) && ($preinscripcion->instancia_3_d > 0)) {
+														echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->instancia_3_d . ' Postulantes Derivados</span><br/>';
+													} elseif (isset($preinscripcion->instancia_3_i) && ($preinscripcion->instancia_3_i) > 0) {
+														echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->instancia_3_i . ' Alumnos Recibidos</span><br/>';
+														echo '<span><i class="fa fa-check text-green"></i> ' . ($preinscripcion->vacantes - $preinscripcion->instancia_1 - $preinscripcion->instancia_2_i - $preinscripcion->instancia_3_i ) . ' Vacantes disponibles</span><br>';
+													} else {
+														echo '<span><i class="fa fa-times text-red"></i> -- Sin alumnos derivados -- </span>';
+													}
+													break;
+												case '4':
+													if (isset($preinscripcion) && ($preinscripcion->instancia_4 !== '0' || ($preinscripcion->vacantes - $preinscripcion->instancia_1 - $preinscripcion->instancia_2_i - $preinscripcion->instancia_3_i) === 0)) {
+														echo '<span><i class="fa fa-check text-green"></i> ' . $preinscripcion->instancia_4 . ' Alumnos inscriptos</span><br/>';
+														echo '<span><i class="fa fa-check text-green"></i> ' . ($preinscripcion->vacantes - $preinscripcion->instancia_1 - $preinscripcion->instancia_2_i - $preinscripcion->instancia_3_i - $preinscripcion->instancia_4) . ' Vacantes disponibles</span><br>';
+													} else {
+														echo '<span><i class="fa fa-times text-red"></i> -- Sin alumnos inscriptos -- </span>';
+													}
+													break;
+											}
+											?>
+										</td>
+										<?php if ($administrar && $fecha >= $instancia->desde): ?>
+											<?php if (!isset($preinscripcion->id)): ?>
+												<td></td>
+											<?php elseif ($fecha <= $instancia->hasta): ?>
+												<td><a class="btn btn-primary btn-xs" href="preinscripciones/escuela/instancia_<?php echo "$instancia->instancia/$instancia->ciclo_lectivo/$escuela->id"; ?>/escuela"><i class="fa fa-edit"></i> Editar instancia <?php echo $instancia->instancia; ?></a></td>
+											<?php else: ?>
+												<td>
+													<a class="btn btn-primary btn-xs" href="preinscripciones/escuela/instancia_<?php echo "$instancia->instancia/$instancia->ciclo_lectivo/$escuela->id"; ?>/escuela"><i class="fa fa-search"></i> Ver instancia <?php echo $instancia->instancia; ?></a>
+												</td>
+											<?php endif; ?>
+										<?php else: ?>
+											<td></td>
+										<?php endif; ?>
+									</tr>
+								<?php endfor; ?>
+							</table>
+						</div>
+					</div>
+				</div>
+			<?php endif; ?>
+			<?php if (!empty($aprender_operativos)): ?>
+				<div class="col-xs-12">
+					<div class="box box-warning">
+						<div class="box-header with-border">
+							<h3 class="box-title">Operativo Aprender - 2017</h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<table class="table table-condensed table-bordered table-striped table-hover">
+								<tr>
+									<th>Operativo</th>
+									<th>Divisiones</th>
+									<th>Aplicadores</th>
+									<th>Fecha de Cierre</th>
+									<th>
+									</th>
+								</tr>
+								<?php foreach ($aprender_operativos as $operativo): ?>
+									<tr>
+										<td><?php echo $operativo->operativo_tipo; ?></td>
+										<td><?php echo "$operativo->divisiones ($operativo->divisiones_d)"; ?></td>
+										<td><?php echo isset($aprender_aplicadores[$operativo->operativo_tipo_id]) ? count($aprender_aplicadores[$operativo->operativo_tipo_id]) : 0; ?></td>
+										<td><?php echo empty($operativo->fecha_cierre) ? '-- Sin cierre --' : (new DateTime($operativo->fecha_cierre))->format('d/m/Y H:i:s'); ?></td>
+									</tr>
+								<?php endforeach; ?>
+							</table>
+						</div>
+						<div class="box-footer">
+							<?php if ($administrar): ?>
+								<a class="btn btn-primary" href="aprender/aprender_operativo/ver/<?php echo $escuela->id; ?>">Administrar</a>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+			<?php endif; ?>
+			<?php if (!empty($modulos)): ?>
+				<?php foreach ($modulos as $modulo): ?>
+					<div class="col-xs-12">
+						<?php echo $modulo; ?>
+					</div>
+				<?php endforeach; ?>
+			<?php endif; ?>
+			<div class="col-xs-8">
+				<div class="box box-primary"><!-- Divisiones -->
+					<div class="box-header with-border">
+						<h3 class="box-title">Cursos y Divisiones</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-xs-12">
+								<?php if (!empty($divisiones)): ?>
+									<table class="table table-bordered table-condensed table-striped table-hover">
+										<thead>
+											<tr>
+												<th>División</th>
+												<th>Turno</th>
+												<th>Carrera</th>
+												<th style="width: 60px;">Cargos</th>
+												<th style="width: 60px;">Horas</th>
+												<th style="width: 60px;">Alumnos</th>
+												<th style="width: 34px;"></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php $total_alumnos = 0; ?>
+											<?php $total_cargos = 0; ?>
+											<?php $total_horas = 0; ?>
+											<?php foreach ($divisiones as $division): ?>
+												<tr>
+													<td><?php echo "$division->curso $division->division"; ?></td>
+													<td><?php echo "$division->turno"; ?></td>
+													<td class="text-sm"><?php echo "$division->carrera"; ?></td>
+													<td class="text-center"><?php echo "$division->cargos"; ?></td>
+													<td class="text-center"><?php echo "$division->horas"; ?></td>
+													<td class="text-center"><?php echo "$division->alumnos"; ?></td>
+													<td>
+														<?php if ($administrar): ?>
+															<a class="btn btn-xs" href="division/ver/<?php echo $division->id; ?>"><i class="fa fa-search"></i></a>
+														<?php endif; ?>
+													</td>
+												</tr>
+												<?php $total_alumnos += $division->alumnos; ?>
+												<?php $total_cargos += $division->cargos; ?>
+												<?php $total_horas += $division->horas; ?>
+											<?php endforeach; ?>
+										</tbody>
+										<tr><th></th></tr>
+										<tr>
+											<th colspan="3">Totales generales para la escuela</th>
+											<th style="text-align: center;"><?php echo $total_cargos; ?></th>
+											<th style="text-align: center;"><?php echo $total_horas; ?></th>
+											<th style="text-align: center;"><?php echo $total_alumnos; ?></th>
+											<th></th>
+										</tr>
+									</table>
+								<?php endif; ?>
+							</div>
+						</div>
+					</div>
+					<div class="box-footer">
+						<?php if ($administrar): ?>
+							<a class="btn btn-primary" href="division/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-cogs" id="btn-divisiones"></i> Administrar
+							</a>
+						<?php endif; ?>
+						<a class="btn btn-success pull-right" href="escuela/alumnos_inasistencias/<?php echo $escuela->id; ?>">
+							<i class="fa fa-clock-o" id="btn-carreras"></i> Resumen de asistencia de alumnos
+						</a>
+					</div>
+				</div><!-- Fin Divisiones -->
+				<div class="box box-primary"><!-- Cargos -->
+					<div class="box-header with-border">
+						<h3 class="box-title">Cargos</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-xs-12">
+								<?php if (!empty($cargos)): ?>
+									<table class="table table-bordered table-condensed table-striped table-hover">
+										<tr>
+											<th>Código</th>
+											<th>Régimen</th>
+											<th style="width: 60px;">Cargos</th>
+											<th style="width: 60px;">Horas</th>
+											<th style="width: 60px;">Servicios</th>
+										</tr>
+										<?php foreach ($cargos as $regimen): ?>
+											<tr>
+												<td><?php echo $regimen->codigo; ?></td>
+												<td class="text-sm"><?php echo $regimen->descripcion; ?></td>
+												<td class="text-center"><?php echo $regimen->cargos; ?></td>
+												<td class="text-center"><?php echo $regimen->horas; ?></td>
+												<td class="text-center"><?php echo $regimen->servicios; ?></td>
+											</tr>
+										<?php endforeach; ?>
+									</table>
+								<?php endif; ?>
+							</div>
+						</div>
+					</div>
+					<?php if ($administrar && $this->rol->codigo != ROL_ESCUELA_ALUM): ?>
+						<div class="box-footer">
+							<a class="btn btn-primary" href="cargo/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-cogs"></i> Administrar
+							</a>
+						</div>
+					<?php endif; ?>
+				</div><!-- Fin Cargos -->
+				<?php if ($this->rol->codigo != ROL_ESCUELA_CAR): ?>
+					<div class="box box-primary"><!-- Usuarios -->
+						<div class="box-header with-border">
+							<h3 class="box-title">Usuarios</h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<div class="row">
+								<div class="col-xs-12">
+									<table class="table table-bordered table-condensed table-striped table-hover">
+										<tr>
+											<th style="width: 25%;">Usuario</th>
+											<th style="width: 35%;">CUIL<br/>Persona</th>
+											<th style="width: 39%;">Rol<br/>Entidad</th>
+											<th style="width: 1%;"></th>
+										</tr>
+										<?php if (!empty($usuarios)): ?>
+											<?php foreach ($usuarios as $usuario): ?>
+												<tr>
+													<td><?php echo $usuario->usuario; ?></td>
+													<td><?php echo "$usuario->cuil<br/>$usuario->persona"; ?></td>
+													<td><?php echo "$usuario->rol<br/>$usuario->entidad"; ?></td>
+													<td>
+														<?php if ($administrar): ?>
+															<a class="btn btn-xs" href="usuario/ver/<?php echo $usuario->id; ?>"><i class="fa fa-search"></i></a>
+														<?php endif; ?>
+													</td>
+												</tr>
+											<?php endforeach; ?>
+										<?php else: ?>
+											<tr>
+												<td colspan="4" style="text-align: center;"> -- Sin usuarios -- </td>
+											</tr>
+										<?php endif; ?>
+									</table>
+								</div>
+							</div>
+						</div>
+						<?php if ($administrar && ($this->rol->codigo != ROL_ESCUELA_ALUM)): ?>
+							<div class="box-footer">
+								<a class="btn btn-primary" href="usuario/listar/<?php echo $escuela->id; ?>">
+									<i class="fa fa-cogs"></i> Administrar
+								</a>
+							</div>
+						<?php endif; ?>
+					</div><!-- Fin Usuarios -->
+				<?php endif; ?>
+			</div>
+			<div class="col-xs-4">
+				<div class="box box-primary"><!-- Carreras -->
+					<div class="box-header with-border">
+						<h3 class="box-title">Carreras</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-xs-12">
+								<?php if (!empty($carreras)): ?>
+									<table class="table table-bordered table-condensed table-striped table-hover">
+										<tr>
+											<th>Carrera</th>
+											<th style="width: 80px;">Divisiones</th>
+											<th style="width: 80px;">Alumnos</th>
+											<th style="width: 34px;"></th>
+										</tr>
+										<?php foreach ($carreras as $carrera): ?>
+											<tr>
+												<td><?php echo $carrera->carrera; ?></td>
+												<td class="text-center"><?php echo $carrera->divisiones; ?></td>
+												<td style="text-align: center;"><?php echo $carrera->alumnos; ?></td>
+												<td>
+													<?php if ($administrar): ?>
+														<a class="btn btn-xs" href="carrera/ver/<?php echo "$carrera->carrera_id/$carrera->id"; ?>"><i class="fa fa-search"></i></a>
+													<?php endif; ?>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									</table>
+								<?php endif; ?>
+							</div>
+						</div>
+					</div>
+					<?php if ($administrar): ?>
+						<div class="box-footer">
+							<a class="btn btn-primary" href="escuela_carrera/listar/<?php echo $escuela->id; ?>">
+								<i class="fa fa-cogs" id="btn-carreras"></i> Administrar
+							</a>
+						</div>
+					<?php endif; ?>
+				</div><!-- Fin Carreras -->
+				<div class="box box-primary"><!-- Alertas -->
+					<div class="box-header with-border">
+						<h3 class="box-title">Alertas</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<?php foreach ($indices as $indice_titulo => $indice): ?>
+							<?php if ($indice_titulo != 'alertas'): ?>
+								<div class="progress-group">
+									<span class="progress-text"><?php echo $indice_titulo; ?></span>
+									<span class="progress-number"><b><?php echo ($indice->cantidad); ?></b>/<?php echo $indice->total; ?></span>
+									<div class="progress sm">
+										<?php $cumplimiento = $indice->total == 0 ? 0 : (round($indice->cantidad / $indice->total * 100)); ?>
+										<div class="progress-bar progress-bar-<?php echo $cumplimiento >= 100 ? 'green' : ($cumplimiento >= 50 ? 'yellow' : 'red'); ?>" style="line-height:10px;font-size:10px; min-width: 2em; width: <?php echo $cumplimiento; ?>%"><?php echo $cumplimiento; ?>%</div>
+									</div>
+								</div>
+							<?php endif; ?>
+							<!-- /.progress-group -->
+						<?php endforeach; ?>
+					</div>
+					<div class="box-body">
+						<?php foreach ($indices as $indice_titulo => $indice): ?>
+							<?php if ($indice_titulo === 'alertas'): ?>
+								<?php foreach ($indice as $indice): ?>
+									<div class="progress-group">
+										<table class="table table-bordered table-condensed table-striped table-hover">
+											<tbody>
+												<tr>
+													<td class="progress-text"><?php echo $indice->label; ?></td>
+													<td class="pull-right"><b><?php echo ($indice->value); ?></b></td>
+													<td style="width:1px;">
+														<?php if ($this->rol->codigo === ROL_ESCUELA_ALUM && $indice->modulo === 'cargos'): ?>
+															<a class="btn btn-default disabled" href="">
+																<i class="fa fa-align-left"></i>
+															</a>
+														<?php elseif ($this->rol->codigo === ROL_ESCUELA_CAR && $indice->modulo === 'alumnos'): ?>
+															<a class="btn btn-default disabled" href="">
+																<i class="fa fa-align-left"></i>
+															</a>
+														<?php else: ?>
+															<a class="btn btn-default" href="<?= $indice->url; ?>">
+																<i class="fa fa-align-left"></i>
+															</a>
+														<?php endif; ?>
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+									<!-- /.progress-group -->
+								<?php endforeach; ?>
+							<?php endif; ?>
+						<?php endforeach; ?>
+					</div>
+				</div>
+			</div><!-- Fin Alertas -->
+		</div>
+	</section>
+</div>

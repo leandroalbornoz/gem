@@ -1,0 +1,186 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('servicio_model');
+		$this->load->model('escuela_model');
+		$this->load->model('planilla_asisnov_model');
+		$this->load->model('tem/tem_proyecto_escuela_model');
+		$this->load->model('tem/tem_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_ESCUELA_ALUM));
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL, ROL_ESCUELA_ALUM))) {
+			$this->edicion = FALSE;
+		}
+//		$this->nav_route = 'menu/asisnov';
+	}
+
+	public function agregar_existente($escuela_id = NULL, $servicio_id = NULL, $persona_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $servicio_id == NULL || !ctype_digit($servicio_id) || $persona_id == NULL || !ctype_digit($persona_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de escuela', 500, 'Acción no autorizada');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro de servicio', 500, 'Acción no autorizada');
+		}
+		$this->load->model('persona_model');
+		$persona = $this->persona_model->get_one($persona_id);
+		if (empty($persona)) {
+			show_error('No se encontró el registro de persona', 500, 'Acción no autorizada');
+		}
+		$this->load->model('alumno_model');
+		$alumno = $this->alumno_model->get_by_persona($persona->id);
+		$this->load->model('tem/tem_alumno_model');
+		unset($this->tem_alumno_model->fields['estado']);
+		$this->set_model_validation_rules($this->tem_alumno_model);
+		$errors = FALSE;
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->form_validation->run() === TRUE) {
+				$this->db->trans_begin();
+				$trans_ok = TRUE;
+				$alumno_id = $this->input->post('alumno_id');
+				if (!empty($alumno) && $alumno->id !== $alumno_id) {
+					show_error('Esta solicitud no pasó el control de seguridad.');
+				}
+				if (empty($alumno_id)) {
+					$trans_ok &= $this->alumno_model->create(array('persona_id' => $persona_id), FALSE);
+					$alumno_id = $this->alumno_model->get_row_id();
+				}
+				$trans_ok &= $this->tem_alumno_model->create(array(
+					'cargo_id' => $servicio->cargo_id,
+					'alumno_id' => $alumno_id,
+					'escuela' => $this->input->post('escuela'),
+					'carrera' => $this->input->post('carrera'),
+					'materia' => $this->input->post('materia'),
+					'ciclo_lectivo' => $this->input->post('ciclo_lectivo'),
+					'fecha_inicio' => $this->get_date_sql('fecha_inicio'),
+					'estado' => 'Pendiente',
+					), FALSE);
+
+				if ($this->db->trans_status() && $trans_ok) {
+					$this->db->trans_commit();
+					$this->session->set_flashdata('message', $this->tem_alumno_model->get_msg());
+					redirect("tem/personal/ver/$servicio->id", 'refresh');
+				} else {
+					$this->db->trans_rollback();
+					$errors = 'Ocurrió un error al intentar actualizar.';
+					if ($this->tem_alumno_model->get_error()) {
+						$errors .= '<br>' . $this->tem_alumno_model->get_error();
+					}
+					if ($this->alumno_model->get_error()) {
+						$errors .= '<br>' . $this->alumno_model->get_error();
+					}
+				}
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : $errors);
+		$this->tem_alumno_model->fields['documento_tipo']['value'] = $persona->documento_tipo;
+		$this->tem_alumno_model->fields['documento']['value'] = $persona->documento;
+		$this->tem_alumno_model->fields['apellido']['value'] = $persona->apellido;
+		$this->tem_alumno_model->fields['nombre']['value'] = $persona->nombre;
+		$this->tem_alumno_model->fields['fecha_nacimiento']['value'] = (new DateTime($persona->fecha_nacimiento))->format('d/m/Y');
+
+		$data['fields'] = $this->build_fields($this->tem_alumno_model->fields);
+		$data['escuela'] = $escuela;
+		$data['persona'] = $persona;
+		$data['servicio'] = $servicio;
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Agregar alumno a personal';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('tem/alumno/alumno_agregar_existente', $data);
+	}
+
+	public function agregar_nuevo($escuela_id = NULL, $servicio_id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $escuela_id == NULL || !ctype_digit($escuela_id) || $servicio_id == NULL || !ctype_digit($servicio_id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$escuela = $this->escuela_model->get_one($escuela_id);
+		if (empty($escuela)) {
+			show_error('No se encontró el registro de escuela', 500, 'Acción no autorizada');
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			show_error('No tiene permisos para acceder a la escuela', 500, 'Acción no autorizada');
+		}
+		$servicio = $this->servicio_model->get_one($servicio_id);
+		if (empty($servicio)) {
+			show_error('No se encontró el registro de servicio', 500, 'Acción no autorizada');
+		}
+		$this->load->model('documento_tipo_model');
+		$this->load->model('persona_model');
+		$this->load->model('alumno_model');
+		$this->load->model('tem/tem_alumno_model');
+		unset($this->tem_alumno_model->fields['estado']);
+		$this->tem_alumno_model->fields['documento_tipo'] = array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE, 'array' => $this->get_array('documento_tipo', 'descripcion_corta', 'id', null, array('1' => '')));
+		$this->tem_alumno_model->fields['documento'] = array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE);
+		$this->tem_alumno_model->fields['apellido'] = array('label' => 'Apellido', 'maxlength' => '100', 'required' => TRUE);
+		$this->tem_alumno_model->fields['nombre'] = array('label' => 'Nombre', 'maxlength' => '100', 'required' => TRUE);
+		$this->tem_alumno_model->fields['fecha_nacimiento'] = array('label' => 'Fecha Nacimiento', 'type' => 'date');
+		$this->array_documento_tipo_control = $this->tem_alumno_model->fields['documento_tipo']['array'];
+		$this->set_model_validation_rules($this->tem_alumno_model);
+		$errors = FALSE;
+		if ($this->form_validation->run() === TRUE) {
+			$this->db->trans_begin();
+			$trans_ok = TRUE;
+			$trans_ok &= $this->persona_model->create(array(
+				'documento_tipo_id' => $this->input->post('documento_tipo'),
+				'documento' => $this->input->post('documento'),
+				'nombre' => $this->input->post('nombre'),
+				'apellido' => $this->input->post('apellido'),
+				'fecha_nacimiento' => $this->get_date_sql('fecha_nacimiento')
+				), FALSE);
+			$persona_id = $this->persona_model->get_row_id();
+			$trans_ok &= $this->alumno_model->create(array('persona_id' => $persona_id), FALSE);
+			$alumno_id = $this->alumno_model->get_row_id();
+			$trans_ok &= $this->tem_alumno_model->create(array(
+				'cargo_id' => $servicio->cargo_id,
+				'alumno_id' => $alumno_id,
+				'escuela' => $this->input->post('escuela'),
+				'carrera' => $this->input->post('carrera'),
+				'materia' => $this->input->post('materia'),
+				'ciclo_lectivo' => $this->input->post('ciclo_lectivo'),
+				'fecha_inicio' => $this->get_date_sql('fecha_inicio'),
+				'estado' => 'Pendiente',
+				), FALSE);
+
+			if ($this->db->trans_status() && $trans_ok) {
+				$this->db->trans_commit();
+				$this->session->set_flashdata('message', $this->tem_alumno_model->get_msg());
+				redirect("tem/personal/ver/$servicio->id", 'refresh');
+			} else {
+				$this->db->trans_rollback();
+				$errors = 'Ocurrió un error al intentar actualizar.';
+				if ($this->tem_alumno_model->get_error()) {
+					$errors .= '<br>' . $this->tem_alumno_model->get_error();
+				}
+				if ($this->alumno_model->get_error()) {
+					$errors .= '<br>' . $this->alumno_model->get_error();
+				}
+			}
+		}
+
+		$data['error'] = (validation_errors() ? validation_errors() : $errors);
+
+		$data['fields'] = $this->build_fields($this->tem_alumno_model->fields);
+		$data['escuela'] = $escuela;
+		$data['servicio'] = $servicio;
+		$data['message'] = $this->session->flashdata('message');
+		$data['title'] = TITLE . ' - Agregar alumno a Tutor TEM';
+		$data['css'][] = 'plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css';
+		$data['js'][] = 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js';
+		$data['js'][] = 'plugins/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js';
+		$this->load_template('tem/alumno/alumno_agregar_nuevo', $data);
+	}
+}

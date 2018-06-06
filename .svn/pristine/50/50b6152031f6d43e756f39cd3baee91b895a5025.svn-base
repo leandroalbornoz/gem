@@ -1,0 +1,313 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno';
+		$this->msg_name = 'Alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'persona_id', 'observaciones', 'documento_padre', 'nombre_padre', 'documento_madre', 'nombre_madre', 'email_contacto');
+		$this->fields = array(
+			'documento_tipo' => array('label' => 'Tipo de documento', 'input_type' => 'combo', 'id_name' => 'documento_tipo_id', 'required' => TRUE),
+			'documento' => array('label' => 'Documento', 'type' => 'integer', 'maxlength' => '9', 'required' => TRUE),
+			'cuil' => array('label' => 'CUIL', 'maxlength' => '13'),
+			'apellido' => array('label' => 'Apellidos', 'maxlength' => '100', 'required' => TRUE),
+			'nombre' => array('label' => 'Nombres', 'maxlength' => '100', 'required' => TRUE),
+			'sexo' => array('label' => 'Sexo', 'input_type' => 'combo', 'id_name' => 'sexo_id'),
+			'fecha_nacimiento' => array('label' => 'Fecha Nacimiento', 'type' => 'date'),
+			'calle' => array('label' => 'Calle', 'maxlength' => '80'),
+			'calle_numero' => array('label' => 'Número', 'maxlength' => '20'),
+			'departamento' => array('label' => 'Depto', 'maxlength' => '5'),
+			'piso' => array('label' => 'Piso', 'maxlength' => '5'),
+			'barrio' => array('label' => 'Barrio', 'maxlength' => '45'),
+			'manzana' => array('label' => 'Manzana', 'maxlength' => '5'),
+			'casa' => array('label' => 'Casa', 'type' => 'integer', 'maxlength' => '3'),
+			'localidad' => array('label' => 'Localidad', 'input_type' => 'combo', 'id_name' => 'localidad_id'),
+			'codigo_postal' => array('label' => 'C.P.', 'maxlength' => '8'),
+			'telefono_fijo' => array('label' => 'Teléfono Fijo', 'maxlength' => '40'),
+			'telefono_movil' => array('label' => 'Celular', 'maxlength' => '40'),
+			'observaciones' => array('label' => 'Observaciones'),
+			'prestadora' => array('label' => 'Prestadora', 'input_type' => 'combo', 'id_name' => 'prestadora_id'),
+			'email' => array('label' => 'Email personal', 'type' => 'email', 'maxlength' => '100'),
+			'lugar_traslado_emergencia' => array('label' => 'Lugar de Traslado Emergencia', 'maxlength' => '70'),
+			'nacionalidad' => array('label' => 'Nacionalidad', 'input_type' => 'combo', 'id_name' => 'nacionalidad_id'),
+			'grupo_sanguineo' => array('label' => 'Grupo sanguíneo', 'input_type' => 'combo', 'id_name' => 'grupo_sanguineo_id'),
+			'obra_social' => array('label' => 'Obra social', 'input_type' => 'combo', 'id_name' => 'obra_social_id'),
+			'nivel_estudio' => array('label' => 'Nivel de estudios', 'input_type' => 'combo', 'id_name' => 'nivel_estudio_id'),
+			'estado_civil' => array('label' => 'Estado civil', 'input_type' => 'combo', 'id_name' => 'estado_civil_id', 'required' => TRUE),
+			'ocupacion' => array('label' => 'Ocupación', 'input_type' => 'combo', 'id_name' => 'ocupacion_id'),
+			'email_contacto' => array('label' => 'Email de Contacto / Notificaciones', 'type' => 'email', 'maxlength' => '150')
+		);
+
+		$this->requeridos = array('persona_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('persona', 'persona.id = alumno.persona_id', 'left', array('cuil', 'apellido', 'nombre', 'fecha_nacimiento', 'telefono_fijo', 'telefono_movil', 'documento', 'departamento', 'manzana', 'calle', 'piso', 'barrio', 'calle_numero', 'casa', 'codigo_postal', 'email', 'lugar_traslado_emergencia')),
+			array('documento_tipo', 'documento_tipo.id = persona.documento_tipo_id', 'left', array('documento_tipo.descripcion_corta as documento_tipo')),
+			array('sexo', 'sexo.id = persona.sexo_id', 'left', array('sexo.descripcion as sexo')),
+			array('localidad', 'localidad.id = persona.localidad_id', 'left', array("CONCAT(departamento.descripcion, ' - ', localidad.descripcion) as localidad")),
+			array('departamento', 'departamento.id = localidad.departamento_id', 'left'),
+			array('nacionalidad', 'nacionalidad.id = persona.nacionalidad_id', 'left', array('nacionalidad.descripcion as nacionalidad')),
+			array('prestadora', 'prestadora.id = persona.prestadora_id', 'left', array('prestadora.descripcion as prestadora')),
+			array('grupo_sanguineo', 'grupo_sanguineo.id = persona.grupo_sanguineo_id', 'left', array('grupo_sanguineo.descripcion as grupo_sanguineo')),
+			array('obra_social', 'obra_social.id = persona.obra_social_id', 'left', array("CASE WHEN obra_social.descripcion_corta IS NULL OR obra_social.descripcion_corta='' THEN obra_social.descripcion ELSE obra_social.descripcion_corta END as obra_social")),
+			array('nivel_estudio', 'nivel_estudio.id = persona.nivel_estudio_id', 'left', array('nivel_estudio.descripcion as nivel_estudio')),
+			array('estado_civil', 'estado_civil.id = persona.estado_civil_id', 'left', array('estado_civil.descripcion as estado_civil')),
+			array('ocupacion', 'ocupacion.id = persona.ocupacion_id', 'left', array('ocupacion.descripcion as ocupacion'))
+
+			//no usados
+			//array('nivel_estudio', 'nivel_estudio.id = persona.nivel_estudio_id', 'left', array('nivel_estudio.descripcion as nivel_estudio')),
+		);
+	}
+
+	//Devuelve la ultima division y mas datos de division_alumno a partir del id del alumno.
+	public function get_ultima_division($alumno_id) {
+		return $this->db->select('ad.alumno_id, ad.legajo, ad.id, n.formal')
+				->from('alumno')
+				->join('alumno_division ad', 'ad.alumno_id = alumno.id', 'left')
+				->join('division d', 'd.id = ad.division_id', 'left')
+				->join('curso c', 'd.curso_id = c.id', 'left')
+				->join('escuela es', 'es.id = d.escuela_id', 'left')
+				->join('nivel n', 'es.nivel_id = n.id', 'left')
+				->where('ad.fecha_hasta IS NULL')
+				->where('n.formal', 'SI')
+				->where('ad.estado_id', 1)
+				->where('alumno.id', $alumno_id)
+				->get()->row();
+	}
+
+	public function get_by_persona($persona_id) {
+		return $this->db->select('id, observaciones, email_contacto')->from('alumno')->where('persona_id', $persona_id)->order_by('id')->get()->row();
+	}
+
+	//Devuelve la division del alumno de la escuela determinada con escuela_id
+	public function get_division_escuela($alumno_id, $escuela_id) {
+		return $this->db->select('ad.alumno_id, ad.legajo, ad.id as division_id, ad.fecha_desde, ad.fecha_hasta, d.id as division_escuela_id,'
+					. 'CONCAT(c.descripcion, " ", d.division) as division2, CONCAT(es.numero, " - ", es.nombre) as escuela')
+				->from('alumno')
+				->join('alumno_division ad', 'ad.alumno_id = alumno.id', 'left')
+				->join('division d', 'd.id = ad.division_id', 'left')
+				->join('curso c', 'd.curso_id = c.id', 'left')
+				->join('escuela es', 'es.id = d.escuela_id', 'left')
+				->where('ad.fecha_hasta IS NULL')
+				->where('es.id', $escuela_id)
+				->where('alumno.id', $alumno_id)
+				->get()->result();
+	}
+
+	//Devuelve la lista de todos los alumnos de una division ordenada por apellidos.
+	public function get_alumnos_division($division_id) {
+		return $this->db->select('ad.id, al.persona_id, al.observaciones, ad.fecha_desde, ad.fecha_hasta, '
+					. 'p.documento, p.documento_tipo_id, CONCAT(COALESCE(p.apellido, \'\'), \', \', COALESCE(p.nombre, \'\')) as persona, '
+					. 'p.fecha_nacimiento, s.descripcion sexo, dt.descripcion_corta as documento_tipo, ad.ciclo_lectivo, ad.condicion')
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+				->where('ad.fecha_hasta IS NULL')
+				->where('ad.division_id', $division_id)
+				->order_by('ad.ciclo_lectivo,p.apellido, p.nombre')
+				->get()->result();
+	}
+
+	//Devuelve la trayectoria de la persona como alumno partiendo del id persona
+	public function get_trayectoria_alumno($persona_id) {
+		return $this->db->select('p.id as persona_id, al.id as alumno_id, ad.legajo, ad.id as division_id, '
+					. 'ad.fecha_desde, ad.fecha_hasta, d.id as division_escuela_id, es.id as escuela_id, ce.descripcion as causa_entrada, cs.descripcion as causa_salida, '
+					. 'CONCAT(c.descripcion, " ", d.division) as division2, '
+					. "CONCAT(es.numero, CASE WHEN es.anexo=0 THEN ' ' ELSE CONCAT('/',es.anexo,' ') END, es.nombre) as escuela, ad.ciclo_lectivo")
+				->from('persona p')
+				->join('alumno al', 'al.persona_id = p.id', 'left')
+				->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+				->join('division d', 'd.id = ad.division_id', 'left')
+				->join('curso c', 'd.curso_id = c.id', 'left')
+				->join('escuela es', 'es.id = d.escuela_id', 'left')
+				->join('causa_entrada ce', 'ce.id = ad.causa_entrada_id', 'left')
+				->join('causa_salida cs', 'cs.id = ad.causa_salida_id', 'left')
+				//->where('ad.fecha_hasta IS NULL')
+				->where('p.id', $persona_id)
+				->get()->result();
+	}
+
+	public function get_alumno($documento = '', $apellido = '', $nombre = '') {
+		$this->db->select('p.id as id, al.id as alumno_id, ad.legajo, ad.id as division_id, l.descripcion as localidad, dep.descripcion as departamento,'
+				. 'es.id as escuela_id, p.fecha_nacimiento, ad.ciclo_lectivo, c.descripcion as curso, d.division, t.descripcion as turno, '
+				. "CONCAT(COALESCE(CONCAT(dt.descripcion_corta,' '),''), COALESCE(CONCAT(p.documento,' '),'')) as documento, "
+				. "CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, "
+				. "GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares, "
+				. "CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as nombre,"
+				. "CONCAT(c.descripcion, ' ', d.division) as division2, "
+				. "CONCAT(es.numero, CASE WHEN es.anexo=0 THEN ' ' ELSE CONCAT('/',es.anexo,' ') END, es.nombre) as escuela, ad.ciclo_lectivo")
+			->from('persona p')
+			->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+			->join('alumno al', 'al.persona_id = p.id', 'left')
+			->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+			->join('division d', 'd.id = ad.division_id', 'left')
+			->join('curso c', 'd.curso_id = c.id', 'left')
+			->join('turno t', 't.id = d.turno_id', 'left')
+			->join('familia f', 'f.persona_id = p.id', 'left')
+			->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+			->join('persona pf', 'f.pariente_id = pf.id', 'left')
+			->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+			->join('escuela es', 'es.id = d.escuela_id', 'left')
+			->join('localidad l', 'l.id = p.localidad_id', 'left')
+			->join('departamento dep', 'dep.id = l.departamento_id', 'left')
+			->where('ad.fecha_hasta IS NULL')
+			->where('al.id IS NOT NULL')
+			->group_by('ad.id');
+		if (!empty($documento)) {
+			$this->db->where('p.documento', $documento);
+			return $this->db->get()->result();
+		} elseif (!empty($apellido) && !empty($nombre) && strlen($apellido) >= 3 && strlen($nombre) >= 3) {
+			$this->db->like('p.apellido', $apellido, 'after');
+			$this->db->like('p.nombre', $nombre, 'after');
+			return $this->db->get()->result();
+		} else {
+			return FALSE;
+		}
+	}
+
+	public function get_alumno_escuela($escuela_id = '', $documento = '', $apellido = '', $nombre = '') {
+		$this->db->select('p.id as id, al.id as alumno_id, ad.legajo, ad.id as division_id, l.descripcion as localidad, dep.descripcion as departamento,'
+				. 'es.id as escuela_id, p.fecha_nacimiento, ad.ciclo_lectivo, c.descripcion as curso, d.division, t.descripcion as turno, '
+				. "CONCAT(COALESCE(CONCAT(dt.descripcion_corta,' '),''), COALESCE(CONCAT(p.documento,' '),'')) as documento, "
+				. "CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, "
+				. "GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares, "
+				. "CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as nombre,"
+				. "CONCAT(c.descripcion, ' ', d.division) as division2, "
+				. "CONCAT(es.numero, CASE WHEN es.anexo=0 THEN ' ' ELSE CONCAT('/',es.anexo,' ') END, es.nombre) as escuela, ad.ciclo_lectivo")
+			->from('persona p')
+			->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+			->join('alumno al', 'al.persona_id = p.id', 'left')
+			->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+			->join('division d', 'd.id = ad.division_id', 'left')
+			->join('curso c', 'd.curso_id = c.id', 'left')
+			->join('turno t', 't.id = d.turno_id', 'left')
+			->join('familia f', 'f.persona_id = p.id', 'left')
+			->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+			->join('persona pf', 'f.pariente_id = pf.id', 'left')
+			->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+			->join('escuela es', 'es.id = d.escuela_id', 'left')
+			->join('localidad l', 'l.id = p.localidad_id', 'left')
+			->join('departamento dep', 'dep.id = l.departamento_id', 'left')
+			->where('ad.fecha_hasta IS NULL')
+			->where('al.id IS NOT NULL')
+			->where('ad.ciclo_lectivo', '2018')
+			->group_by('ad.id');
+		if (!empty($escuela_id)) {
+			$this->db->where('es.id', $escuela_id);
+		}
+		if (!empty($documento)) {
+			$this->db->where('p.documento', $documento);
+		}
+		if (!empty($apellido) || !empty($nombre)) {
+			$this->db->like('p.apellido', $apellido, 'after');
+			$this->db->like('p.nombre', $nombre, 'after');
+		}
+		if (!empty($documento) || !empty($apellido) || !empty($nombre)) {
+			return $this->db->get()->result();
+		} else {
+			return FALSE;
+		}
+	}
+
+	public function get_alumno_escuela_division($escuela_id = '', $documento = '', $apellido = '', $nombre = '', $division_id = '') {
+		$this->db->select('p.id as id, al.id as alumno_id, ad.legajo, ad.id as division_id, l.descripcion as localidad, dep.descripcion as departamento,'
+				. 'es.id as escuela_id, p.fecha_nacimiento, ad.ciclo_lectivo, c.descripcion as curso, d.division, t.descripcion as turno, '
+				. "CONCAT(COALESCE(CONCAT(dt.descripcion_corta,' '),''), COALESCE(CONCAT(p.documento,' '),'')) as documento, "
+				. "CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion, "
+				. "GROUP_CONCAT(CONCAT(COALESCE(pt.descripcion, ''), ' ', COALESCE(fdt.descripcion_corta, ''), ' ', COALESCE(pf.documento, ''), ' ', COALESCE(CONCAT(pf.apellido,','), ''), ' ', COALESCE(pf.nombre, '')) ORDER BY f.id SEPARATOR '<br>') familiares, "
+				. "CONCAT(COALESCE(p.apellido, ''), ', ', COALESCE(p.nombre, '')) as nombre,"
+				. "CONCAT(c.descripcion, ' ', d.division) as division2, "
+				. "CONCAT(es.numero, CASE WHEN es.anexo=0 THEN ' ' ELSE CONCAT('/',es.anexo,' ') END, es.nombre) as escuela, ad.ciclo_lectivo")
+			->from('persona p')
+			->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+			->join('alumno al', 'al.persona_id = p.id', 'left')
+			->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+			->join('division d', 'd.id = ad.division_id', 'left')
+			->join('curso c', 'd.curso_id = c.id', 'left')
+			->join('turno t', 't.id = d.turno_id', 'left')
+			->join('familia f', 'f.persona_id = p.id', 'left')
+			->join('parentesco_tipo pt', 'f.parentesco_tipo_id = pt.id', 'left')
+			->join('persona pf', 'f.pariente_id = pf.id', 'left')
+			->join('documento_tipo fdt', 'fdt.id = pf.documento_tipo_id', 'left')
+			->join('escuela es', 'es.id = d.escuela_id', 'left')
+			->join('localidad l', 'l.id = p.localidad_id', 'left')
+			->join('departamento dep', 'dep.id = l.departamento_id', 'left')
+			->where('ad.fecha_hasta IS NULL')
+			->where('al.id IS NOT NULL')
+			->where('ad.ciclo_lectivo', '2018')
+			->group_by('ad.id');
+		if (!empty($escuela_id)) {
+			$this->db->where('es.id', $escuela_id);
+		}
+		if (!empty($division_id)) {
+			$this->db->where('d.id', $division_id);
+		}
+		if (!empty($documento)) {
+			$this->db->where('p.documento', $documento);
+		}
+		if (!empty($apellido) || !empty($nombre)) {
+			$this->db->like('p.apellido', $apellido, 'after');
+			$this->db->like('p.nombre', $nombre, 'after');
+		}
+		if (!empty($documento) || !empty($apellido) || !empty($nombre)) {
+			return $this->db->get()->result();
+		} else {
+			return FALSE;
+		}
+	}
+
+	public function get_alumno_busqueda($alumno_id) {
+		return $this->db->select('al.id, al.persona_id, al.documento_padre, al.nombre_padre, al.documento_madre, al.nombre_madre, al.email_contacto, cuil, apellido, nombre, fecha_nacimiento, telefono_fijo, telefono_movil, documento, email, s.descripcion as sexo, dt.descripcion_corta as documento_tipo, na.descripcion as nacionalidad, pre.descripcion as prestadora, ne.descripcion as nivel_estudio,, oc.descripcion as ocupacion,  c.descripcion as curso, d.division, t.descripcion as turno, '
+					. "CONCAT(dep.descripcion, ' - ', lo.descripcion) as localidad, "
+					. "CONCAT(COALESCE(CONCAT(p.calle,' '),''), COALESCE(CONCAT(p.calle_numero,' '),''), COALESCE(CONCAT('Dpto:',p.departamento,' '),''), COALESCE(CONCAT('P:',p.piso,' '),''), COALESCE(CONCAT('B°:',p.barrio,' '),''), COALESCE(CONCAT('M:',p.manzana,' '),''), COALESCE(CONCAT('C:',p.casa,' '),'')) as direccion")
+				->from('alumno al')
+				->join('persona p', 'p.id = al.persona_id', 'left')
+				->join('documento_tipo dt', 'dt.id = p.documento_tipo_id', 'left')
+				->join('sexo s', 's.id = p.sexo_id', 'left')
+				->join('localidad lo', 'lo.id = p.localidad_id', 'left')
+				->join('departamento dep', 'dep.id = lo.departamento_id', 'left')
+				->join('nacionalidad na', 'na.id = p.nacionalidad_id', 'left')
+				->join('prestadora pre', 'pre.id = p.prestadora_id', 'left')
+				->join('grupo_sanguineo gr', 'gr.id = p.grupo_sanguineo_id', 'left')
+				->join('obra_social os', 'os.id = p.obra_social_id', 'left')
+				->join('nivel_estudio ne', 'ne.id = p.nivel_estudio_id', 'left')
+				->join('estado_civil ec', 'ec.id = p.estado_civil_id', 'left')
+				->join('ocupacion oc', 'oc.id = p.ocupacion_id', 'left')
+				->join('alumno_division ad', 'ad.alumno_id = al.id', 'left')
+				->join('division d', 'd.id = ad.division_id', 'left')
+				->join('curso c', 'd.curso_id = c.id', 'left')
+				->join('turno t', 't.id = d.turno_id', 'left')
+				->where('al.id', $alumno_id)
+				->get()->row();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('alumno_id', $delete_id)->count_all_results('alumno_division') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de division.');
+			return FALSE;
+		}
+		if ($this->db->where('alumno_id', $delete_id)->count_all_results('caracteristica_alumno') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a caracteristica de alumno.');
+			return FALSE;
+		}
+		if ($this->db->where('alumno_id', $delete_id)->count_all_results('cursada') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cursada.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Alumno_model.php */
+/* Location: ./application/models/Alumno_model.php */

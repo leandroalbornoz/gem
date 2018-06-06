@@ -1,0 +1,32 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Persona_model extends MY_Model_DB {
+
+	function get_persona($persona_id) {
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$DB1->select('persona.id, persona.PerCuil, persona.PerApe, persona.PerNom, persona.PerFecNac, persona.PerSex, persona.PerDomClle, persona.PerDomNro, persona.PerDomPiso, persona.PerDomDpto, persona.PerDomTel, persona.PerDomTel2, persona.PerDomProC, persona.PerDomDepl, persona.PerDomDisl, persona.PerCodPos, persona.PerDomEmai, persona.NroDocumen, persona.Estado, persona.fecha_registro, persona.usuario_id, persona.fecha_validacion, depto.DepDes as PerDomDepl, distrito.DisDes as PerDomDisl, CONCAT(escuela.numero, " - ", escuela.nombre) as escuela')
+			->from('persona')
+			->join('inscripcion', 'persona.id = inscripcion.persona_id')
+			->join('escuela', 'escuela.id = inscripcion.escuela_id')
+			->join('depto', 'depto.DepId = persona.PerDomDepl')
+			->join('distrito', 'distrito.DepId = persona.PerDomDepl AND distrito.DisId = persona.PerDomDisl')
+			->where('persona_id', $persona_id);
+		$query = $DB1->get();
+
+		return $query->row();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Persona_model.php */
+/* Location: ./application/modules/gem/bono_secundario/models/Persona_model.php */

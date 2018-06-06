@@ -1,0 +1,43 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Comedor_presupuesto_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'comedor_presupuesto';
+		$this->msg_name = 'Comedor presupuesto';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'escuela_id', 'mes', 'monto_presupuestado', 'monto_entregado', 'dias_albergado', 'alumnos_media_racion', 'alumnos_racion_completa');
+		$this->requeridos = array('escuela_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+		);
+	}
+
+	public function buscar($escuela_id = NULL, $mes = NULL) {
+		$presupuesto = $this->db->select('id')
+				->from('comedor_presupuesto')
+				->where('escuela_id', $escuela_id)
+				->where('mes', $mes)
+				->get()->row();
+		return $presupuesto;
+	}
+
+	public function ultimo_mes($escuela_id = NULL) {
+		$ultimo_mes = $this->db->query('SELECT mes
+FROM comedor_presupuesto
+WHERE escuela_id = ?
+AND mes = (SELECT MAX( mes )  FROM comedor_presupuesto where escuela_id = ?)', array($escuela_id, $escuela_id))->row();
+		return $ultimo_mes;
+	}
+
+	public function primer_mes($escuela_id = NULL) {
+		$primer_mes = $this->db->query('SELECT mes
+FROM comedor_presupuesto
+WHERE escuela_id = ?
+AND mes = (SELECT MIN( mes )  FROM comedor_presupuesto where escuela_id = ?)', array($escuela_id, $escuela_id))->row();
+		return $primer_mes;
+	}
+}

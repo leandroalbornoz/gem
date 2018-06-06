@@ -1,0 +1,291 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Caracteristica_nivel extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('caracteristica_model');
+		$this->load->model('caracteristica_nivel_model');
+		$this->load->model('caracteristica_tipo_model');
+		$this->load->model('caracteristica_valor_model');
+		$this->load->model('nivel_model');
+		$this->roles_permitidos = array(ROL_ADMIN, ROL_USI, ROL_LINEA, ROL_GRUPO_ESCUELA, ROL_CONSULTA_LINEA, ROL_REGIONAL);
+		if (in_array($this->rol->codigo, array(ROL_CONSULTA_LINEA, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'par/caracteristica';
+	}
+
+	public function listar($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$nivel = $this->nivel_model->get_one($id);
+		if (empty($nivel)) {
+			show_error('No se encontró el registro de nivel', 500, 'Registro no encontrado');
+		}
+		if (($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA || $this->rol->codigo === ROL_CONSULTA_LINEA || $this->rol->codigo === ROL_REGIONAL) && $nivel->linea_id !== $this->rol->entidad_id) {
+			show_error('No puede administrar características de niveles no asociados', 500, 'Acción no autorizada');
+		}
+		$tableData = array(
+			'columns' => array(
+				array('label' => 'Tipo', 'data' => 'caracteristica_tipo', 'width' => 20),
+				array('label' => 'Caracteristica', 'data' => 'descripcion', 'width' => 50),
+				array('label' => 'Lista Valores', 'data' => 'lista_valores', 'width' => 20),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'caracteristica_table',
+			'source_url' => "caracteristica_nivel/listar_data/$id",
+			'source_url' => "caracteristica_nivel/listar_data/$id/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_caracteristica_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table'] = buildHTML($tableData);
+		$data['js_table'] = buildJS($tableData);
+
+		$tableData_agregar = array(
+			'columns' => array(
+				array('label' => 'Tipo', 'data' => 'caracteristica_tipo', 'width' => 20),
+				array('label' => 'Caracteristica', 'data' => 'descripcion', 'width' => 50),
+				array('label' => 'Lista Valores', 'data' => 'lista_valores', 'width' => 20),
+				array('label' => '', 'data' => 'edit', 'width' => 10, 'class' => 'dt-body-center', 'responsive_class' => 'all', 'sortable' => 'false', 'searchable' => 'false')
+			),
+			'table_id' => 'caracteristica_agregar_table',
+			'source_url' => "caracteristica_nivel/listar_agregar_data/$id/{$this->rol->codigo}/{$this->rol->entidad_id}",
+			'reuse_var' => TRUE,
+			'initComplete' => "complete_caracteristica_agregar_table",
+			'footer' => TRUE,
+			'dom' => '<"row"<"col-sm-4"l><"col-sm-8"p>>rt<"row"<"col-sm-4"i><"col-sm-8"p>>'
+		);
+		$data['html_table_agregar'] = buildHTML($tableData_agregar);
+		$data['js_table_agregar'] = buildJS($tableData_agregar);
+
+		$this->load->model('caracteristica_tipo_model');
+		$array_caracteritica_tipo = $this->get_array('caracteristica_tipo', 'descripcion', 'descripcion', array('entidad' => 'escuela', 'sort_by' => 'descripcion'), array('' => ''));
+		$data['array_caracteristica_tipo'] = $array_caracteritica_tipo;
+
+		$data['error'] = $this->session->flashdata('error');
+		$data['message'] = $this->session->flashdata('message');
+		$data['nivel'] = $nivel;
+		$data['title'] = TITLE . ' - Características de nivel ' . $nivel->descripcion;
+		$this->load_template('caracteristica_nivel/caracteristica_nivel_listar', $data);
+	}
+
+	public function listar_data($id, $rol_codigo, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$nivel = $this->nivel_model->get_one($id);
+		if (empty($nivel)) {
+			show_error('No se encontró el registro de nivel', 500, 'Registro no encontrado');
+		}
+		if (($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA || $this->rol->codigo === ROL_CONSULTA_LINEA || $this->rol->codigo === ROL_REGIONAL) && $nivel->linea_id !== $this->rol->entidad_id) {
+			show_error('No puede administrar características de niveles no asociados', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('caracteristica_nivel.id as caracteristica_nivel_id, caracteristica.id, caracteristica.descripcion, caracteristica.lista_valores, caracteristica.caracteristica_tipo_id, caracteristica_tipo.descripcion as caracteristica_tipo')
+			->unset_column('id')
+			->from('caracteristica')
+			->join('caracteristica_tipo', 'caracteristica_tipo.id = caracteristica.caracteristica_tipo_id', 'left')
+			->join('caracteristica_nivel', 'caracteristica_nivel.caracteristica_id=caracteristica.id AND caracteristica_nivel.nivel_id=' . $id)
+			->where('entidad', 'escuela')
+			->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="caracteristica_nivel/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i> Ver</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn btn-xs btn-default" href="caracteristica_nivel/modal_eliminar/$2" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-remove"></i> Quitar</a></li>'
+				. '</ul></div>', 'id,caracteristica_nivel_id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function listar_agregar_data($id, $rol_codigo, $entidad_id = '') {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		if ($rol_codigo !== $this->rol->codigo || ((!empty($this->rol->entidad_id) || !empty($entidad_id)) && $this->rol->entidad_id !== $entidad_id)) {
+			show_error('Ha cambiado su rol, por favor refresque la página', 500, 'Acción no autorizada');
+		}
+		$nivel = $this->nivel_model->get_one($id);
+		if (empty($nivel)) {
+			show_error('No se encontró el registro de nivel', 500, 'Acción no autorizada');
+		}
+		if (($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA || $this->rol->codigo === ROL_CONSULTA_LINEA || $this->rol->codigo === ROL_REGIONAL) && $nivel->linea_id !== $this->rol->entidad_id) {
+			show_error('No puede administrar características de niveles no asociados', 500, 'Acción no autorizada');
+		}
+		$this->datatables
+			->select('caracteristica.id, caracteristica.descripcion, caracteristica.lista_valores, caracteristica.caracteristica_tipo_id, caracteristica_tipo.descripcion as caracteristica_tipo')
+			->unset_column('id')
+			->from('caracteristica')
+			->join('caracteristica_tipo', 'caracteristica_tipo.id = caracteristica.caracteristica_tipo_id', 'left')
+			->join('caracteristica_nivel', 'caracteristica_nivel.caracteristica_id=caracteristica.id AND caracteristica_nivel.nivel_id=' . $id, 'left')
+			->where('nivel_id IS NULL')
+			->where('entidad', 'escuela')
+			->add_column('edit', '<div class="btn-group" role="group">'
+				. '<a class="btn btn-xs btn-default" href="caracteristica_nivel/modal_agregar/$1/' . $id . '" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-plus"></i> Agregar</a>'
+				. '<button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>'
+				. '<ul class="dropdown-menu dropdown-menu-right">'
+				. '<li><a class="dropdown-item btn btn-xs btn-default" href="caracteristica_nivel/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal"><i class="fa fa-search"></i> Ver</a></li>'
+				. '</ul></div>', 'id');
+
+		echo $this->datatables->generate();
+	}
+
+	public function modal_agregar($caracteristica_id, $nivel_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !isset($caracteristica_id) || !ctype_digit($caracteristica_id) || !isset($nivel_id) || !ctype_digit($nivel_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$nivel = $this->nivel_model->get_one($nivel_id);
+		if (empty($nivel)) {
+			$this->modal_error('No se encontró el registro de nivel', 'Registro no encontrado');
+			return;
+		}
+		if (($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA || $this->rol->codigo === ROL_CONSULTA_LINEA || $this->rol->codigo === ROL_REGIONAL) && $nivel->linea_id !== $this->rol->entidad_id) {
+			$this->modal_error('No puede administrar características de niveles no asociados', 'Acción no autorizada');
+			return;
+		}
+
+		$caracteristica = $this->caracteristica_model->get_one($caracteristica_id);
+		if (empty($caracteristica)) {
+			$this->modal_error('No se encontró el registro de característica', 'Registro no encontrado');
+			return;
+		}
+
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+
+		unset($this->caracteristica_model->fields['niveles']);
+		$this->form_validation->set_rules('id', 'Característica', 'integer|required');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($caracteristica_id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->caracteristica_nivel_model->create(array(
+					'caracteristica_id' => $caracteristica->id,
+					'nivel_id' => $nivel->id
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->caracteristica_nivel_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->caracteristica_nivel_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("caracteristica_nivel/listar/$nivel->id", 'refresh');
+		}
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['nivel'] = $nivel;
+		$data['caracteristica'] = $caracteristica;
+		$data['valores'] = $valores;
+		$data['txt_btn'] = 'Agregar';
+		$data['title'] = 'Agregar caracteristica a nivel';
+		$this->load->view('caracteristica_nivel/caracteristica_nivel_modal_abm', $data);
+	}
+
+	public function modal_eliminar($caracteristica_nivel_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !isset($caracteristica_nivel_id) || !ctype_digit($caracteristica_nivel_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$caracteristica_nivel = $this->caracteristica_nivel_model->get_one($caracteristica_nivel_id);
+		if (empty($caracteristica_nivel)) {
+			$this->modal_error('No se encontró el registro de característica de nivel', 'Registro no encontrado');
+			return;
+		}
+
+		$nivel = $this->nivel_model->get_one($caracteristica_nivel->nivel_id);
+		if (empty($nivel)) {
+			$this->modal_error('No se encontró el registro de nivel', 'Registro no encontrado');
+			return;
+		}
+		if (($this->rol->codigo === ROL_LINEA || $this->rol->codigo === ROL_GRUPO_ESCUELA || $this->rol->codigo === ROL_CONSULTA_LINEA || $this->rol->codigo === ROL_REGIONAL) && $nivel->linea_id !== $this->rol->entidad_id) {
+			$this->modal_error('No puede administrar características de niveles no asociados', 'Acción no autorizada');
+			return;
+		}
+
+		$caracteristica = $this->caracteristica_model->get_one($caracteristica_nivel->caracteristica_id);
+		if (empty($caracteristica)) {
+			$this->modal_error('No se encontró el registro de característica', 'Registro no encontrado');
+			return;
+		}
+
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+
+		unset($this->caracteristica_model->fields['niveles']);
+		$this->form_validation->set_rules('id', 'Característica', 'integer|required');
+		if (isset($_POST) && !empty($_POST)) {
+			if ($caracteristica_nivel->id !== $this->input->post('id')) {
+				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
+				return;
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+
+				$trans_ok &= $this->caracteristica_nivel_model->delete(array('id' => $caracteristica_nivel->id));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->caracteristica_nivel_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->caracteristica_nivel_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect("caracteristica_nivel/listar/$nivel->id", 'refresh');
+		}
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['caracteristica_nivel'] = $caracteristica_nivel;
+		$data['valores'] = $valores;
+		$data['txt_btn'] = 'Eliminar';
+		$data['title'] = 'Quitar caracteristica de nivel ' . $nivel->descripcion;
+		$this->load->view('caracteristica_nivel/caracteristica_nivel_modal_abm', $data);
+	}
+
+	public function modal_ver($caracteristica_id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || !isset($caracteristica_id) || !ctype_digit($caracteristica_id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$caracteristica = $this->caracteristica_model->get_one($caracteristica_id);
+		if (empty($caracteristica)) {
+			$this->modal_error('No se encontró el registro de característica', 'Registro no encontrado');
+			return;
+		}
+
+		$valores = $this->caracteristica_valor_model->get(array(
+			'caracteristica_id' => $caracteristica->id
+		));
+
+		unset($this->caracteristica_model->fields['niveles']);
+
+		$data['fields'] = $this->build_fields($this->caracteristica_model->fields, $caracteristica, TRUE);
+		$data['valores'] = $valores;
+		$data['txt_btn'] = 'Ver';
+		$data['title'] = 'Ver caracteristica';
+		$this->load->view('caracteristica_nivel/caracteristica_nivel_modal_abm', $data);
+	}
+}
+/* End of file Caracteristica_nivel.php */
+/* Location: ./application/controllers/Caracteristica_nivel.php */

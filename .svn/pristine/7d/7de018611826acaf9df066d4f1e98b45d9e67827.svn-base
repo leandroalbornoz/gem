@@ -1,0 +1,38 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Altas_model extends CI_Model {
+
+	public function get_altas_sirrhh($escuela, $mes) {
+		return $this->db->query("SELECT a.PerCuil, CONCAT(p2.apellido, ' ', p2.nombre) Persona, a.ReeLiq, a.ReeDiaAlt, a.RegSalCod, CASE WHEN r2.regimen_tipo_id=2 THEN LPAD(ROUND(a.ReeOblaCum/4,0),4,'0') ELSE a.RegSalPto END Clase, a.ReeDiaBaj, a.ReeusuId, GROUP_CONCAT(s.id) servicios, p2.id AS persona_id
+FROM servicio s
+LEFT JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+LEFT JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN persona p ON s.persona_id = p.id
+LEFT JOIN regimen r ON c.regimen_id = r.id
+LEFT JOIN escuela e ON c.escuela_id = e.id
+LEFT JOIN reparticion re ON e.reparticion_id = re.id
+LEFT JOIN jurisdiccion ju ON re.jurisdiccion_id = ju.id
+RIGHT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+LEFT JOIN persona p2 ON p2.cuil=a.PerCuil
+LEFT JOIN regimen r2 ON r2.codigo=a.RegSalCod
+WHERE a.EscId=? AND DATE_FORMAT(a.ReeAltFch, '%Y%m')=?
+GROUP BY a.PerCuil, a.ReeLiq
+ORDER BY a.PerCuil", array($escuela, $mes))->result();
+	}
+
+	public function get_altas_gem($escuela, $mes) {
+		return $this->db->query("SELECT s.id, s.persona_id, GROUP_CONCAT(a.ReeLiq) liqs, e.numero EscId, r.codigo Regimen, r.puntos, LPAD(c.carga_horaria,4,'0') Clase, p.documento Documento, p.cuil CUIL, CONCAT(p.apellido, ' ', p.nombre) Persona, s.liquidacion Liquidacion, sr.descripcion SR, s.fecha_alta Alta, s.fecha_baja Baja, CASE WHEN DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes' THEN 1 ELSE 0 END mes_anterior
+FROM servicio s
+LEFT JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+LEFT JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN persona p ON s.persona_id = p.id
+LEFT JOIN regimen r ON c.regimen_id = r.id
+LEFT JOIN escuela e ON c.escuela_id = e.id
+LEFT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END
+WHERE e.numero='$escuela' AND (DATE_FORMAT(s.fecha_alta,'%Y%m')='$mes' OR ((s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A') AND DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes')) AND e.dependencia_id=1
+GROUP BY s.id
+ORDER BY CASE WHEN DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes' OR (s.liquidacion IS NOT NULL AND LEFT(s.liquidacion,1) != 'A') THEN 1 ELSE 0 END, p.cuil", array($escuela, $mes))->result();
+	}
+}

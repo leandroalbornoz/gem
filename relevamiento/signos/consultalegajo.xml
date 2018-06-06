@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="WSLMConsultaLegajoEP" targetNamespace="GENRH_Mza" xmlns:wsdlns="GENRH_Mza" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:tns2="Genexus" xmlns:tns="GENRH_Mza" xmlns:tns1="ACPServices">
+	<types>
+		<schema targetNamespace="Genexus" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" elementFormDefault="qualified">
+			<import namespace="GENRH_Mza"/>
+			<import namespace="ACPServices"/>
+			<complexType name="Messages">
+				<sequence>
+					<element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="Messages.Message">
+				<sequence>
+					<element name="Id" type="xsd:string">
+					</element>
+					<element name="Type" type="xsd:byte">
+					</element>
+					<element name="Description" type="xsd:string">
+					</element>
+				</sequence>
+			</complexType>
+		</schema>
+		<schema targetNamespace="GENRH_Mza" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" elementFormDefault="qualified">
+			<import namespace="Genexus"/>
+			<import namespace="ACPServices"/>
+			<complexType name="WSLMConsultaLegajoParmIn">
+				<sequence>
+					<element name="ApiKey" type="xsd:string">
+					</element>
+					<element name="Legajos" type="tns:ArrayOfWSLMLegajo">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="ArrayOfWSLMLegajo">
+				<sequence>
+					<element minOccurs="0" maxOccurs="unbounded" name="Legajo" type="tns:WSLMLegajo">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="WSLMLegajo">
+				<sequence>
+					<element name="PersonaCUIL" type="xsd:long">
+					</element>
+					<element name="PersonaApeYNom" type="xsd:string">
+					</element>
+					<element name="LegajoId" type="xsd:long">
+					</element>
+					<element name="LegajoExterno" type="xsd:long">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="WSLMConsultaLegajoParmOut">
+				<sequence>
+					<element name="Resultados">
+						<complexType>
+							<sequence>
+								<element minOccurs="0" maxOccurs="unbounded" name="Item" type="tns:WSLMConsultaLegajoParmOut.Item">
+								</element>
+							</sequence>
+						</complexType>
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="ArrayOfWSLMConsultaLegajoParmOut.Item">
+				<sequence>
+					<element minOccurs="0" maxOccurs="unbounded" name="WSLMConsultaLegajoParmOut.Item" type="tns:WSLMConsultaLegajoParmOut.Item">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="WSLMConsultaLegajoParmOut.Item">
+				<sequence>
+					<element name="Legajos" type="ArrayOfWSLMLegajo">
+					</element>
+					<element name="Mensajes" type="tns1:Messages">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="Messages">
+				<sequence>
+					<element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message">
+					</element>
+				</sequence>
+			</complexType>
+			<complexType name="Status">
+				<sequence>
+					<element name="Flag" type="xsd:string">
+					</element>
+					<element name="Messages" type="tns1:Messages">
+					</element>
+				</sequence>
+			</complexType>
+			<element name="WSLMConsultaLegajoEP.Execute">
+				<complexType>
+					<sequence>
+						<element minOccurs="1" maxOccurs="1" name="Parmin" type="tns:WSLMConsultaLegajoParmIn"/>
+					</sequence>
+				</complexType>
+			</element>
+			<element name="WSLMConsultaLegajoEP.ExecuteResponse">
+				<complexType>
+					<sequence>
+						<element minOccurs="1" maxOccurs="1" name="Parmout" type="tns:WSLMConsultaLegajoParmOut"/>
+						<element minOccurs="1" maxOccurs="1" name="Status" type="tns:Status"/>
+					</sequence>
+				</complexType>
+			</element>
+		</schema>
+		<schema targetNamespace="ACPServices" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" elementFormDefault="qualified">
+			<import namespace="Genexus"/>
+			<import namespace="GENRH_Mza"/>
+			<complexType name="Messages">
+				<sequence>
+					<element minOccurs="0" maxOccurs="unbounded" name="Messages.Message" type="tns2:Messages.Message">
+					</element>
+				</sequence>
+			</complexType>
+		</schema>
+	</types>
+	<message name="WSLMConsultaLegajoEP.ExecuteSoapIn">
+		<part name="parameters" element="tns:WSLMConsultaLegajoEP.Execute"/>
+	</message>
+	<message name="WSLMConsultaLegajoEP.ExecuteSoapOut">
+		<part name="parameters" element="tns:WSLMConsultaLegajoEP.ExecuteResponse"/>
+	</message>
+	<portType name="WSLMConsultaLegajoEPSoapPort">
+		<operation name="Execute">
+			<input message="wsdlns:WSLMConsultaLegajoEP.ExecuteSoapIn"/>
+			<output message="wsdlns:WSLMConsultaLegajoEP.ExecuteSoapOut"/>
+		</operation>
+	</portType>
+	<binding name="WSLMConsultaLegajoEPSoapBinding" type="wsdlns:WSLMConsultaLegajoEPSoapPort">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="Execute">
+			<soap:operation soapAction="GENRH_Mzaaction/AWSLMCONSULTALEGAJOEP.Execute"/>
+			<input>
+				<soap:body use="literal"/>
+			</input>
+			<output>
+				<soap:body use="literal"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="WSLMConsultaLegajoEP">
+		<port name="WSLMConsultaLegajoEPSoapPort" binding="wsdlns:WSLMConsultaLegajoEPSoapBinding">
+			<soap:address location="https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep"/>
+		</port>
+	</service>
+</definitions>

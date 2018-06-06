@@ -1,0 +1,141 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Cursada_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'cursada';
+		$this->msg_name = 'Cursada';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'division_id', 'espacio_curricular_id', 'cuatrimestre', 'carga_horaria', 'optativo', 'extra', 'fecha_desde', 'fecha_hasta');
+		$this->fields = array(
+			'division' => array('label' => 'División', 'readonly' => TRUE),
+			'espacio_curricular' => array('label' => 'Espacio curricular', 'readonly' => TRUE),
+			'cuatrimestre' => array('label' => 'Cuatrimestre', 'input_type' => 'combo', 'id_name' => 'cuatrimestre', 'array' => array('0' => 'Anual', '1' => '1°', '2' => '2°')),
+			'carga_horaria' => array('label' => 'Carga horaria', 'type' => 'number'),
+			'optativo' => array('label' => 'Optativo', 'input_type' => 'combo', 'id_name' => 'optativo', 'required' => TRUE, 'array' => array('Si' => 'Si', 'No' => 'No')),
+			'extra' => array('label' => 'Extra', 'maxlength' => '15'),
+			'fecha_desde' => array('label' => 'Fecha de Desde', 'type' => 'date', 'required' => TRUE),
+			'fecha_hasta' => array('label' => 'Fecha de Hasta', 'type' => 'date'),
+		);
+		$this->requeridos = array('espacio_curricular_id', 'fecha_desde');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('division', 'division.id = cursada.division_id', 'left', array('CONCAT(curso.descripcion,\' \',division.division) as division')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso')),
+			array('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left', array('espacio_curricular.id as espacio_curricular_id')),
+			array('materia', 'materia.id = espacio_curricular.materia_id', 'left', array('materia.descripcion as espacio_curricular')),
+			array('cargo_cursada', 'cargo_cursada.cursada_id = cursada.id', 'left', array('SUM(cargo_cursada.carga_horaria) carga_horaria_cargos')),
+		);
+	}
+
+	public function get_by_division($division_id) {
+		return $this->db->select('cursada.id, espacio_curricular.id as espacio_curricular, materia.descripcion as materia, cursada.extra, cursada.carga_horaria')
+				->from('cursada')
+				->join('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left')
+				->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+				->where('cursada.division_id', $division_id)
+				->get()->result();
+	}
+
+	public function get_cursadas($division_id) {
+		$query = $this->db->select("cursada.id, cursada.division_id, cursada.espacio_curricular_id, cursada.optativo, cursada.extra, cursada.fecha_desde, cursada.fecha_hasta, CONCAT(curso.descripcion,' ',division.division) as division, materia.descripcion as espacio_curricular, cursada.carga_horaria, SUM(cargo_cursada.carga_horaria) as carga_horaria_cargo, cargo_cursada.cargo_id as cargo_cursada, GROUP_CONCAT(CONCAT(COALESCE(persona.cuil,''), '<br>', COALESCE(persona.apellido, ''), ', ', COALESCE(persona.nombre,'')) ORDER BY persona.id SEPARATOR '<br>') personas_cargo, cursada.cuatrimestre")
+			->from('cursada')
+			->join('division', 'division.id = cursada.division_id')
+			->join('curso', 'curso.id = division.curso_id')
+			->join('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id')
+			->join('materia', 'espacio_curricular.materia_id = materia.id')
+			->join('cargo_cursada', 'cargo_cursada.cursada_id= cursada.id', 'left')
+			->join('cargo', 'cargo_cursada.cargo_id = cargo.id', 'left')
+			->join('servicio sp', "sp.id = (SELECT id FROM servicio s WHERE cargo_id = cargo.id AND s.fecha_baja IS NULL ORDER BY fecha_alta DESC LIMIT 1)", 'left', false)
+			->join('persona', 'persona.id = sp.persona_id', 'left');
+		if (in_array($this->rol->codigo, array(ROL_DOCENTE_CURSADA))) {
+			$query->join('usuario_rol ur', 'ur.entidad_id = cursada.id')
+				->where('ur.id', $this->rol->id);
+		}
+		$query->where('division.id', $division_id)->group_by('cursada.id');
+		return $query->get()->result();
+	}
+
+	public function consulta($extra, $espacio_curricular_id, $division_id) {
+		if (empty($extra)) {
+			return $this->db->select('cursada.id, materia.descripcion as materia')
+					->from('cursada')
+					->join('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left')
+					->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+					->where('cursada.espacio_curricular_id', $espacio_curricular_id)
+					->where('cursada.division_id', $division_id)
+					->where('cursada.extra IS NULL')
+					->get()->result();
+		} else {
+			return $this->db->select('cursada.id, materia.descripcion as materia')
+					->from('cursada')
+					->join('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left')
+					->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+					->where('cursada.espacio_curricular_id', $espacio_curricular_id)
+					->where('cursada.division_id', $division_id)
+					->where('cursada.extra', $extra)
+					->get()->result();
+		}
+	}
+
+	public function buscar_cursadas_escuela($cargo_id, $escuela_id) {
+		return $this->db->select("cursada.id, cursada.extra, cursada.carga_horaria, COALESCE(SUM(cargo_cursada.carga_horaria),0) carga_horaria_cargos, CONCAT(curso.descripcion,' ',division.division) as division, cursada.extra, materia.descripcion as materia")
+				->from('cursada')
+				->join('cargo_cursada', 'cargo_cursada.cursada_id = cursada.id', 'left')
+				->join('cargo_cursada cargo_cursada_act', 'cargo_cursada_act.cursada_id = cursada.id AND cargo_cursada_act.cargo_id=' . $cargo_id, 'left')
+				->join('division', 'cursada.division_id = division.id')
+				->join('escuela', 'division.escuela_id = escuela.id')
+				->join('curso', 'curso.id = division.curso_id')
+				->join('espacio_curricular', 'espacio_curricular.id = cursada.espacio_curricular_id', 'left')
+				->join('materia', 'espacio_curricular.materia_id = materia.id', 'left')
+				->where('cargo_cursada_act.id IS NULL')
+				->where('escuela.id', $escuela_id)
+				->group_by('cursada.id')
+				//->having('carga_horaria_cargos < cursada.carga_horaria')
+				->get()->result();
+	}
+
+	public function verificar_usuario_rol_cursada($usuario_id, $cursada_id) {
+		return $this->db->select('usuario.id, usuario.usuario, persona.cuil as cuil, CONCAT(persona.apellido, \', \', persona.nombre) as persona, rol.nombre as rol, entidad.nombre as entidad, (CASE usuario.active WHEN 1 THEN "Activo" ELSE "No Activo" END) as active, (CASE WHEN rol_cursada.entidad_id IS NOT NULL THEN "Si" ELSE "No" END) as rol_asignado,rol_cursada.entidad_id as cursada_asignada_id')
+				->from('usuario')
+				->join('usuario_persona', 'usuario_persona.usuario_id=usuario.id')
+				->join('usuario_rol', 'usuario_rol.usuario_id=usuario.id', 'left')
+				->join('usuario_rol rol_cursada', 'rol_cursada.usuario_id=usuario.id AND rol_cursada.rol_id=27', 'left')
+				->join('rol', 'usuario_rol.rol_id=rol.id', 'left')
+				->join('entidad_tipo', 'rol.entidad_tipo_id=entidad_tipo.id', 'left')
+				->join('entidad', 'entidad.tabla=entidad_tipo.tabla and entidad.id=usuario_rol.entidad_id', 'left')
+				->join('persona', "persona.cuil = usuario_persona.cuil", 'left')
+				->where('usuario.active', 1)
+				->where('rol_cursada.entidad_id', $cursada_id)
+				->where('usuario.id', $usuario_id)
+				->group_by('usuario.id')
+				->get()->result();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('cursada_id', $delete_id)->count_all_results('alumno_cursada') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de cursada.');
+			return FALSE;
+		}
+		if ($this->db->where('cursada_id', $delete_id)->count_all_results('cargo_cursada') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a cargo de cursada.');
+			return FALSE;
+		}
+		if ($this->db->where('cursada_id', $delete_id)->count_all_results('evaluacion') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a evaluación de cursada.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Cursada_model.php */
+/* Location: ./application/models/Cursada_model.php */

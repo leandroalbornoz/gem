@@ -1,0 +1,77 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Altas_model extends CI_Model {
+
+	public function get_altas_sirrhh($escuela, $mes) {
+		return $this->db->query("SELECT a.PerCuil, CONCAT(p2.apellido, ' ', p2.nombre) Persona, a.ReeLiq, a.ReeDiaAlt, a.RegSalCod, CASE WHEN r2.regimen_tipo_id=2 THEN LPAD(ROUND(a.ReeOblaCum/4,0),4,'0') ELSE a.RegSalPto END Clase, a.ReeDiaBaj, a.ReeusuId, GROUP_CONCAT(s.id) servicios, p2.id AS persona_id
+FROM servicio s
+LEFT JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN persona p ON s.persona_id = p.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+LEFT JOIN escuela e ON c.escuela_id = e.id
+LEFT JOIN reparticion re ON e.reparticion_id = re.id
+LEFT JOIN jurisdiccion ju ON re.jurisdiccion_id = ju.id
+RIGHT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END AND e.dependencia_id=1 AND (s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A')
+LEFT JOIN persona p2 ON p2.cuil=a.PerCuil
+LEFT JOIN regimen r2 ON r2.codigo=a.RegSalCod
+WHERE a.EscId=? AND DATE_FORMAT(a.ReeAltFch, '%Y%m')=?
+GROUP BY a.PerCuil, a.ReeLiq
+ORDER BY a.PerCuil", array($escuela, $mes))->result();
+	}
+
+	public function get_altas_gem($escuela, $mes) {
+		return $this->db->query("SELECT s.id, s.persona_id, GROUP_CONCAT(a.ReeLiq) liqs, e.numero EscId, r.codigo Regimen, r.puntos, LPAD(c.carga_horaria,4,'0') Clase, p.documento Documento, p.cuil CUIL, CONCAT(p.apellido, ' ', p.nombre) Persona, s.liquidacion Liquidacion, sr.descripcion SR, s.fecha_alta Alta, s.fecha_baja Baja, CASE WHEN DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes' THEN 1 ELSE 0 END mes_anterior
+FROM servicio s
+LEFT JOIN situacion_revista sr ON s.situacion_revista_id=sr.id
+JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN persona p ON s.persona_id = p.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+LEFT JOIN escuela e ON c.escuela_id = e.id
+LEFT JOIN altareemplazo a ON a.PerCuil=p.cuil AND a.EscId=e.numero AND a.ReeAltFch=s.fecha_alta AND CASE WHEN a.RegSalCod='6560201' THEN '0004' ELSE a.RegSalPto END=r.puntos AND CASE WHEN r.regimen_tipo_id=2 THEN a.ReeOblaCum=c.carga_horaria*4 ELSE c.carga_horaria=0 END
+WHERE e.numero='$escuela' AND (DATE_FORMAT(s.fecha_alta,'%Y%m')='$mes' OR ((s.liquidacion IS NULL OR LEFT(s.liquidacion,1)='A') AND DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes')) AND e.dependencia_id=1
+GROUP BY s.id
+ORDER BY CASE WHEN DATE_FORMAT(s.fecha_alta,'%Y%m')<'$mes' OR (s.liquidacion IS NOT NULL AND LEFT(s.liquidacion,1) != 'A') THEN 1 ELSE 0 END, p.cuil", array($escuela, $mes))->result();
+	}
+
+	public function get_by_departamento($mes) {
+		return $this->db->query("SELECT COALESCE(d.id,0) id, COALESCE(d.descripcion, 'N/D') departamento, COUNT(DISTINCT e.id) escuelas_altas, COUNT(DISTINCT sn_alta.id) altas_cargadas, COUNT(DISTINCT CASE WHEN sn_alta.estado='Cargado' THEN NULL ELSE sn_alta.id END) altas_auditadas
+FROM servicio_novedad sn_alta
+JOIN servicio s ON sn_alta.servicio_id = s.id
+JOIN cargo c ON s.cargo_id = c.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+JOIN escuela e ON c.escuela_id = e.id AND e.dependencia_id = 1
+LEFT JOIN localidad l ON e.localidad_id = l.id
+LEFT JOIN departamento d ON l.departamento_id = d.id
+WHERE sn_alta.novedad_tipo_id = 1 AND sn_alta.ames = ? AND sn_alta.planilla_baja_id IS NULL
+/*AND sn_alta.estado = 'Cargado'*/
+GROUP BY d.id
+ORDER BY d.descripcion", array($mes))->result();
+	}
+
+	public function get_altas_escuela($mes, $escuela) {
+		return $this->db->query("SELECT sn.id, s.persona_id, p.documento, p.cuil, CONCAT(p.apellido, ', ', p.nombre) persona, p.fecha_nacimiento, s.liquidacion, s.observaciones, c.observaciones observaciones_c, sr.descripcion situacion_revista, s.fecha_alta, s.fecha_baja, r.codigo regimen, r.descripcion regimen_desc, r.puntos, LPAD(c.carga_horaria,4,'0') clase, r.regimen_tipo_id, sn.dias, sn.obligaciones, sn.motivo_rechazo, sn.estado, t.descripcion turno, CONCAT(cu.descripcion, ' ', d.division) division, m.descripcion materia, COALESCE(f.descripcion, sf.detalle) funcion_detalle, sf.destino funcion_destino, sf.norma funcion_norma, sf.tarea funcion_tarea, sf.carga_horaria funcion_cargahoraria, sf.fecha_desde as funcion_desde, CONCAT(rn.articulo, '-', rn.inciso) reemplaza_articulo, rn.descripcion_corta reemplaza_articulo_desc, rn.id novedad_tipo_id, rn.novedad novedad_tipo_novedad, rs.liquidacion reemplaza_liquidacion, rp.cuil reemplaza_cuil, CONCAT(rp.apellido, ', ', rp.nombre) reemplaza_persona
+FROM servicio_novedad sn
+JOIN servicio s ON sn.servicio_id=s.id
+LEFT JOIN novedad_tipo rn ON s.articulo_reemplazo_id = rn.id
+LEFT JOIN servicio rs ON s.reemplazado_id = rs.id
+LEFT JOIN persona rp ON rs.persona_id = rp.id
+LEFT JOIN servicio_funcion sf ON s.id = sf.servicio_id AND sf.fecha_hasta IS NULL
+LEFT JOIN funcion f ON sf.funcion_id = f.id
+JOIN situacion_revista sr ON s.situacion_revista_id = sr.id
+JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN turno t ON c.turno_id = t.id
+LEFT JOIN division d ON c.division_id = d.id
+LEFT JOIN curso cu ON d.curso_id = cu.id
+LEFT JOIN espacio_curricular ec ON c.espacio_curricular_id = ec.id
+LEFT JOIN materia m ON ec.materia_id = m.id
+JOIN persona p ON s.persona_id = p.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+JOIN escuela e ON c.escuela_id = e.id
+WHERE e.dependencia_id=1 AND e.id=? AND sn.ames=? AND sn.novedad_tipo_id=1
+GROUP BY s.id
+ORDER BY p.documento", array($escuela, $mes))->result();
+	}
+}

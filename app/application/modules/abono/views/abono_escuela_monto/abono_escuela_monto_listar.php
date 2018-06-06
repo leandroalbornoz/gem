@@ -1,7 +1,14 @@
+<style>
+	.datepicker,.datepicker>datepicker-days>.table-condensed{
+		margin:0 auto;
+	}
+</style>
 <div class="content-wrapper">
 	<section class="content-header">
 		<h1>
-			Monto Escuela
+			Monto Escuela - 
+			<label class="label label-default"><?php echo $mes; ?></label>
+			<a class="btn btn-xs btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i>Cambiar</a>
 		</h1>
 		<ol class="breadcrumb">
 			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
@@ -40,6 +47,30 @@
 		</div>
 	</section>
 </div>
+<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<?php echo form_open("abono/abono_escuela_monto/cambiar_mes/$mes_id"); ?>
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+			</div>
+			<div class="modal-body">
+				<div class="row">
+					<div class="form-group col-md-12" style="text-align:center;">
+						<div id="datepicker" data-date="<?php echo $fecha; ?>"></div>
+						<input type="hidden" name="mes" id="mes" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
 <script>
 	$(document).ready(function() {
 		$("#remote_modal").on("show.bs.modal", function(e) {
@@ -48,6 +79,17 @@
 		});
 		$('#remote_modal').on("hidden.bs.modal", function(e) {
 			$(this).find(".modal-content").empty();
+		});
+
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
 		});
 	});
 </script>

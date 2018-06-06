@@ -1,0 +1,85 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Liquidacion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->model('servicio_model');
+		$this->roles_permitidos = array_diff(explode(',', ROLES), array(ROL_PORTAL,ROL_ASISTENCIA_DIVISION));
+		$this->roles_admin = array(ROL_ADMIN, ROL_USI);
+		if (in_array($this->rol->codigo, array(ROL_SUPERVISION, ROL_CONSULTA, ROL_CONSULTA_LINEA, ROL_REGIONAL))) {
+			$this->edicion = FALSE;
+		}
+		$this->nav_route = 'menu/servicio';
+	}
+
+	public function modal_buscar_servicio_area($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+		$this->load->model('areas/area_model');
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$area = $this->area_model->get_one($servicio->area_id);
+		if (empty($area)) {
+			$this->modal_error('No se encontró el área', 'Registro no encontrado');
+			return;
+		}
+		if ($this->rol->codigo === ROL_AREA && strpos($area->codigo, substr($this->rol->entidad, 0, strpos($this->rol->entidad, '-'))) === FALSE) {
+			$this->modal_error('No tiene permisos para acceder al área', 'Acción no autorizada');
+			return;
+		}
+		$this->buscar_servicio($servicio);
+	}
+
+	public function modal_buscar_servicio_escuela($id = NULL) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos) || $id == NULL || !ctype_digit($id)) {
+			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
+			return;
+		}
+
+		$servicio = $this->servicio_model->get_one($id);
+		if (empty($servicio)) {
+			$this->modal_error('No se encontró el registro a ver', 'Registro no encontrado');
+			return;
+		}
+
+		$this->load->model('escuela_model');
+		$escuela = $this->escuela_model->get_one($servicio->escuela_id);
+		if (empty($escuela)) {
+			$this->modal_error('No se encontró el registro de la escuela', 'Registro no encontrado');
+			return;
+		}
+		if (!$this->usuarios_model->verificar_permiso('escuela', $this->rol, $escuela)) {
+			$this->modal_error('No tiene permisos para acceder a la escuela', 'Acción no autorizada');
+			return;
+		}
+		$this->buscar_servicio($servicio);
+	}
+
+	private function buscar_servicio($servicio) {
+		$query = $this->db->query('select t.id, t.juri JU, t.repa REPART, e.id escuela_id, e.numero ESCUELA, t.liquidacion_s LIQUIDACION, r.id regimen_id, t.regimen REGSAL, r.descripcion REGIMEN, r.regimen_tipo_id, t.diasoblig CLASE, t.nombre NOMBRE, t.diashorapag DIAS, t.codrevi SR
+FROM tbcab t
+LEFT JOIN servicio s ON s.id=t.servicio_id
+LEFT JOIN reparticion re ON t.juri=re.jurisdiccion_id AND t.repa=re.codigo
+LEFT JOIN regimen r ON t.regimen=r.codigo
+LEFT JOIN escuela e ON e.reparticion_id=re.id
+WHERE t.persona=? AND t.servicio_id IS NULL
+ORDER BY e.numero, t.regimen, t.diasoblig', array(substr($servicio->cuil, 0, 2) . substr($servicio->cuil, 3, 8)));
+		$liquidaciones = $query->result();
+		$data['error'] = $this->session->flashdata('error');
+		$data['servicio'] = $servicio;
+		$data['liquidaciones'] = $liquidaciones;
+		$data['title'] = 'Buscar liquidación';
+		$this->load->view('liquidacion/liquidacion_modal_buscar_servicio', $data);
+	}
+}
+/* End of file Liquidacion.php */
+/* Location: ./application/controllers/Liquidacion.php */

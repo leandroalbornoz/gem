@@ -11,6 +11,14 @@ class Auth extends CI_Controller {
 	}
 
 	function login() {
+		if (ENVIRONMENT !== 'development') {
+			if ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+				$_SERVER['HTTPS'] = 'on';
+			}
+			if ($_SERVER['HTTPS'] != 'on') {
+				redirect($this->uri->uri_string());
+			}
+		}
 		$this->session->unset_userdata('acceso');
 //		$session_id = $this->input->cookie('loginDTIDGE');
 		$error_msg = FALSE;

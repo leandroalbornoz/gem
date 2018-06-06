@@ -12,6 +12,9 @@
     </editor-bookmarks>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
+            <file>file:/C:/xampp/htdocs/gem/app/application/modules/abono/controllers/Abono_alumno.php</file>
+            <file>file:/C:/xampp/htdocs/gem/app/application/modules/abono/views/abono_alumno/abono_alumno_listar.php</file>
+            <file>file:/C:/xampp/htdocs/gem/app/application/modules/abono/views/abono_escuela_monto/abono_escuela_monto_listar.php</file>
             <file>file:/C:/xampp/htdocs/gem/app/application/modules/abono/controllers/Abono_escuela_monto.php</file>
         </group>
     </open-files>

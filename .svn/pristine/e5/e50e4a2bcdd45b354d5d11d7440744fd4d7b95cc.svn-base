@@ -1,0 +1,65 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Escuela extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_JUNTAS, ROL_MODULO);
+		$this->nav_route = 'par/persona';
+	}
+
+	function modal_editar_vacantes($id) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$DB1 = $this->load->database('bono_secundario', TRUE);
+		$this->load->model('bono_secundario/escuela_model');
+		$this->escuela_model->set_database($DB1);
+		$escuela = $this->escuela_model->get_one($id);
+
+		if (empty($escuela)) {
+			redirect('juntas/alertas/listar_vacantes', 'refresh');
+		}
+
+		$model_escuela = new stdClass();
+		$model_escuela->fields = array(
+			'escuela' => array('label' => 'Escuela', 'readonly' => 'TRUE'),
+			'vacantes' => array('label' => 'Vacantes', 'readonly' => 'TRUE'),
+			'vacantes_disponibles' => array('label' => 'Vacantes disponibles', 'required' => TRUE));
+
+		$this->set_model_validation_rules($model_escuela);
+		if (isset($_POST) && !empty($_POST)) {
+			if ($this->input->post('id') !== $id) {
+				$this->session->set_flashdata('error', 'Error al intentar editar vacantes de escuela');
+				redirect('juntas/alertas/listar_vacantes', 'refresh');
+			}
+			if ($this->form_validation->run() === TRUE) {
+				$trans_ok = TRUE;
+				$this->escuela_model->set_database($DB1);
+				$trans_ok &= $this->escuela_model->update(array(
+					'id' => $id,
+					'vacantes_disponibles' => $this->input->post('vacantes_disponibles')
+				));
+
+				if ($trans_ok) {
+					$this->session->set_flashdata('message', $this->escuela_model->get_msg());
+				} else {
+					$this->session->set_flashdata('error', $this->escuela_model->get_error());
+				}
+			} else {
+				$this->session->set_flashdata('error', validation_errors());
+			}
+			redirect('juntas/alertas/listar_vacantes', 'refresh');
+		}
+		$model_escuela->fields['escuela']['value'] = "$escuela->numero - $escuela->nombre";
+		$model_escuela->fields['vacantes']['value'] = $escuela->vacantes;
+		$model_escuela->fields['vacantes_disponibles']['value'] = $escuela->vacantes_disponibles;
+		$data['fields'] = $this->build_fields($model_escuela->fields);
+		$data['escuela'] = $escuela;
+		$data['txt_btn'] = 'Editar';
+		$data['title'] = 'Editar escuela';
+		$this->load->view('juntas/escuela/escuela_modal_vacantes', $data);
+	}
+}

@@ -1,0 +1,118 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Tbcabh_model extends CI_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'tbcabh';
+		$this->msg_name = 'tb_cab';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'servicio_id', 'liquidacion_s', 'uodes', 'REVISTA', 'SINSUELDO', 'liquidacion', 'jurid', 'mes', 'periodo', 'documento', 'persona', 'nombre', 'vigente', 'traza', 'nrocodliq', 'ug', 'juriuo', 'juri', 'uo', 'repa', 'regimen', 'diashorapag', 'diasoblig', 'difdiasobli', 'codrevi', 'fechafin', 'fechaini', 'haberes', 'descuentos', 'patronales', 'neto', 'RegSalDes', 'antigcod', 'antigsubc', 'estadocod', 'celador', 'personac', 'singoce', 'dpto', 'guiescid', 'guiescane', 'escnivel', 'horas', 'docente', 'admin', 'salud', 'sueldoneg');
+		$this->fields = array(
+			'liquidacion_s' => array('label' => 'Liquidación', 'readonly' => TRUE),
+			'REVISTA' => array('label' => 'Sit. Rev.', 'required' => TRUE),
+			'ug' => array('label' => 'Juri/UO/Repa', 'readonly' => TRUE),
+			'regimen' => array('label' => 'Régimen', 'readonly' => TRUE),
+			'diasoblig' => array('label' => 'Clase', 'readonly' => TRUE),
+			'fechaini' => array('label' => 'Inicio', 'readonly' => TRUE),
+			'fechafin' => array('label' => 'Fin', 'readonly' => TRUE),
+		);
+		$this->requeridos = array();
+		//$this->unicos = array();
+	}
+
+	public function get($id, $vigente) {
+		return $this->db->select('id, servicio_id, liquidacion_s, uodes, REVISTA, SINSUELDO, liquidacion, jurid, mes, periodo, documento, persona, nombre, vigente, traza, nrocodliq, ug, juriuo, juri, uo, repa, regimen, diashorapag, diasoblig, difdiasobli, codrevi, fechafin, fechaini, haberes, descuentos, patronales, neto, RegSalDes, antigcod, antigsubc, estadocod, celador, personac, singoce, dpto, guiescid, guiescane, escnivel, horas, docente, admin, salud, sueldoneg')->from('tbcabh')->where('id', $id)->where('vigente', $vigente)->get()->row();
+	}
+
+	public function get_ultimo_mes() {
+		return $this->db->select('max(vigente) as mes')->from('tbcabh')->get()->row()->mes;
+	}
+
+	public function get_by_persona($cuil, $vigente = NULL) {
+		$query = $this->db->select('t.id, servicio_id, liquidacion_s, uodes, REVISTA, SINSUELDO, liquidacion, jurid, mes, periodo, documento, persona, nombre, vigente, traza, nrocodliq, ug, juriuo, juri, uo, repa, regimen, diashorapag, diasoblig, difdiasobli, codrevi, fechafin, fechaini, haberes, descuentos, patronales, neto, RegSalDes, antigcod, antigsubc, estadocod, celador, personac, singoce, dpto, guiescid, guiescane, escnivel, horas, docente, admin, salud, sueldoneg, r.descripcion as reparticion')
+			->from('tbcabh t')
+			->join('jurisdiccion j', 't.jurid=j.codigo')
+			->join('reparticion r', 'j.id=r.jurisdiccion_id AND t.repa=r.codigo')
+			->where('persona', substr(str_replace('-', '', $cuil), 0, 10))
+			->order_by('vigente desc, liquidacion_s');
+		if (!empty($vigente)) {
+			$query->where('vigente', $vigente);
+		}
+		return $query->get()->result();
+	}
+
+	public function get_by_servicio($servicio_id) {
+		return $this->db->select('id, servicio_id, liquidacion_s, uodes, REVISTA, SINSUELDO, liquidacion, jurid, mes, periodo, documento, persona, nombre, vigente, traza, nrocodliq, ug, juriuo, juri, uo, repa, regimen, diashorapag, diasoblig, difdiasobli, codrevi, fechafin, fechaini, haberes, descuentos, patronales, neto, RegSalDes, antigcod, antigsubc, estadocod, celador, personac, singoce, dpto, guiescid, guiescane, escnivel, horas, docente, admin, salud, sueldoneg')->from('tbcabh')->where('servicio_id', $servicio_id)->order_by('vigente desc')->get()->result();
+	}
+
+	public function actualizar_servicio_id($tbcab_id, $vigente, $servicio_id) {
+		$this->asignar_servicio($tbcab_id, $vigente, $servicio_id);
+		$this->db->query('UPDATE servicio s
+JOIN tbcabh t ON t.servicio_id=s.id AND t.id = ? AND t.vigente = ?
+JOIN regimen r ON t.regimen=r.codigo
+JOIN reparticion repa ON repa.codigo=t.repa AND repa.jurisdiccion_id=t.juri
+JOIN situacion_revista sr ON sr.codigo=t.codrevi
+SET s.liquidacion=t.liquidacion_s,
+s.liquidacion_ames=t.vigente,
+s.liquidacion_regimen_id=r.id,
+s.liquidacion_carga_horaria=CASE WHEN r.regimen_tipo_id=2 THEN t.diasoblig ELSE 0 END,
+s.liquidacion_reparticion_id=repa.id,
+s.liquidacion_situacion_revista_id=sr.id
+;', array($tbcab_id, $vigente));
+		return TRUE;
+	}
+
+	public function agregar_servicio($tbcab_id, $vigente, $persona_id, $tipo_destino, $destino, $fecha_alta) {
+		switch ($tipo_destino) {
+			case 'escuela':
+				$this->db->query('INSERT INTO cargo (escuela_id, regimen_id, carga_horaria, condicion_cargo_id) SELECT ?, r.id, CASE WHEN r.regimen_tipo_id=2 THEN t.diasoblig ELSE 0 END, 1 FROM tbcabh t JOIN regimen r ON t.regimen=r.codigo WHERE t.id=? AND t.vigente=?', array($destino, $tbcab_id, $vigente));
+				break;
+			case 'area':
+				$this->db->query('INSERT INTO cargo (area_id, regimen_id, carga_horaria, condicion_cargo_id) SELECT ?, r.id, CASE WHEN r.regimen_tipo_id=2 THEN t.diasoblig ELSE 0 END, 1 FROM tbcabh t JOIN regimen r ON t.regimen=r.codigo WHERE t.id=? AND t.vigente=?', array($destino, $tbcab_id, $vigente));
+				break;
+		}
+		$cargo_id = $this->db->insert_id();
+		$this->db->query('INSERT INTO servicio (persona_id, cargo_id, fecha_alta, liquidacion, situacion_revista_id) SELECT ?, ?, ?, t.liquidacion_s, sr.id FROM tbcabh t JOIN situacion_revista sr ON t.codrevi=sr.codigo WHERE t.id=? AND t.vigente=?', array($persona_id, $cargo_id, $fecha_alta, $tbcab_id, $vigente));
+		$servicio_id = $this->db->insert_id();
+		$this->db->query('INSERT INTO servicio_funcion (servicio_id, fecha_desde) values (?,?)', array($servicio_id, $fecha_alta));
+		return $servicio_id;
+	}
+
+	public function asignar_servicio($tbcab_id, $vigente, $servicio_id) {
+		$this->db->where('id', $tbcab_id);
+		$this->db->where('vigente', $vigente);
+		$this->db->set('servicio_id', $servicio_id);
+		$this->db->update('tbcabh');
+		return TRUE;
+	}
+
+	public function desasignar_servicio($tbcab_id, $vigente) {
+		$this->db->where('id', $tbcab_id);
+		$this->db->where('vigente', $vigente);
+		$this->db->set('servicio_id', null);
+		$this->db->update('tbcabh');
+		return TRUE;
+	}
+
+	public function unificar_servicio($servicio_anterior_id, $servicio_nuevo_id) {
+		$this->db->where('servicio_id', $servicio_anterior_id);
+		$this->db->set('servicio_id', $servicio_nuevo_id);
+		$this->db->update('tbcabh');
+		return TRUE;
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return FALSE;
+	}
+}
+/* End of file Tbcabh_model.php */
+/* Location: ./application/models/Tbcabh_model.php */

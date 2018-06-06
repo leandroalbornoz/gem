@@ -1,0 +1,194 @@
+<style>
+	.datepicker,.datepicker>datepicker-days>.table-condensed{
+		margin:0 auto;
+	}
+</style>
+<div class="content-wrapper">
+	<section class="content-header">
+		<h1>
+			Liquidaciones - <label class="label label-default"><?php echo $mes; ?></label>
+			<a class="btn btn-xs btn-primary" data-toggle="modal" data-target="#datepicker_modal"><i class="fa fa-refresh"></i> Cambiar</a>
+		</h1>
+		<ol class="breadcrumb">
+			<li class="active"><i class="fa fa-home"></i> Inicio</li>
+		</ol>
+	</section>
+	<section class="content">
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="box box-primary collapsed-box">
+					<div class="box-header with-border">
+						<h3 class="box-title">Accesos Comunes</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<div class="row">
+							<div class="col-xs-12">
+								<?php echo $accesos; ?>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="col-xs-12">
+				<div class="box box-danger">
+					<div class="box-header with-border">
+						<h3 class="box-title">Barrido Noviembre GEM-SIGNOS</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+						</div>
+					</div>
+					<div class="box-body">
+						<ul>
+							<li>
+								<b>Altas</b> - Se barrerán el 13/12/2017 a las 17:00 - Sistema cerrado desde las 17:00 a las 18:30
+							</li>
+							<li>
+								<b>Bajas</b> - Se barrerán el 13/12/2017 a las 11:00 - Sistema cerrado desde las 11:00 a las 12:30
+							</li>
+						</ul>
+						<b>En el caso de altas/bajas no auditadas al momento del barrido (que por lo tanto que no fueron procesadas), se deberán auditar igualmente y cargar manualmente en SIGNOS.</b>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php foreach ($planilla_tipos as $planilla_tipo): ?>
+			<div class="row">
+				<div class="col-xs-6">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+							<h3 class="box-title">Auditoría Altas <?php echo $planilla_tipo->descripcion; ?></h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<div class="row">
+								<div class="col-xs-12">
+									<table class="table table-condensed table-striped table-bordered">
+										<thead>
+											<tr>
+												<th>Departamento</th>
+												<th>Escuelas c/Altas</th>
+												<th>Altas cargadas</th>
+												<th>Altas auditadas</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php if (!empty($altas_departamentos[$planilla_tipo->id])): ?>
+												<?php foreach ($altas_departamentos[$planilla_tipo->id] as $departamento): ?>
+													<tr>
+														<td><?php echo $departamento->departamento; ?></td>
+														<td><?php echo $departamento->escuelas_altas; ?></td>
+														<td><?php echo $departamento->altas_cargadas; ?></td>
+														<td><?php echo $departamento->altas_auditadas . ($departamento->altas_cargadas === $departamento->altas_auditadas ? ' <i class="fa fa-check text-green">' : ''); ?></td>
+														<td><a class="btn btn-xs btn-primary" href="liquidaciones/altas/departamento/<?php echo $planilla_tipo->id . '/' . $mes . '/' . (empty($departamento->id) ? '0' : $departamento->id); ?>"><i class="fa fa-search"></i> Ver</a></td>
+													</tr>
+												<?php endforeach; ?>
+											<?php endif; ?>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+						<div class="box-footer">
+							<a class="btn btn-primary" href="liquidaciones/altas/aud_escuelas/<?php echo $planilla_tipo->id . '/' . $mes; ?>">
+								<i class="fa fa-cogs"></i> Administrar
+							</a>
+							<a class="btn btn-success pull-right" href="liquidaciones/altas/exportar_auditoria_excel/<?php echo $planilla_tipo->id . '/' . $mes; ?>"><i class="fa fa-file-excel-o"></i> Descargar</a>
+						</div>
+					</div>
+				</div>
+				<div class="col-xs-6">
+					<div class="box box-primary">
+						<div class="box-header with-border">
+							<h3 class="box-title">Auditoría Bajas <?php echo $planilla_tipo->descripcion; ?></h3>
+							<div class="box-tools pull-right">
+								<button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button>
+							</div>
+						</div>
+						<div class="box-body">
+							<div class="row">
+								<div class="col-xs-12">
+									<table class="table table-condensed table-striped table-bordered">
+										<thead>
+											<tr>
+												<th>Departamento</th>
+												<th>Escuelas c/Bajas</th>
+												<th>Bajas cargadas</th>
+												<th>Bajas auditadas</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											<?php if (!empty($bajas_departamentos[$planilla_tipo->id])): ?>
+												<?php foreach ($bajas_departamentos[$planilla_tipo->id] as $departamento): ?>
+													<tr>
+														<td><?php echo $departamento->departamento; ?></td>
+														<td><?php echo $departamento->escuelas_bajas; ?></td>
+														<td><?php echo $departamento->bajas_cargadas; ?></td>
+														<td><?php echo $departamento->bajas_auditadas . ($departamento->bajas_cargadas === $departamento->bajas_auditadas ? ' <i class="fa fa-check text-green">' : ''); ?></td>
+														<td><a class="btn btn-xs btn-primary" href="liquidaciones/bajas/departamento/<?php echo $planilla_tipo->id . '/' . $mes . '/' . (empty($departamento->id) ? '0' : $departamento->id); ?>"><i class="fa fa-search"></i> Ver</a></td>
+													</tr>
+												<?php endforeach; ?>
+											<?php endif; ?>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+						<div class="box-footer">
+							<a class="btn btn-primary" href="liquidaciones/bajas/aud_escuelas/<?php echo $planilla_tipo->id . '/' . $mes; ?>">
+								<i class="fa fa-cogs"></i> Administrar
+							</a>
+							<a class="btn btn-success pull-right" href="liquidaciones/bajas/exportar_auditoria_excel/<?php echo $planilla_tipo->id . '/' . $mes; ?>"><i class="fa fa-file-excel-o"></i> Descargar</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		<?php endforeach; ?>
+	</section>
+</div>
+<div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<?php echo form_open("liquidaciones/escritorio/cambiar_mes/$planilla_tipo->id/$mes"); ?>
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">Cambiar Mes</h4>
+			</div>
+			<div style="display:none;" id="div_servicio_baja"></div>
+
+			<div class="modal-body">
+				<div class="row">
+					<div class="form-group col-md-12" style="text-align:center;">
+						<div id="datepicker" data-date="<?php echo (new DateTime("{$mes}01"))->format('d/m/Y'); ?>"></div>
+						<input type="hidden" name="mes" id="mes" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
+				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
+			</div>
+			<?php echo form_close(); ?>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+	$(document).ready(function() {
+		$("#datepicker").datepicker({
+			format: "dd/mm/yyyy",
+			startView: "months",
+			minViewMode: "months",
+			language: 'es',
+			todayHighlight: false
+		});
+		$("#datepicker").on("changeDate", function(event) {
+			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
+		});
+	});
+</script>

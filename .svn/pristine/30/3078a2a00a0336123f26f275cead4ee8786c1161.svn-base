@@ -1,0 +1,61 @@
+<?php
+
+class Declaracion extends MY_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->roles_permitidos = array(ROL_ADMIN);
+	}
+
+	public function obtener($persona_cuil) {
+		if (!in_array($this->rol->codigo, $this->roles_permitidos)) {
+			show_error('No tiene permisos para la acción solicitada', 500, 'Acción no autorizada');
+		}
+		$this->load->model('ddjj/declaracion_model');
+		$persona_cuil = $this->declaracion_model->get_dpersona_gem($persona_cuil);
+		if (isset($persona_cuil) && !empty($persona_cuil)) {
+			$persona = $persona_cuil[0];
+			$liquidacion_gem = $this->declaracion_model->get_liquidacion($persona->cuil);
+			$listado = $this->declaracion_model->get_datospersona($persona->cuil);
+			$this->load->model('dia_model');
+			$dias = $this->dia_model->get(array('sort_by' => 'id'));
+			$this->load->model('horario_model');
+
+			foreach ($liquidacion_gem as $key => $liq) {
+				$horarios = $this->declaracion_model->get_horario_by_liquidacion($liq['liquidacion']);
+				$horarios_div = array();
+				for ($i = 1; $i <= 7; $i++) {
+					$horarios_div["$i"] = array();
+				}
+				if (!empty($horarios)) {
+					foreach ($horarios as $horario) {
+						if (!empty($horario->dia_id)) {
+							$horarios_div[$horario->dia_id][] = $horario;
+						}
+					}
+				}
+				$liquidacion_gem[$key]['horario'] = $horarios_div;
+			}
+
+			$fechas = (object) array('actual' => date('d-m-Y'), 'nuevafecha' => date('d-m-Y', strtotime('+30 day', strtotime(date('d-m-Y')))));
+			$this->load->model('dia_model');
+			$data['dias'] = $this->dia_model->get(array('sort_by' => 'id'));
+			$data['fechas'] = $fechas;
+			$data['persona'] = $persona;
+			$data['listado'] = (object) $listado;
+			$data['antig'] = $this->declaracion_model->get_datosantig($persona->cuil);
+			$data['liq'] = $liquidacion_gem;
+			$data['count_liq'] = count($liquidacion_gem);
+			$data['novedades'] = $this->declaracion_model->get_datosnovedad($persona->cuil);
+			$data['cbiofunc'] = $this->declaracion_model->get_datoscbiofuncion($persona->cuil);
+			$data['aptitud'] = $this->declaracion_model->get_datosaptitud($persona->cuil);
+			$data['otrasnov'] = $this->declaracion_model->get_datos40444754($persona->cuil);
+			$content = $this->load->view('ddjj/ver_ddjj', $data, TRUE);
+			$this->load->helper('mpdf');
+			$css = array('plugins/kv-mpdf-bootstrap.min.css');
+			$pdf = exportMPDF($content, $css, "DDJJ-$persona->persona", NULL, '|{PAGENO} de {nb}|', 'LEGAL-L', '', 'I', FALSE, FALSE);
+		} else {
+			show_error('No se encontró el registro a ver', 500, 'Registro no encontrado');
+		}
+	}
+}

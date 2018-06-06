@@ -1,0 +1,9 @@
+Entorno de test (disponible a partir del 13/11/2017)
+- EndPoint: https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep
+- ApiKey: ba8abb35-4b25-4942-a296-21151a203c0f
+- Permisos de acceso: Caracter 2 - Jurisdicción 14
+
+Entorno de prod (disponible a partir del 17/11/2017)
+- EndPoint: https://signostest.mendoza.gov.ar/LiqMzaTest/servlet/wslmconsultalegajoep
+- ApiKey: c6445072-dc2b-49e3-9ad8-726edf17a184
+- Permisos de acceso: Caracter 2 - Jurisdicción 14

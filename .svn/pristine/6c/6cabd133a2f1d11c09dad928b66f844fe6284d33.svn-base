@@ -1,0 +1,35 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_cursada_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_cursada';
+		$this->msg_name = 'Cursada de alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_division_id', 'cursada_id');
+		$this->fields = array(
+			'alumno_division' => array('label' => 'División de alumno', 'input_type' => 'combo', 'id_name' => 'alumno_division_id', 'required' => TRUE),
+			'cursada' => array('label' => 'Cursada', 'input_type' => 'combo', 'id_name' => 'cursada_id', 'required' => TRUE)
+		);
+		$this->requeridos = array('alumno_division_id', 'cursada_id');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('cursada', 'cursada.id = alumno_cursada.cursada_id', 'left', array('cursada.alumno_id as cursada')), 
+			array('division', 'division.id = alumno_cursada.alumno_division_id', 'left', array('division.escuela_id as alumno_division')), );
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Alumno_cursada_model.php */
+/* Location: ./application/models/Alumno_cursada_model.php */

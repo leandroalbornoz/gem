@@ -1,0 +1,107 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Alumno_division_model extends MY_Model {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'alumno_division';
+		$this->msg_name = 'División de alumno';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'alumno_id', 'division_id', 'legajo', 'fecha_desde', 'fecha_hasta', 'causa_entrada_id', 'causa_salida_id', 'estado_id', 'ciclo_lectivo');
+		$this->fields_alumno = array(
+			'documento_tipo' => array('label' => 'Tipo', 'readonly' => TRUE),
+			'documento' => array('label' => 'Documento', 'readonly' => TRUE),
+			'apellido' => array('label' => 'Apellido', 'readonly' => TRUE),
+			'nombre' => array('label' => 'Nombre', 'readonly' => TRUE),
+			'fecha_nacimiento' => array('label' => 'Fecha nacimiento', 'type' => 'date', 'readonly' => TRUE),
+			'division' => array('label' => 'División', 'readonly' => TRUE)
+		);
+		$this->fields = array(
+			'division' => array('label' => 'División', 'input_type' => 'combo', 'id_name' => 'division_id', 'required' => TRUE),
+			'legajo' => array('label' => 'Legajo', 'maxlength' => '10'),
+			'fecha_desde' => array('label' => 'Desde', 'type' => 'date', 'required' => TRUE),
+			'fecha_hasta' => array('label' => 'Hasta', 'type' => 'date'),
+			'causa_entrada' => array('label' => 'Causa de entrada', 'input_type' => 'combo', 'id_name' => 'causa_entrada_id', 'required' => TRUE),
+			'causa_salida' => array('label' => 'Causa de salida', 'input_type' => 'combo', 'id_name' => 'causa_salida_id'),
+			'estado' => array('label' => 'Estado', 'input_type' => 'combo', 'id_name' => 'estado_id'),
+			'ciclo_lectivo' => array('label' => 'Ciclo Lectivo', 'type' => 'integer', 'maxlength' => '11', 'required' => TRUE)
+		);
+		$this->requeridos = array('alumno_id', 'division_id', 'ciclo_lectivo');
+		//$this->unicos = array();
+		$this->default_join = array(
+			array('alumno', 'alumno.id = alumno_division.alumno_id', 'left', array('alumno.persona_id as alumno')),
+			array('causa_entrada', 'causa_entrada.id = alumno_division.causa_entrada_id', 'left', array('causa_entrada.descripcion as causa_entrada')),
+			array('causa_salida', 'causa_salida.id = alumno_division.causa_salida_id', 'left', array('causa_salida.descripcion as causa_salida')),
+			array('division', 'division.id = alumno_division.division_id', 'left', array('division.division as division', 'division.escuela_id')),
+			array('curso', 'curso.id = division.curso_id', 'left', array('curso.descripcion as curso')),
+			array('estado_alumno', 'estado_alumno.id = alumno_division.estado_id', 'left', array('estado_alumno.descripcion as estado'))
+		);
+	}
+
+	//Trae los datos de la trayectoria del alumno ingresando el alumno id
+	public function get_trayectoria_alumno($id) {
+		return $this->db->select('a.id, es.nombre as nombre_escuela, es.numero as numero_escuela, cur.descripcion as curso, a.division_id, a.legajo, a.fecha_desde, a.fecha_hasta, ce.descripcion as causa_entrada, cs.descripcion as causa_salida, ea.descripcion as estado, a.ciclo_lectivo, d.division')
+				->from('alumno_division a')
+				->join('division d', 'a.division_id=d.id', 'left')
+				->join('causa_entrada ce', 'a.causa_entrada_id=ce.id', 'left')
+				->join('estado_alumno ea', 'a.estado_id=ea.id', 'left')
+				->join('causa_salida cs', 'a.causa_salida_id=cs.id', 'left')
+				->join('escuela es', 'd.escuela_id=es.id', 'left')
+				->join('curso cur', 'd.curso_id=cur.id', 'left')
+				->where('a.alumno_id', $id)
+				->order_by('estado','ASC')
+				->get()->result();
+	}
+
+	public function get_escuela_formal($escuela_id) {
+		return $this->db->select('n.formal')
+				->from('escuela es')
+				->join('nivel n', 'es.nivel_id = n.id', 'left')
+				//->where('n.formal', 'SI')
+				->where('es.id', $escuela_id)
+				->get()->row();
+	}
+
+	public function get_alumno_egreso($alumno_id) {
+		return $this->db->select('ad.id, dt.descripcion_corta as documento_tipo, p.documento, p.apellido, p.nombre, CONCAT(COALESCE(es.numero, \'\'), \' - \', COALESCE(es.nombre, \'\')) as escuela, ad.fecha_desde, ad.fecha_hasta, CONCAT(COALESCE(c.descripcion, \'\'), \' \', COALESCE(d.division, \'\')) as division')
+				->from('alumno al')
+				->join('alumno_division ad', 'ad.alumno_id=al.id', 'left')
+				->join('division d', 'ad.division_id=d.id', 'left')
+				->join('escuela es', 'd.escuela_id=es.id', 'left')
+				->join('persona p', 'al.persona_id=p.id', 'left')
+				->join('documento_tipo dt', 'p.documento_tipo_id=dt.id', 'left')
+				->join('curso c', 'd.curso_id=c.id')
+				->where('ad.estado_id', 1)
+				->where('al.id', $alumno_id)
+				->get()->row();
+	}
+	
+	public function get_alumno_pase($alumno_pase_id) {
+		return $this->db->select('ap.id, dt.descripcion_corta as documento_tipo, p.documento, p.apellido, p.nombre, CONCAT(COALESCE(es.numero, \'\'), \' - \', COALESCE(es.nombre, \'\')) as escuela_origen, ap.escuela_destino_id, ap.fecha_pase, ap.alumno_id')
+				->from('alumno al')
+				->join('alumno_pase ap', 'ap.alumno_id=al.id', 'left')
+				->join('escuela es', 'ap.escuela_origen_id=es.id', 'left')
+				->join('persona p', 'al.persona_id=p.id', 'left')
+				->join('documento_tipo dt', 'p.documento_tipo_id=dt.id', 'left')
+				->where('ap.id', $alumno_pase_id)
+				->get()->row();
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		if ($this->db->where('alumno_division_id', $delete_id)->count_all_results('alumno_inasistencia') > 0) {
+			$this->_set_error('No se ha podido eliminar el registro de ' . $this->msg_name . '. Verifique que no esté asociado a alumno de inasistencia.');
+			return FALSE;
+		}
+		return TRUE;
+	}
+}
+/* End of file Alumno_division_model.php */
+/* Location: ./application/models/Alumno_division_model.php */

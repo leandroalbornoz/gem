@@ -1,0 +1,51 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Bajas_model extends CI_Model {
+
+	public function get_by_departamento($mes) {
+		return $this->db->query("SELECT COALESCE(d.id,0) id, COALESCE(d.descripcion, 'N/D') departamento, COUNT(DISTINCT e.id) escuelas_bajas, COUNT(DISTINCT sn_baja.id) bajas_cargadas, COUNT(DISTINCT CASE WHEN sn_baja.estado='Cargado' THEN NULL ELSE sn_baja.id END) bajas_auditadas
+FROM servicio_novedad sn_baja
+JOIN novedad_tipo nt ON sn_baja.novedad_tipo_id = nt.id
+JOIN servicio s ON sn_baja.servicio_id = s.id
+JOIN cargo c ON s.cargo_id = c.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+JOIN escuela e ON c.escuela_id = e.id AND e.dependencia_id = 1
+LEFT JOIN localidad l ON e.localidad_id = l.id
+LEFT JOIN departamento d ON l.departamento_id = d.id
+WHERE nt.novedad = 'B' AND sn_baja.ames = ? AND sn_baja.planilla_baja_id IS NULL
+	AND s.situacion_revista_id = 2
+/*AND sn_baja.estado = 'Cargado'*/
+GROUP BY d.id
+ORDER BY d.descripcion", array($mes))->result();
+/* @Auditoria Altas Sólo Reemplazos*/
+	}
+
+	public function get_bajas_escuela($mes, $escuela) {
+		return $this->db->query("SELECT sn.id, s.persona_id, p.documento, p.cuil, CONCAT(p.apellido, ', ', p.nombre) persona, p.fecha_nacimiento, s.liquidacion, s.observaciones, c.observaciones observaciones_c, sr.descripcion situacion_revista, s.fecha_alta, s.fecha_baja, r.codigo regimen, r.descripcion regimen_desc, r.puntos, c.carga_horaria, LPAD(c.carga_horaria,4,'0') clase, r.regimen_tipo_id, sn.dias, sn.obligaciones, sn.motivo_rechazo, sn.estado, nt.articulo, nt.inciso, nt.descripcion novedad, t.descripcion turno, CONCAT(cu.descripcion, ' ', d.division) division, m.descripcion materia, COALESCE(f.descripcion, sf.detalle) funcion_detalle, sf.destino funcion_destino, sf.norma funcion_norma, sf.tarea funcion_tarea, sf.carga_horaria funcion_cargahoraria, sf.fecha_desde as funcion_desde, CONCAT(rn.articulo, '-', rn.inciso) reemplaza_articulo, rn.descripcion_corta reemplaza_articulo_desc, rn.id novedad_tipo_id, rn.novedad novedad_tipo_novedad, rs.liquidacion reemplaza_liquidacion, rp.cuil reemplaza_cuil, CONCAT(rp.apellido, ', ', rp.nombre) reemplaza_persona
+FROM servicio_novedad sn
+JOIN novedad_tipo nt ON sn.novedad_tipo_id = nt.id
+JOIN servicio s ON sn.servicio_id=s.id
+LEFT JOIN novedad_tipo rn ON s.articulo_reemplazo_id = rn.id
+LEFT JOIN servicio rs ON s.reemplazado_id = rs.id
+LEFT JOIN persona rp ON rs.persona_id = rp.id
+LEFT JOIN servicio_funcion sf ON s.id = sf.servicio_id AND sf.fecha_hasta IS NULL
+LEFT JOIN funcion f ON sf.funcion_id = f.id
+JOIN situacion_revista sr ON s.situacion_revista_id = sr.id
+JOIN cargo c ON s.cargo_id = c.id
+LEFT JOIN turno t ON c.turno_id = t.id
+LEFT JOIN division d ON c.division_id = d.id
+LEFT JOIN curso cu ON d.curso_id = cu.id
+LEFT JOIN espacio_curricular ec ON c.espacio_curricular_id = ec.id
+LEFT JOIN materia m ON ec.materia_id = m.id
+JOIN persona p ON s.persona_id = p.id
+JOIN regimen r ON c.regimen_id = r.id AND r.planilla_modalidad_id=1
+JOIN escuela e ON c.escuela_id = e.id
+WHERE e.dependencia_id=1 AND e.id=? AND sn.ames=? AND nt.novedad = 'B'
+	AND s.situacion_revista_id = 2
+GROUP BY s.id
+ORDER BY p.documento", array($escuela, $mes))->result();
+		/* @Auditoria Altas Sólo Reemplazos*/
+	}
+}

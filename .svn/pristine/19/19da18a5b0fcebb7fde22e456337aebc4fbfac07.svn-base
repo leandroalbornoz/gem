@@ -1,0 +1,346 @@
+<?php
+
+include_once "Response.php";
+
+class Service extends CI_Controller {
+
+	function __construct() {
+		parent::__construct();
+		$this->load->library("Nusoap");
+
+		$ns = "servicio";
+		$this->nusoap_server = new soap_server();
+		$this->nusoap_server->soap_defencoding = 'ISO-8859-1';
+		$this->nusoap_server->decode_utf8 = false;
+		$this->nusoap_server->encode_utf8 = true;
+		$this->nusoap_server->configureWSDL("SOAP Server", $ns);
+		$this->nusoap_server->wsdl->schemaTargetNamespace = $ns;
+
+		////////////////////////// TIPOS ESCUELA /////////////////////////////////	
+
+		$this->nusoap_server->wsdl->addComplexType(
+			"Escuela", "complexType", "struct", "all", "", array(
+			"numero" => array("name" => "numero", "type" => "xsd:string"),
+			"anexo" => array("name" => "anexo", "type" => "xsd:string"),
+			"nombre" => array("name" => "nombre", "type" => "xsd:string"),
+			"calle" => array("name" => "calle", "type" => "xsd:string"),
+			"calle_numero" => array("name" => "calle_numero", "type" => "xsd:string"),
+			"departamento" => array("name" => "departamento", "type" => "xsd:string"),
+			"calle" => array("name" => "calle", "type" => "xsd:string"),
+			"piso" => array("name" => "piso", "type" => "xsd:string"),
+			"barrio" => array("name" => "barrio", "type" => "xsd:string"),
+			"manzana" => array("name" => "manzana", "type" => "xsd:string"),
+			"casa" => array("name" => "casa", "type" => "xsd:string"),
+			"localidad" => array("name" => "localidad", "type" => "xsd:string"),
+			"codigo_postal" => array("name" => "codigo_postal", "type" => "xsd:string"),
+			"nivel" => array("name" => "nivel", "type" => "xsd:string"),
+			"telefono" => array("name" => "telefono", "type" => "xsd:string"),
+			"email" => array("name" => "email", "type" => "xsd:string"),
+			"email_alternativo" => array("name" => "email_alternativo", "type" => "xsd:string")
+		));
+		$this->nusoap_server->wsdl->addComplexType(
+			'ArrayOfEscuela', 'complexType', 'array', '', 'SOAP-ENC:Array', array(), array(
+			array(
+				'ref' => 'SOAP-ENC:arrayType',
+				'wsdl:arrayType' => 'tns:Escuela[]'
+			)
+			), 'tns:Escuela');
+
+		////////////////////////// CREANDO TIPOS /////////////////////////////////	
+		$this->nusoap_server->wsdl->addComplexType(
+			"EscuelaPersona", "complexType", "struct", "all", "", array(
+			"tipo_persona" => array("name" => "tipo_persona", "type" => "xsd:string"),
+			"numero_escuela" => array("name" => "numero_escuela", "type" => "xsd:string"),
+			"anexo_escuela" => array("name" => "anexo_escuela", "type" => "xsd:string"),
+			"nombre_escuela" => array("name" => "nombre_escuela", "type" => "xsd:string"),
+			"division_id" => array("name" => "division_id", "type" => "xsd:int"),
+			"division" => array("name" => "division", "type" => "xsd:string"),
+			"ciclo_lectivo" => array("name" => "ciclo_lectivo", "type" => "xsd:string"),
+			"calle" => array("name" => "calle", "type" => "xsd:string"),
+			"calle_numero" => array("name" => "calle_numero", "type" => "xsd:string"),
+			"depto" => array("name" => "depto", "type" => "xsd:string"),
+			"piso" => array("name" => "piso", "type" => "xsd:string"),
+			"barrio" => array("name" => "barrio", "type" => "xsd:string"),
+			"manzana" => array("name" => "manzana", "type" => "xsd:string"),
+			"casa" => array("name" => "casa", "type" => "xsd:string"),
+			"localidad" => array("name" => "localidad", "type" => "xsd:string"),
+			"departamento" => array("name" => "departamento", "type" => "xsd:string"),
+			"provincia" => array("name" => "provincia", "type" => "xsd:string"),
+			"codigo_postal" => array("name" => "codigo_postal", "type" => "xsd:string"),
+			"nivel_id" => array("name" => "nivel_id", "type" => "xsd:int"),
+			"nivel" => array("name" => "nivel", "type" => "xsd:string")
+		));
+		$this->nusoap_server->wsdl->addComplexType(
+			'ArrayOfEscuelaPersona', 'complexType', 'array', '', 'SOAP-ENC:Array', array(), array(
+			array(
+				'ref' => 'SOAP-ENC:arrayType',
+				'wsdl:arrayType' => 'tns:EscuelaPersona[]'
+			)
+			), 'tns:EscuelaPersona');
+
+		$this->nusoap_server->wsdl->addComplexType(
+			"Familiar", "complexType", "struct", "all", "", array(
+			"parentesco" => array("name" => "parentesco", "type" => "xsd:string"),
+			"tipo_documento" => array("name" => "tipo_documento", "type" => "xsd:string"),
+			"documento" => array("name" => "documento", "type" => "xsd:string"),
+			"apellido" => array("name" => "apellido", "type" => "xsd:string"),
+			"nombre" => array("name" => "nombre", "type" => "xsd:string")
+		));
+		$this->nusoap_server->wsdl->addComplexType(
+			'ArrayOfFamiliar', 'complexType', 'array', '', 'SOAP-ENC:Array', array(), array(
+			array(
+				'ref' => 'SOAP-ENC:arrayType',
+				'wsdl:arrayType' => 'tns:Familiar[]'
+			)
+			), 'tns:Familiar');
+		$this->nusoap_server->wsdl->addComplexType(
+			"Alumno", "complexType", "struct", "all", "", array(
+			"cuil" => array("name" => "cuil", "type" => "xsd:string"),
+			"tipo_documento" => array("name" => "tipo_documento", "type" => "xsd:string"),
+			"documento" => array("name" => "documento", "type" => "xsd:string"),
+			"apellido" => array("name" => "apellido", "type" => "xsd:string"),
+			"nombre" => array("name" => "nombre", "type" => "xsd:string"),
+			"sexo" => array("name" => "sexo", "type" => "xsd:string"),
+			"estado_civil" => array("name" => "estado_civil", "type" => "xsd:string"),
+			"fecha_nacimiento" => array("name" => "fecha_nacimiento", "type" => "xsd:string"),
+			"nacionalidad" => array("name" => "nacionalidad", "type" => "xsd:string"),
+			"telefono_fijo" => array("name" => "telefono_fijo", "type" => "xsd:string"),
+			"telefono_movil" => array("name" => "telefono_movil", "type" => "xsd:string"),
+			"email" => array("name" => "email", "type" => "xsd:string"),
+			"calle" => array("name" => "calle", "type" => "xsd:string"),
+			"calle_numero" => array("name" => "calle_numero", "type" => "xsd:string"),
+			"depto" => array("name" => "depto", "type" => "xsd:string"),
+			"piso" => array("name" => "piso", "type" => "xsd:string"),
+			"barrio" => array("name" => "barrio", "type" => "xsd:string"),
+			"manzana" => array("name" => "manzana", "type" => "xsd:string"),
+			"casa" => array("name" => "casa", "type" => "xsd:string"),
+			"localidad" => array("name" => "localidad", "type" => "xsd:string"),
+			"departamento" => array("name" => "departamento", "type" => "xsd:string"),
+			"provincia" => array("name" => "provincia", "type" => "xsd:string"),
+			"codigo_postal" => array("name" => "codigo_postal", "type" => "xsd:string"),
+			"familiares" => array("name" => "familiares", "type" => "tns:ArrayOfFamiliar"),
+			"escuelas" => array("name" => "escuelas", "type" => "tns:ArrayOfEscuelaPersona")
+		));
+		$this->nusoap_server->wsdl->addComplexType(
+			"Docente", "complexType", "struct", "all", "", array(
+			"cuil" => array("name" => "cuil", "type" => "xsd:string"),
+			"tipo_documento" => array("name" => "tipo_documento", "type" => "xsd:string"),
+			"documento" => array("name" => "documento", "type" => "xsd:int"),
+			"apellido" => array("name" => "apellido", "type" => "xsd:string"),
+			"nombre" => array("name" => "nombre", "type" => "xsd:string"),
+			"sexo" => array("name" => "sexo", "type" => "xsd:string"),
+			"estado_civil" => array("name" => "estado_civil", "type" => "xsd:string"),
+			"fecha_nacimiento" => array("name" => "fecha_nacimiento", "type" => "xsd:string"),
+			"nacionalidad" => array("name" => "nacionalidad", "type" => "xsd:string"),
+			"telefono_fijo" => array("name" => "telefono_fijo", "type" => "xsd:string"),
+			"telefono_movil" => array("name" => "telefono_movil", "type" => "xsd:string"),
+			"email" => array("name" => "email", "type" => "xsd:string"),
+			"calle" => array("name" => "calle", "type" => "xsd:string"),
+			"calle_numero" => array("name" => "calle_numero", "type" => "xsd:string"),
+			"depto" => array("name" => "depto", "type" => "xsd:string"),
+			"piso" => array("name" => "piso", "type" => "xsd:string"),
+			"barrio" => array("name" => "barrio", "type" => "xsd:string"),
+			"manzana" => array("name" => "manzana", "type" => "xsd:string"),
+			"casa" => array("name" => "casa", "type" => "xsd:string"),
+			"localidad" => array("name" => "localidad", "type" => "xsd:string"),
+			"departamento" => array("name" => "departamento", "type" => "xsd:string"),
+			"provincia" => array("name" => "provincia", "type" => "xsd:string"),
+			"codigo_postal" => array("name" => "codigo_postal", "type" => "xsd:string"),
+			"escuelas" => array("name" => "escuelas", "type" => "tns:ArrayOfEscuelaPersona")
+		));
+		$this->nusoap_server->wsdl->addComplexType(
+			'Response_alumno', 'complexType', 'struct', 'all', '', array
+			('responseCode' => array('type' => 'xsd:int'),
+			'responseMessage' => array('type' => 'xsd:string'),
+			'data' => array('type' => 'tns:Alumno')
+			)
+		);
+		$this->nusoap_server->wsdl->addComplexType(
+			'Response_docente', 'complexType', 'struct', 'all', '', array
+			('responseCode' => array('type' => 'xsd:int'),
+			'responseMessage' => array('type' => 'xsd:string'),
+			'data' => array('type' => 'tns:Docente')
+			)
+		);
+		$this->nusoap_server->wsdl->addComplexType(
+			'Response_escuelas', 'complexType', 'struct', 'all', '', array
+			('responseCode' => array('type' => 'xsd:int'),
+			'responseMessage' => array('type' => 'xsd:string'),
+			'data' => array('type' => 'tns:ArrayOfEscuela')
+			)
+		);
+		$this->nusoap_server->wsdl->addComplexType(
+			'Input_alumno', 'complexType', 'struct', 'all', '', array(
+			'dni' => array('type' => 'xsd:string'),
+			'apellido' => array('type' => 'xsd:string'),
+			'nombre' => array('type' => 'xsd:string'),
+			'escuela' => array('type' => 'xsd:string')
+			)
+		);
+		//get_alumno
+		$this->nusoap_server->register(
+			"get_alumno", array(
+			'api_key' => "xsd:string",
+			'dni' => "xsd:string"
+			), array("return" => "tns:Response_alumno"), $ns, $ns . "#get_alumnos", "rpc", "encoded", "Servicio que retorna alumno "
+		);
+		//get_docente
+		$this->nusoap_server->register(
+			"get_docente", array(
+			'api_key' => "xsd:string",
+			'dni' => "xsd:string"
+			), array("return" => "tns:Response_docente"), $ns, $ns . "#get_docente", "rpc", "encoded", "Servicio que retorna docente "
+		);
+		$this->nusoap_server->register(
+			"get_escuelas", array(
+			'escuela_numero' => "xsd:string",
+			'escuela_anexo' => "xsd:string",
+			'api_key' => "xsd:string"
+			), array("return" => "tns:Response_escuelas"), $ns, $ns . "#get_escuelas", "rpc", "encoded", "Servicio que retorna una escuela segun su numero y anexo"
+		);
+	}
+
+	function index() {
+
+		function valida_key($key) {
+			$key_alumnos = '954dfdd6e70461f9542f651fb93b0f40d2d415c9bc0e7dab823abc2e96e54874';
+			if ($key_alumnos == $key) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		function parseEscuela($alumno) {
+			$datos_escuelas = array();
+			if (!empty($alumno)) {
+				foreach ($alumno as $escuela) {
+					$nombres_escuela = array();
+					$nombres_escuela['tipo_persona'] = $escuela->tipo_persona;
+					$nombres_escuela['numero_escuela'] = $escuela->numero_escuela;
+					$nombres_escuela['anexo_escuela'] = $escuela->anexo_escuela;
+					$nombres_escuela['nombre_escuela'] = $escuela->nombre_escuela;
+					$nombres_escuela['division_id'] = $escuela->division_id;
+					$nombres_escuela['division'] = $escuela->division;
+					if(!empty($escuela->ciclo_lectivo)){
+					$nombres_escuela['ciclo_lectivo'] = $escuela->ciclo_lectivo;
+					}
+					$nombres_escuela['calle'] = $escuela->calle;
+					$nombres_escuela['calle_numero'] = $escuela->calle_numero;
+					$nombres_escuela['depto'] = $escuela->depto;
+					$nombres_escuela['piso'] = $escuela->piso;
+					$nombres_escuela['barrio'] = $escuela->barrio;
+					$nombres_escuela['manzana'] = $escuela->manzana;
+					$nombres_escuela['casa'] = $escuela->casa;
+					$nombres_escuela['localidad'] = $escuela->localidad;
+					$nombres_escuela['departamento'] = $escuela->departamento;
+					$nombres_escuela['provincia'] = $escuela->provincia;
+					$nombres_escuela['codigo_postal'] = $escuela->codigo_postal;
+					$nombres_escuela['nivel_id'] = $escuela->nivel_id;
+					$nombres_escuela['nivel'] = $escuela->nivel;
+					array_push($datos_escuelas, $nombres_escuela);
+				}
+			}
+			return $datos_escuelas;
+		}
+
+		function parseFamiliar($familiares) {
+			$datos_familiares = array();
+			if (!empty($familiares)) {
+				foreach ($familiares as $familiar) {
+					$datos_familiar = array();
+					$datos_familiar['parentesco'] = $familiar->parentesco;
+					$datos_familiar['tipo_documento'] = $familiar->tipo_documento;
+					$datos_familiar['documento'] = $familiar->documento;
+					$datos_familiar['apellido'] = $familiar->apellido;
+					$datos_familiar['nombre'] = $familiar->nombre;
+
+					array_push($datos_familiares, $datos_familiar);
+				}
+			}
+			return $datos_familiares;
+		}
+
+		function get_alumno($api_key, $dni) {
+			if (valida_key($api_key) && !empty($dni)) {
+				$ci = & get_instance();
+				$ci->load->model('transporte/transporte_model');
+				$return_escuela = $ci->transporte_model->get_alumno_escuela($dni);
+				$datos_escuela = parseEscuela($return_escuela);
+				$return_alumno = $ci->transporte_model->get_alumno($dni);
+				$return_familiar = $ci->transporte_model->get_familiares($dni);
+				$datos_familiar = parseFamiliar($return_familiar);
+				if (!empty($return_alumno)) {
+					$return_alumno->escuelas = $datos_escuela;
+					$return_alumno->familiares = $datos_familiar;
+				}
+				$result = new Response();
+				if (!empty($return_alumno)) {
+					$result->responseCode = 0;
+					$result->responseMessage = 'Alumnos encontrados';
+					$result->data = $return_alumno;
+				} else {
+					$result->responseCode = 0;
+					$result->responseMessage = 'Alumnos no encontrados';
+					$result->data = $return_alumno;
+				}
+				return $result;
+			} else {
+				$result->responseCode = 500;
+				$result->responseMessage = 'Error de validación';
+				$result->data = NULL;
+			}
+		}
+
+		function get_docente($dni, $api_key) {
+			if (valida_key($api_key) && !empty($dni)) {
+				$ci = & get_instance();
+				$ci->load->model('transporte/transporte_model');
+				$return_escuela = $ci->transporte_model->get_docente_escuela($dni);
+				$datos_escuela = parseEscuela($return_escuela);
+				$return_docente = $ci->transporte_model->get_docente($dni);
+				if (!empty($return_docente)) {
+					$return_docente->escuelas = $datos_escuela;
+				}
+				$result = new Response();
+				if (!empty($return_docente)) {
+					$result->responseCode = 0;
+					$result->responseMessage = 'Docente encontrado';
+					$result->data = $return_docente;
+				} else {
+					$result->responseCode = 0;
+					$result->responseMessage = 'Docente no encontrado';
+					$result->data = $return_docente;
+				}
+				return $result;
+			} else {
+				$result = new Response();
+				$result->responseCode = 500;
+				$result->responseMessage = 'Error de validación';
+				$result->data = NULL;
+			}
+		}
+
+		function get_escuelas($escuela_numero, $escuela_anexo, $api_key) {
+			if (valida_key($api_key) && !empty($escuela_numero)) {
+				$ci = & get_instance();
+				$ci->load->model('transporte/transporte_model');
+				$return_escuela = $ci->transporte_model->get_escuelas($escuela_numero, $escuela_anexo);
+				$result = new Response();
+				$result->responseCode = 0;
+				$result->data = $return_escuela;
+				if (!empty($return_escuela)) {
+					$result->responseMessage = 'Escuelas encontradas';
+				} else {
+					$result->responseMessage = 'Escuelas no encontradas';
+				}
+				return $result;
+			} else {
+				$result->responseCode = 500;
+				$result->responseMessage = 'Error de validación';
+				$result->data = NULL;
+			}
+		}
+		$this->nusoap_server->service(file_get_contents("php://input"));
+	}
+}

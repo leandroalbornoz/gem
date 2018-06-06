@@ -1,0 +1,39 @@
+<?php
+
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Inscripcion_model extends MY_Model_DB {
+
+	public function __construct() {
+		parent::__construct();
+		$this->table_name = 'inscripcion';
+		$this->msg_name = 'inscripcion';
+		$this->id_name = 'id';
+		$this->columnas = array('id', 'persona_id', 'escuela_id', 'fecha_cierre', 'fecha_recepcion', 'observaciones_recepcion', 'mensaje');
+		$this->fields = array(
+			'escuela' => array('label' => 'Escuela en la que presenta la documentación', 'input_type' => 'combo', 'id_name' => 'escuela_id'),
+			'profesor' => array('label' => 'Profesor/MEP', 'input_type' => 'combo', 'id_name' => 'profesor', 'array' => array('0' => 'No', '1' => 'Si')),
+			'bibliotecario' => array('label' => 'Bibliotecario', 'input_type' => 'combo', 'id_name' => 'bibliotecario', 'array' => array('0' => 'No', '1' => 'Si')),
+			'secretario' => array('label' => 'Secretario', 'input_type' => 'combo', 'id_name' => 'secretario', 'array' => array('0' => 'No', '1' => 'Si')),
+			'preceptor' => array('label' => 'Preceptor', 'input_type' => 'combo', 'id_name' => 'preceptor', 'array' => array('0' => 'No', '1' => 'Si')),
+			'atp' => array('label' => 'Ayudante Trabajos Prácticos', 'input_type' => 'combo', 'id_name' => 'atp', 'array' => array('0' => 'No', '1' => 'Si')),
+			'cct' => array('label' => 'CCT', 'input_type' => 'combo', 'id_name' => 'cct', 'array' => array('0' => 'No', '1' => 'Si')),
+		);
+		$this->requeridos = array('');
+		$this->default_join = array(
+			array('escuela', 'escuela.id = inscripcion.escuela_id', 'left', array('concat(escuela.numero, " - ", escuela.nombre) as escuela'))
+		);
+	}
+
+	/**
+	 * _can_delete: Devuelve true si puede eliminarse el registro.
+	 *
+	 * @param int $delete_id
+	 * @return bool
+	 */
+	protected function _can_delete($delete_id) {
+		return TRUE;
+	}
+}
+/* End of file Inscripcion_model.php */
+/* Location: ./application/modules/bono/models/Inscripcion_model.php */

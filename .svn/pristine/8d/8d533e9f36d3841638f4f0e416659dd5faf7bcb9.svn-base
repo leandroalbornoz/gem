@@ -1,0 +1,84 @@
+<?php echo form_open(uri_string(), array('data-toggle' => 'validator', 'id' => 'form_simular_rol')); ?>
+<div class="modal-header">
+	<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+	<h4 class="modal-title"><?php echo $title; ?></h4>
+</div>
+<div class="modal-body">
+	<div class="row">
+		<div class="col-sm-12">
+			<p>Se simulará el rol de cursada para la siguiente division:</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="form-group col-md-6">
+			<?php echo $fields['curso']['label']; ?>
+			<?php echo $fields['curso']['form']; ?>
+		</div>
+		<div class="form-group col-md-6">
+			<?php echo $fields['division']['label']; ?>
+			<?php echo $fields['division']['form']; ?>
+		</div>
+	</div><br>
+	<div class="row">
+		<div class="col-md-12">
+			<table class="table table-bordered table-condensed table-striped table-hover" id="table_usuarios">
+				<thead>
+					<tr><th style="text-align: center;" colspan="4">Usuarios con este rol asignado</th></tr>
+					<tr>
+						<th style="width: 25%;">Usuario</th>
+						<th style="width: 35%;">Persona</th>
+						<th style="width: 39%;">Rol</th>
+						<th style="width: 1%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php if (!empty($usuarios)): ?>
+						<?php foreach ($usuarios as $usuario): ?>
+							<tr>
+								<td><?php echo $usuario->usuario; ?></td>
+								<td><?php echo "$usuario->cuil<br/>$usuario->persona"; ?></td>
+								<td><?php echo "$usuario->rol"; ?></td>
+								<td>
+									<a class="btn btn-xs" target="_blank" href="usuario/ver/<?php echo $usuario->id; ?>"><i class="fa fa-search"></i></a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php else: ?>
+						<tr>
+							<td colspan="4" style="text-align: center;"> -- Sin usuarios -- </td>
+						</tr>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</div>	
+	</div>	
+</div>
+<div class="modal-footer">
+	<a class="btn btn-primary pull-left" href="cursada/administrar_rol_cursada_division/<?php echo $division->id ?>">
+		<i class="fa fa-cogs"></i> Administrar usuarios
+	</a>
+	<button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => 'btn btn-primary pull-right', 'title' => $txt_btn), $txt_btn) : ''; ?>
+	<?php echo form_hidden('division_id', $division->id); ?>
+	<?php echo form_close(); ?>
+</div>
+<script>
+	var table_usuarios;
+	$(document).ready(function() {
+		table_usuarios = $('#table_usuarios').DataTable({
+			dom: 'tp',
+			autoWidth: false,
+			paging: 'simple',
+			pagingType: 'simple_numbers',
+			language: {
+				url: 'plugins/datatables/spanish.json'
+			},
+			pageLength: 5,
+			aoColumnDefs: [{
+					bSortable: false,
+					aTargets: [3]
+				}]
+		});
+	});
+</script>
+
