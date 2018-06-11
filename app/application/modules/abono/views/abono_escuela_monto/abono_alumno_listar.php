@@ -35,7 +35,7 @@
 		</h1>
 		<ol class="breadcrumb">
 			<li><a href=""><i class="fa fa-home"></i> Inicio</a></li>
-			<li><a href="abono/abono_escuela_monto/listar"> Monto Escuela</a></li>
+			<li><a href="abono/abono_escuela_monto/listar/<?php echo $mes_id; ?>"> Monto Escuela</a></li>
 			<li><a href="abono/abono_escuela_monto/listar_abono_alumno/<?php echo $abono_escuela_monto->id; ?>">Abono Escuela</a></li>
 			<li class="active"><?php echo ucfirst($metodo); ?></li>
 		</ol>
@@ -66,7 +66,7 @@
 			<div class="col-xs-12">
 				<div class="box box-primary">
 					<div class="box-body">
-						<a class="btn btn-app btn-app-zetta" href="abono/abono_escuela_monto/listar">
+						<a class="btn btn-app btn-app-zetta" href="abono/abono_escuela_monto/listar/<?php echo $mes_id; ?>">
 							<i class="fa fa-money"></i> Montos
 						</a>
 						<a class="btn btn-app btn-app-zetta active btn-app-zetta-active" href="abono/abono_escuela_monto/listar_abono_alumno/<?php echo $abono_escuela_monto->id ?>">
@@ -92,29 +92,3 @@
 <div style="display:none;" id="div_buscar_alumno"></div>
 <div class="modal fade" id="datepicker_modal" tabindex="-1" role="dialog" aria-labelledby="Modal" aria-hidden="true">
 </div>
-<script type="text/javascript">
-	$(document).ready(function() {
-<?php if (isset($alumno_id)): ?>
-
-			$('#div_buscar_alumno').append('<a id="a_buscar_alumno" href="abono/abono_alumno/modal_agregar_abono_alumno/<?php echo "$alumno_id/$escuela->id/$division_id/$mes_id"; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal"></a>');
-			setTimeout(function() {
-				$('#a_buscar_alumno').click();
-			}, 500);
-<?php endif; ?>
-		$("#datepicker").datepicker({
-			format: "dd/mm/yyyy",
-			startView: "months",
-			minViewMode: "months",
-			language: 'es',
-			todayHighlight: false
-		});
-		$("#datepicker").on("changeDate", function(event) {
-			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
-		});
-		var monto_total_escuela = '<?php echo $monto_total_escuela; ?>';
-		var cantidad_alumnos_espera = '<?php echo $cantidad_alumnos_espera; ?>';
-		if (monto_total_escuela == 0 && cantidad_alumnos_espera >= 5) {
-			document.getElementById("btn_agregar_a").className += " disabled";
-		}
-	});
-</script>

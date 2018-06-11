@@ -35,6 +35,7 @@ class Alumno extends MY_Controller {
 		}
 		$this->load->model('abono/abono_alumno_model');
 		$escuela_mes = $this->abono_alumno_model->get_abonos_escuela($escuela->id);
+		$escuela_mes->ames = date('Ym');
 		if (empty($escuela_mes)) {
 			$escuela_mes = 1;
 		}

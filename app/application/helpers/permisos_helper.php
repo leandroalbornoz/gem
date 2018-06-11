@@ -129,11 +129,13 @@ if (!function_exists('load_permisos_nav')) {
 				$nav .= '<li><a href="titulos/titulo_tipo/listar"><i class="fa fa-book"></i> <span>Carreras</span></a></li>';
 				$nav .= '</ul>';
 				$nav .= '</li>';
-				$nav .= '<li class="treeview ' . $li_class['transporte'] . '">';
-				$nav .= '<a href="#"><i class="fa fa-bus"></i><span>Transporte</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>';
-				$nav .= '<ul class="treeview-menu">';
-				$nav .= '<li><a href="abono/abono_escuela_monto/listar"><i class="fa fa-money"></i> <span>Montos Escuelas</span></a></li>';
-				$nav .= '</ul>';
+				if (ENVIRONMENT !== 'production') {
+					$nav .= '<li class="treeview ' . $li_class['transporte'] . '">';
+					$nav .= '<a href="#"><i class="fa fa-bus"></i><span>Transporte</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>';
+					$nav .= '<ul class="treeview-menu">';
+					$nav .= '<li><a href="abono/abono_escuela_monto/listar/'.date('Ym').'"><i class="fa fa-money"></i> <span>Montos Escuelas</span></a></li>';
+					$nav .= '</ul>';
+				}
 				$nav .= '</li>';
 				break;
 			case ROL_CONSULTA:
@@ -428,13 +430,16 @@ if (!function_exists('load_permisos_nav')) {
 						$nav .= '</ul>';
 						$nav .= '</li>';
 						break;
+
 					case ROL_MODULO_TRANSPORTE:
-						$nav .= '<li class="treeview ' . $li_class['transporte'] . '">';
-						$nav .= '<a href="#"><i class="fa fa-bus"></i><span>Transporte</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>';
-						$nav .= '<ul class="treeview-menu">';
-						$nav .= '<li><a href="abono/abono_escuela_monto/listar"><i class="fa fa-user"></i> <span>Montos Escuelas</span></a></li>';
-						$nav .= '</ul>';
-						$nav .= '</li>';
+						if (ENVIRONMENT !== 'production') {
+							$nav .= '<li class="treeview ' . $li_class['transporte'] . '">';
+							$nav .= '<a href="#"><i class="fa fa-bus"></i><span>Transporte</span><span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>';
+							$nav .= '<ul class="treeview-menu">';
+							$nav .= '<li><a href="abono/abono_escuela_monto/listar/'.date('Ym').'"><i class="fa fa-user"></i> <span>Montos Escuelas</span></a></li>';
+							$nav .= '</ul>';
+							$nav .= '</li>';
+						}
 						break;
 					case ROL_MODULO_BECAS:
 						$nav .= '<li><a href="becas/validacion/estadisticas"><i class="fa fa-bar-chart"></i><span>Estadísticas</span></a></li>';

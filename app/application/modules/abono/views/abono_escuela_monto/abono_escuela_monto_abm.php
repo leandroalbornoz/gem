@@ -26,15 +26,6 @@
 			<?php echo $fields['escuela']['label']; ?>
 			<?php echo $fields['escuela']['form']; ?>
 		</div>
-		<div class="form-group col-sm-6">
-			<?php echo $fields['ames']['label']; ?>
-			<div class="input-group date" id="datepicker">
-				<?php echo $fields['ames']['form']; ?>
-				<div class="input-group-addon">
-					<span class="glyphicon glyphicon-calendar"></span>
-				</div>
-			</div>	
-		</div>
 		<div class="form-group col-sm-6" >
 			<?php echo $fields['abono_escuela_estado']['label']; ?>
 			<?php echo $fields['abono_escuela_estado']['form']; ?>
@@ -48,6 +39,7 @@
 			<?php echo $fields['cupo_alumnos']['form']; ?>
 		</div>
 	</div>
+</div>
 </div>
 <div class="modal-footer">
 	<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
@@ -63,6 +55,7 @@
 	<?php echo (!empty($txt_btn)) ? form_submit(array('class' => $btn_style, 'title' => $txt_btn), $txt_btn) : ''; ?>
 	<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $abono_escuela_monto->id) : ''; ?>
 </div>
+<input type="hidden" name="ames" value="<?php echo $ames; ?>" id="ames"/>
 <?php echo form_close(); ?>
 
 <script type="text/javascript">

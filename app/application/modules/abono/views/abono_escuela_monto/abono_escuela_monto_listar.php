@@ -35,7 +35,7 @@
 			<div class="col-xs-12">
 				<div class="box box-primary">
 					<div class="box-body">
-						<a class="btn bg-blue btn-app btn-app-zetta" href="abono/abono_escuela_monto/modal_agregar" data-remote="false" data-toggle="modal" data-target="#remote_modal">
+						<a class="btn bg-blue btn-app btn-app-zetta" href="abono/abono_escuela_monto/modal_agregar/<?php echo $mes_id; ?>" data-remote="false" data-toggle="modal" data-target="#remote_modal">
 							<i class="fa fa-plus" id="btn-agregar"></i> Agregar
 						</a>
 						<hr style="margin: 10px 0;">
@@ -80,14 +80,17 @@
 		$('#remote_modal').on("hidden.bs.modal", function(e) {
 			$(this).find(".modal-content").empty();
 		});
+		var fecha = <?php echo date('Y-m-d'); ?>;
 
 		$("#datepicker").datepicker({
 			format: "dd/mm/yyyy",
 			startView: "months",
 			minViewMode: "months",
 			language: 'es',
-			todayHighlight: false
+			todayHighlight: false,
 		});
+
+
 		$("#datepicker").on("changeDate", function(event) {
 			$("#mes").val($("#datepicker").datepicker('getFormattedDate'))
 		});
