@@ -141,6 +141,7 @@
 				<button type="button" class="btn btn-default" data-dismiss="modal"><?php echo isset($txt_btn) ? 'Cancelar' : 'Cerrar'; ?></button>
 				<?php echo form_submit(array('class' => 'btn btn-primary pull-right', 'title' => 'Seleccionar'), 'Seleccionar'); ?>
 			</div>
+			<input type="hidden" name="mes_id" value="<?php echo $ames; ?>" id="mes_id"/>
 			<?php echo form_close(); ?>
 		</div>
 	</div>

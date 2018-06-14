@@ -16,7 +16,7 @@
 		<div class="form-group col-md-6">
 			<?php echo $fields['abono_tipo']['label']; ?>
 			<?php if ($monto_escuela_mes->abono_escuela_estado_id == 2): ?>
-				<input type="text" name="abono_tipo_text" value="Contratado" readonly="1" id="abono_tipo_text" class="form-control">
+				<input type="text" name="abono_tipo_text" value="Particular" readonly="1" id="abono_tipo_text" class="form-control">
 				<input type="hidden" name="abono_tipo" value="<?php echo 4; ?>" id="abono_tipo"/>
 			<?php else: ?>
 				<?php echo $fields['abono_tipo']['form']; ?>
@@ -51,6 +51,9 @@
 	<?php echo ($txt_btn === 'Editar' || $txt_btn === 'Eliminar') ? form_hidden('id', $abono_alumno->id) : ''; ?>
 </div>
 <input type="hidden" name="division_id" value="<?php echo $division_id; ?>" id="division_id"/>
+<input type="hidden" name="mes" value="<?php echo $ames; ?>" id="mes"/>
+<input type="hidden" name="monto_abono_alumno" value="<?php echo $monto_abono_alumno; ?>" id="monto_abono_alumno"/>
+<input type="hidden" name="monto_total_escuela" value="<?php echo $monto_total_escuela; ?>" id="monto_total_escuela"/>
 <?php echo form_hidden('url_redireccion', $url_redireccion); ?>
 <?php echo form_close(); ?>
 <script>

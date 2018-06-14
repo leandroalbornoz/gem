@@ -61,7 +61,7 @@ class Abono_alumno extends MY_Controller {
 		}
 
 		$data['cupos_total_escuela'] = $cupos_total_escuela;
-		$data['monto_total_escuela'] = $monto_total_escuela;
+		$data['monto_total_escuela'] = round($monto_total_escuela, 2);
 		$data['cantidad_alumnos_espera'] = $cantidad_alumnos_espera->cantidad;
 		$data['division_id'] = 0;
 		$data['monto_escuela_mes'] = $monto_escuela_mes;
@@ -231,6 +231,8 @@ class Abono_alumno extends MY_Controller {
 			$data['url_redireccion'] = FALSE;
 		}
 		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$data['ames'] = $ames;
+		$data['monto_abono_alumno'] = $abono_alumno->monto;
 		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);
@@ -309,7 +311,7 @@ class Abono_alumno extends MY_Controller {
 		$cantidad_alumnos_espera = $this->abono_alumno_model->get_cantidad_alumnos_espera($escuela_id, $ames);
 		$this->load->model('abono/abono_tipo_model');
 		$this->array_abono_tipo_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion', 'id', null, array('' => '-- Seleccionar Tipo Abono --'));
-		unset($array_abono_tipo[4]); // se elimina el tipo contratado para que no se vea en el combo.
+		unset($array_abono_tipo[4]); // se elimina el tipo particular para que no se vea en el combo.
 		$this->load->model('abono/abono_motivo_alta_model');
 		$this->array_motivo_alta_control = $array_motivo_alta = $this->get_array('abono_motivo_alta', 'descripcion', 'id', null, array('' => '-- Seleccionar Motivo de Alta --'));
 
@@ -426,7 +428,7 @@ class Abono_alumno extends MY_Controller {
 		$monto_sum_escuela_mes = $this->abono_alumno_model->get_suma_monto_mes($escuela_id, $ames);
 		$this->load->model('abono/abono_tipo_model');
 		$this->array_alumno_control = $array_abono_tipo = $this->get_array('abono_tipo', 'descripcion');
-		unset($array_abono_tipo[4]); // se elimina el tipo contratado para que no se vea en el combo.
+		unset($array_abono_tipo[4]); // se elimina el tipo particular para que no se vea en el combo.
 		$this->load->model('abono/abono_motivo_alta_model');
 		$this->array_motivo_alta_control = $array_motivo_alta = $this->get_array('abono_motivo_alta', 'descripcion');
 		$this->set_model_validation_rules($this->abono_alumno_model);
@@ -435,33 +437,44 @@ class Abono_alumno extends MY_Controller {
 				show_error('Esta solicitud no pasó el control de seguridad.', 500, 'Acción no autorizada');
 			}
 			$trans_ok = TRUE;
+			$mes = $this->input->post('mes');
 			$division_id = $this->input->post('division_id');
 			$url = $this->input->post('url_redireccion');
-			$trans_ok&= $this->abono_alumno_model->update(array(
-				'id' => $this->input->post('id'),
-				'numero_abono' => $this->input->post('numero_abono'),
-				'abono_tipo_id' => $this->input->post('abono_tipo'),
-				'abono_motivo_alta_id' => $this->input->post('motivo_alta'),
-				'monto' => $this->input->post('monto')
-			));
+			$monto_final = ($this->input->post('monto_total_escuela') + $this->input->post('monto_abono_alumno')) - $this->input->post('monto');
+			if ($monto_final >= 0) {
+				$trans_ok&= $this->abono_alumno_model->update(array(
+					'id' => $this->input->post('id'),
+					'numero_abono' => $this->input->post('numero_abono'),
+					'abono_tipo_id' => $this->input->post('abono_tipo'),
+					'abono_motivo_alta_id' => $this->input->post('motivo_alta'),
+					'monto' => $this->input->post('monto')
+				));
+			} else {
+				$negativo = TRUE;
+				$trans_ok = FALSE;
+			}
 			if ($trans_ok) {
 				if ($url == FALSE) {
 					$this->session->set_flashdata('message', $this->abono_alumno_model->get_msg());
 					if ($division_id > 0) {
-						redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id/$ames", 'refresh');
+						redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id/$mes", 'refresh');
 					} else {
-						redirect("abono/abono_alumno/listar/$escuela_id/$ames", 'refresh');
+						redirect("abono/abono_alumno/listar/$escuela_id/$mes", 'refresh');
 					}
 				} else {
 					redirect($url, 'refresh');
 				}
 			} else {
 				if ($url == FALSE) {
-					$this->session->set_flashdata('error', $this->abono_alumno_model->get_error());
-					if ($division_id > 0) {
-						redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id", 'refresh');
+					if ($negativo == TRUE) {
+						$this->session->set_flashdata('error', "No puede tener un monto negativo");
 					} else {
-						redirect("abono/abono_alumno/listar/$escuela_id", 'refresh');
+						$this->session->set_flashdata('error', $this->abono_alumno_model->get_msg());
+					}
+					if ($division_id > 0) {
+						redirect("abono/abono_alumno/listar_division/$escuela_id/$division_id/$mes", 'refresh');
+					} else {
+						redirect("abono/abono_alumno/listar/$escuela_id/$mes", 'refresh');
 					}
 				} else {
 					redirect($url, 'refresh');
@@ -476,11 +489,13 @@ class Abono_alumno extends MY_Controller {
 		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
 		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['monto_escuela_mes'] = $monto_escuela_mes;
+		$data['ames'] = $ames;
 		$this->abono_alumno_model->fields['motivo_alta']['array'] = $array_motivo_alta;
 		$this->abono_alumno_model->fields['abono_tipo']['array'] = $array_abono_tipo;
 		$data['division_id'] = $division_id;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno);
 		$data['abono_alumno'] = $abono_alumno;
+		$data['monto_abono_alumno'] = $abono_alumno->monto;
 		$data['txt_btn'] = 'Editar';
 		$data['title'] = 'Editar Abono Alumno';
 		$this->load->view('abono/abono_alumno/abono_alumno_modal_abm', $data);
@@ -508,6 +523,8 @@ class Abono_alumno extends MY_Controller {
 			$data['url_redireccion'] = FALSE;
 		}
 		$monto_total_escuela = $monto_escuela_mes->monto - $monto_sum_escuela_mes->monto_escuela_ames;
+		$data['ames'] = $ames;
+		$data['monto_abono_alumno'] = $abono_alumno->monto;
 		$data['monto_total_escuela'] = $monto_total_escuela;
 		$data['monto_escuela_mes'] = $monto_escuela_mes;
 		$data['fields'] = $this->build_fields($this->abono_alumno_model->fields, $abono_alumno, TRUE);

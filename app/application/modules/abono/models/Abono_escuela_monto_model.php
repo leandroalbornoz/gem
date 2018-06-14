@@ -14,7 +14,7 @@ class Abono_escuela_monto_model extends MY_Model {
 			'escuela' => array('label' => 'Escuela', 'input_type' => 'combo', 'id_name' => 'escuela_id', 'required' => TRUE),
 			'ames' => array('label' => 'Período', 'type' => 'integer', 'maxlength' => '6', 'required' => TRUE),
 			'abono_escuela_estado' => array('label' => 'Estado de Escuela', 'input_type' => 'combo', 'id_name' => 'abono_escuela_estado_id', 'required' => TRUE),
-			'monto' => array('label' => 'Monto'),
+			'monto' => array('label' => 'Monto', 'type' => 'numeric', 'required' => TRUE),
 			'cupo_alumnos' => array('label' => 'Cupo de Alumnos')
 		);
 		$this->requeridos = array('escuela_id', 'ames');
@@ -25,10 +25,19 @@ class Abono_escuela_monto_model extends MY_Model {
 		);
 	}
 
-public function get_escuela_mes($escuela_id, $ames) {
+	public function get_escuela_mes($escuela_id, $ames) {
 		return $this->db->select('monto,ames,escuela_id,abono_escuela_estado_id,cupo_alumnos,aee.descripcion as esabono_escuela_estado')
 				->from('abono_escuela_monto aem')
-				->join('abono_escuela_estado aee','aee.id = aem.abono_escuela_estado_id')
+				->join('abono_escuela_estado aee', 'aee.id = aem.abono_escuela_estado_id')
+				->where('aem.escuela_id', $escuela_id)
+				->where('aem.ames', $ames)
+				->get()->row();
+	}
+
+	public function valida_abono_monto($escuela_id, $ames) {
+		return$this->db->select('monto,ames,escuela_id,abono_escuela_estado_id,cupo_alumnos,aee.descripcion as esabono_escuela_estado')
+				->from('abono_escuela_monto aem')
+				->join('abono_escuela_estado aee', 'aee.id = aem.abono_escuela_estado_id')
 				->where('aem.escuela_id', $escuela_id)
 				->where('aem.ames', $ames)
 				->get()->row();

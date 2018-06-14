@@ -63,7 +63,7 @@ class Abono_escuela_monto extends MY_Controller {
 			->join('abono_alumno', 'abono_alumno.ames=abono_escuela_monto.ames AND abono_alumno.escuela_id=abono_escuela_monto.escuela_id', 'left')
 			->where('abono_escuela_monto.ames', $mes)
 			->group_by('abono_escuela_monto.id')
-			->add_column('edit', '<a href="abono/abono_escuela_monto/modal_ver/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default" title="Ver"><i class="fa fa-search"></i></a> <a href="abono/abono_escuela_monto/modal_editar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning" title="Editar"><i class="fa fa-pencil"></i></a> <a href="abono/abono_escuela_monto/modal_eliminar/$1" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger" title="Eliminar"><i class="fa fa-remove"></i></a> <a href="abono/abono_escuela_monto/listar_abono_alumno/$1" data-remote="false" class="btn btn-xs btn-default" title="Alumnos"><i class="fa fa-users"></i></a>', 'id');
+			->add_column('edit', '<a href="abono/abono_escuela_monto/modal_ver/$1/' . $mes . '" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-default" title="Ver"><i class="fa fa-search"></i></a> <a href="abono/abono_escuela_monto/modal_editar/$1/' . $mes . '" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-warning" title="Editar"><i class="fa fa-pencil"></i></a> <a href="abono/abono_escuela_monto/modal_eliminar/$1/' . $mes . '" data-remote="false" data-toggle="modal" data-target="#remote_modal" class="btn btn-xs btn-danger" title="Eliminar"><i class="fa fa-remove"></i></a> <a href="abono/abono_escuela_monto/listar_abono_alumno/$1/' . $mes . '" data-remote="false" class="btn btn-xs btn-default" title="Alumnos"><i class="fa fa-users"></i></a>', 'id');
 		echo $this->datatables->generate();
 	}
 
@@ -85,6 +85,7 @@ class Abono_escuela_monto extends MY_Controller {
 
 		$this->set_model_validation_rules($this->abono_escuela_monto_model);
 		if (isset($_POST) && !empty($_POST)) {
+			$abono_monto_validado = $this->abono_escuela_monto_model->valida_abono_monto($this->input->post('escuela'), $this->input->post('ames'));
 			if ($this->form_validation->run() === TRUE) {
 				$trans_ok = TRUE;
 				if ($this->input->post('abono_escuela_estado') == 2) {
@@ -94,22 +95,28 @@ class Abono_escuela_monto extends MY_Controller {
 					$monto = $this->input->post('monto');
 					$cupo_alumnos = '0';
 				}
-				$trans_ok&= $this->abono_escuela_monto_model->create(array(
-					'escuela_id' => $this->input->post('escuela'),
-					'ames' => $this->input->post('ames'),
-					'abono_escuela_estado_id' => $this->input->post('abono_escuela_estado'),
-					'monto' => $monto,
-					'cupo_alumnos' => $cupo_alumnos
-				));
+				if (empty($abono_monto_validado)) {
+					$trans_ok&= $this->abono_escuela_monto_model->create(array(
+						'escuela_id' => $this->input->post('escuela'),
+						'ames' => $this->input->post('ames'),
+						'abono_escuela_estado_id' => $this->input->post('abono_escuela_estado'),
+						'monto' => $monto,
+						'cupo_alumnos' => $cupo_alumnos
+					));
+				} else {
+					$trans_ok = FALSE;
+				}
 				if ($trans_ok) {
 					$this->session->set_flashdata('message', $this->abono_escuela_monto_model->get_msg());
+				} else if (!$trans_ok && !empty($abono_monto_validado)) {
+					$this->session->set_flashdata('error', "No pueden haber dos escuelas el mismo mes");
 				} else {
 					$this->session->set_flashdata('error', $this->abono_escuela_monto_model->get_error());
 				}
-				redirect('abono/abono_escuela_monto/listar/'.$ames, 'refresh');
+				redirect('abono/abono_escuela_monto/listar/' . $ames, 'refresh');
 			} else {
 				$this->session->set_flashdata('error', validation_errors());
-				redirect('abono/abono_escuela_monto/listar/'.$ames, 'refresh');
+				redirect('abono/abono_escuela_monto/listar/' . $ames, 'refresh');
 			}
 		}
 		$data['ames'] = $ames;
@@ -121,7 +128,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->load->view('abono/abono_escuela_monto/abono_escuela_monto_abm', $data);
 	}
 
-	public function modal_editar($id = NULL) {
+	public function modal_editar($id = NULL, $ames = NULL) {
 		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
 			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
 			return;
@@ -148,7 +155,6 @@ class Abono_escuela_monto extends MY_Controller {
 				$this->modal_error('Esta solicitud no pasó el control de seguridad.', 'Acción no autorizada');
 				return;
 			}
-
 			if ($this->form_validation->run() === TRUE) {
 				$trans_ok = TRUE;
 				if ($this->input->post('abono_escuela_estado') == 2) {
@@ -176,6 +182,7 @@ class Abono_escuela_monto extends MY_Controller {
 		}
 		$this->abono_escuela_monto_model->fields['abono_escuela_estado']['array'] = $array_abono_escuela_estado;
 		$this->abono_escuela_monto_model->fields['escuela']['array'] = $array_escuela;
+		$data['ames'] = $ames;
 		$data['fields'] = $this->build_fields($this->abono_escuela_monto_model->fields, $abono_escuela_monto);
 		$data['abono_escuela_monto'] = $abono_escuela_monto;
 		$data['txt_btn'] = 'Editar';
@@ -183,7 +190,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->load->view('abono/abono_escuela_monto/abono_escuela_monto_abm', $data);
 	}
 
-	public function modal_eliminar($id = NULL) {
+	public function modal_eliminar($id = NULL, $ames = NULL) {
 		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
 			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
 			return;
@@ -207,6 +214,7 @@ class Abono_escuela_monto extends MY_Controller {
 				redirect('abono/abono_escuela_monto/listar', 'refresh');
 			}
 		}
+		$data['ames'] = $ames;
 		$data['fields'] = $this->build_fields($this->abono_escuela_monto_model->fields, $abono_escuela_monto, TRUE);
 		$data['abono_escuela_monto'] = $abono_escuela_monto;
 		$data['txt_btn'] = 'Eliminar';
@@ -214,7 +222,7 @@ class Abono_escuela_monto extends MY_Controller {
 		$this->load->view('abono/abono_escuela_monto/abono_escuela_monto_abm', $data);
 	}
 
-	public function modal_ver($id = NULL) {
+	public function modal_ver($id = NULL, $ames = NULL) {
 		if (!accion_permitida($this->rol, $this->roles_permitidos, $this->modulos_permitidos) || $id == NULL || !ctype_digit($id)) {
 			$this->modal_error('No tiene permisos para la acción solicitada', 'Acción no autorizada');
 			return;
@@ -232,6 +240,7 @@ class Abono_escuela_monto extends MY_Controller {
 			'sort_by' => 'numero, nombre'
 		));
 		$this->load->model('abono/abono_escuela_estado_model');
+		$data['ames'] = $ames;
 		$data['fields'] = $this->build_fields($this->abono_escuela_monto_model->fields, $abono_escuela_monto, TRUE);
 		$data['abono_escuela_monto'] = $abono_escuela_monto;
 		$data['txt_btn'] = NULL;

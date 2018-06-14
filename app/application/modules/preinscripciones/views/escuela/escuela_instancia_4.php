@@ -179,7 +179,7 @@
 					</div>
 					<div class="box-footer">
 						<?php if ($redireccion === 'supervision'): ?>
-							<a class="btn btn-default" href="escritorio" title="Volver">Volver</a>
+							<a class="btn btn-default" href="supervision/escritorio/<?php echo $escuela->supervision_id; ?>" title="Volver">Volver</a>
 						<?php else: ?>
 							<a class="btn btn-default" href="escuela/escritorio/<?php echo $escuela->id; ?>" title="Volver">Volver</a>
 						<?php endif; ?>

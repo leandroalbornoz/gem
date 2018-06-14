@@ -19,7 +19,7 @@
 		<div class="form-group col-md-6">
 			<?php echo $fields['abono_tipo']['label']; ?>
 			<?php if ($monto_escuela_mes->abono_escuela_estado_id == 2): ?>
-				<input type="text" name="abono_tipo_text" value="Contratado" readonly="1" id="abono_tipo_text" class="form-control">
+				<input type="text" name="abono_tipo_text" value="Particular" readonly="1" id="abono_tipo_text" class="form-control">
 				<input type="hidden" name="abono_tipo" value="<?php echo 4; ?>" id="abono_tipo"/>
 			<?php else: ?>
 				<?php echo $fields['abono_tipo']['form']; ?>

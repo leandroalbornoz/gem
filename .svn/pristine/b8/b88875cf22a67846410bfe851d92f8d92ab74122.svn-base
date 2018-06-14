@@ -125,7 +125,7 @@
 					</div>
 					<div class="box-footer">
 						<?php if ($redireccion === 'supervision'): ?>
-							<a class="btn btn-default" href="escritorio" title="Volver">Volver</a>
+							<a class="btn btn-default" href="supervision/escritorio/<?php echo $escuela->supervision_id; ?>" title="Volver">Volver</a>
 						<?php else: ?>
 							<a class="btn btn-default" href="escuela/escritorio/<?php echo $escuela->id; ?>" title="Volver">Volver</a>
 						<?php endif; ?>
@@ -281,7 +281,7 @@
 						$('#d_persona_id').val(null);
 						$.ajax({
 							type: 'GET',
-							url: 'ajax/get_listar_postulantes?',
+							url: 'ajax/preinscripciones/get_listar_postulantes?',
 							data: {escuela_id: escuela_id},
 							dataType: 'json',
 							success: function(result) {
